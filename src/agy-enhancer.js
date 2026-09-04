@@ -2,9 +2,10 @@
  * Antigravity 阅读增强器 (agy-read enhancer)
  * 
  * 核心特性：
- * 1. 【右上角状态提示】窗口右上角提示“Antigravity 增强器生效中”，3.5秒后自动优雅收折为悬浮小徽标。
- * 2. 【智能视口控制】思考过程中正常向下滚动显示进展；思考完成输出内容时，自动平滑回滚到本轮问题的顶端，并锁定视口供安心阅读。
- * 3. 【向下直达按钮】在底部输入框上方居中悬浮“向下”按钮，离开底部时平滑浮现，点击平滑直达最新底部。
+ * 1. 【纸张式翻页导航】右侧滚动条旁常驻「向上 / 向下」双按钮：
+ *    - 点向上：如果在纸内，回到当前问答的【页头】（提问顶部）；如果在页头附近，翻到【上一页】（上一轮问答）；
+ *    - 点向下：如果在纸内，直达当前问答的【页脚】（回答末尾）；如果在页脚附近，翻到【下一页】（下一轮问答或最新底部）；
+ * 2. 【右上角状态提示】提示增强器正在守护阅读。
  */
 
 (function () {
@@ -12,27 +13,39 @@
 
   // ==================== 0. 用户自定义配置区 ====================
   const USER_CONFIG = {
-    // 向下按钮在输入框上方的间距（单位：像素 px）
-    // 数值越大，按钮离输入框越远（位置越往上移）。默认 32。
-    BUTTON_OFFSET_ABOVE_INPUT: 32,
+    // 导航按钮组距离窗口右边缘的距离（像素，建议 16~24px 贴近滚动条左侧）
+    NAV_RIGHT: 20,
 
-    // 兜底模式下的距离底部高度（当未能检测到输入框卡片时生效）
-    FALLBACK_BOTTOM_DISTANCE: 120,
+    // 导航按钮组距离窗口底部的高度（像素，默认 170px，可自由上下微调）
+    NAV_BOTTOM: 170,
 
-    // 向上滑动多少像素后显示向下按钮（默认 60px）
-    SHOW_BUTTON_SCROLL_THRESHOLD: 60,
+    // 按钮直径大小（像素，默认 38px）
+    BUTTON_SIZE: 38,
 
-    // 右上角提示显示时长后收缩（毫秒，默认 3500ms 即 3.5 秒）
+    // 两个按钮之间的垂直间距（像素，默认 8px）
+    BUTTON_GAP: 8,
+
+    // 判定到达页头/页脚的灵敏度阈值（像素，默认 45px）
+    PAGE_EDGE_THRESHOLD: 45,
+
+    // 是否开启居中原有的向下按钮（默认 false，全由右侧翻页按钮组接管）
+    ENABLE_CENTER_BOTTOM_BUTTON: false,
+
+    // 右上角提示收折时长（毫秒，默认 3500ms 即 3.5 秒）
     TOAST_EXPAND_DURATION_MS: 3500,
   };
 
-  // 避免单页面重复初始化
-  if (window.__AGY_ENHANCER_INSTANCE__) {
-    console.log('[agy-read] 增强器实例已在运行中。');
-    return;
-  }
+  // 清理旧实例
+  const oldStyles = document.getElementById('agy-read-styles');
+  if (oldStyles) oldStyles.remove();
+  const oldNav = document.getElementById('agy-page-nav-group');
+  if (oldNav) oldNav.remove();
+  const oldBtn = document.getElementById('agy-scroll-bottom-btn');
+  if (oldBtn) oldBtn.remove();
+  const oldToast = document.getElementById('agy-read-toast');
+  if (oldToast) oldToast.remove();
 
-  // ==================== 核心自启动守护程序 (安全等待 DOM 就绪) ====================
+  // ==================== 核心自启动守护程序 ====================
   function bootstrap() {
     if (!document || !document.head || !document.body) {
       if (document.readyState === 'loading') {
@@ -43,18 +56,12 @@
       return;
     }
 
-    if (window.__AGY_ENHANCER_INSTANCE__) return;
-    window.__AGY_ENHANCER_INSTANCE__ = true;
-
-    console.log('[agy-read] DOM 已就绪，正在初始化 Antigravity 阅读增强器...');
+    console.log('[agy-read] 初始化纸张式阅读翻页器...');
     initEnhancer();
   }
 
   function initEnhancer() {
     // ==================== 1. 注入专用样式 ====================
-    const existingStyle = document.getElementById('agy-read-styles');
-    if (existingStyle) existingStyle.remove();
-
     const styleEl = document.createElement('style');
     styleEl.id = 'agy-read-styles';
     styleEl.textContent = `
@@ -62,7 +69,7 @@
       #agy-read-toast {
         position: fixed;
         top: 14px;
-        right: 140px; /* 避开系统右上角最小化/关闭按钮区域 */
+        right: 140px;
         z-index: 999999;
         display: flex;
         align-items: center;
@@ -121,52 +128,56 @@
         margin-left: 2px;
       }
 
-      /* 输入框上方向下直达按钮 */
-      #agy-scroll-bottom-btn {
+      /* 右侧滚动条旁常驻「翻页/页头页脚」按钮组 */
+      #agy-page-nav-group {
         position: fixed;
+        right: ${USER_CONFIG.NAV_RIGHT}px;
+        bottom: ${USER_CONFIG.NAV_BOTTOM}px;
         z-index: 999990;
-        width: 40px;
-        height: 40px;
+        display: flex;
+        flex-direction: column;
+        gap: ${USER_CONFIG.BUTTON_GAP}px;
+        user-select: none;
+      }
+
+      .agy-nav-btn {
+        width: ${USER_CONFIG.BUTTON_SIZE}px;
+        height: ${USER_CONFIG.BUTTON_SIZE}px;
         border-radius: 50%;
-        background: rgba(30, 30, 38, 0.92);
-        color: #e4e4e7;
-        border: 1px solid rgba(255, 255, 255, 0.18);
-        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
-        backdrop-filter: blur(12px);
-        -webkit-backdrop-filter: blur(12px);
+        background: rgba(30, 30, 38, 0.9);
+        color: #f4f4f5;
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.28);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
         display: flex;
         align-items: center;
         justify-content: center;
         cursor: pointer;
-        opacity: 0;
-        pointer-events: none;
-        transform: translate(-50%, 8px) scale(0.88);
-        transition: opacity 0.25s cubic-bezier(0.16, 1, 0.3, 1),
-                    transform 0.25s cubic-bezier(0.16, 1, 0.3, 1),
-                    background-color 0.2s ease,
-                    box-shadow 0.2s ease;
         outline: none;
+        transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+                    background-color 0.2s ease,
+                    box-shadow 0.2s ease,
+                    color 0.2s ease;
       }
-      #agy-scroll-bottom-btn.visible {
-        opacity: 1;
-        pointer-events: auto;
-        transform: translate(-50%, 0) scale(1);
-      }
-      #agy-scroll-bottom-btn:hover {
+      .agy-nav-btn:hover {
         background: rgba(48, 48, 60, 0.98);
-        transform: translate(-50%, -3px) scale(1.08);
-        box-shadow: 0 8px 26px rgba(0, 0, 0, 0.45);
+        transform: scale(1.1);
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
         color: #ffffff;
       }
-      #agy-scroll-bottom-btn:active {
-        transform: translate(-50%, 1px) scale(0.96);
+      .agy-nav-btn:active {
+        transform: scale(0.94);
       }
-      #agy-scroll-bottom-btn svg {
-        width: 20px;
-        height: 20px;
-        transition: transform 0.2s ease;
+      .agy-nav-btn svg {
+        width: 18px;
+        height: 18px;
+        transition: transform 0.15s ease;
       }
-      #agy-scroll-bottom-btn:hover svg {
+      .agy-nav-btn.up:hover svg {
+        transform: translateY(-2px);
+      }
+      .agy-nav-btn.down:hover svg {
         transform: translateY(2px);
       }
 
@@ -183,15 +194,16 @@
         #agy-read-toast.collapsed:hover {
           background: rgba(255, 255, 255, 0.98);
         }
-        #agy-scroll-bottom-btn {
-          background: rgba(255, 255, 255, 0.94);
-          color: #18181b;
+        .agy-nav-btn {
+          background: rgba(255, 255, 255, 0.92);
+          color: #27272a;
           border: 1px solid rgba(0, 0, 0, 0.12);
-          box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+          box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
         }
-        #agy-scroll-bottom-btn:hover {
-          background: rgba(245, 245, 247, 1);
+        .agy-nav-btn:hover {
+          background: rgba(244, 244, 245, 1);
           color: #000000;
+          box-shadow: 0 6px 18px rgba(0, 0, 0, 0.18);
         }
       }
     `;
@@ -204,20 +216,18 @@
 
       toast = document.createElement('div');
       toast.id = 'agy-read-toast';
-      toast.title = 'Antigravity 阅读增强器运行中（点击展开/折叠）';
+      toast.title = 'Antigravity 阅读翻页器已就绪';
       toast.innerHTML = `
         <div class="dot"></div>
-        <span class="toast-text">Antigravity 增强器生效中</span>
+        <span class="toast-text">Antigravity 翻页器生效中</span>
       `;
 
       document.body.appendChild(toast);
 
-      // 渐显入场
       requestAnimationFrame(() => {
         setTimeout(() => toast.classList.add('show'), 80);
       });
 
-      // 自动收折为紧凑小圆徽章
       let collapseTimer = setTimeout(() => {
         toast.classList.add('collapsed');
       }, USER_CONFIG.TOAST_EXPAND_DURATION_MS);
@@ -226,43 +236,11 @@
         clearTimeout(collapseTimer);
         toast.classList.toggle('collapsed');
       });
-
-      return toast;
     }
 
     createToast();
 
-    // ==================== 3. 创建输入框上方“向下直达”按钮 ====================
-    function createScrollBottomButton() {
-      let btn = document.getElementById('agy-scroll-bottom-btn');
-      if (btn) btn.remove();
-
-      btn = document.createElement('button');
-      btn.id = 'agy-scroll-bottom-btn';
-      btn.type = 'button';
-      btn.title = '滚动到最新底部';
-      btn.innerHTML = `
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
-          <polyline points="6 9 12 15 18 9"></polyline>
-        </svg>
-      `;
-
-      const handleScrollClick = (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        scrollToBottomSmooth();
-      };
-
-      btn.addEventListener('click', handleScrollClick);
-      btn.addEventListener('pointerdown', (e) => e.stopPropagation());
-
-      document.body.appendChild(btn);
-      return btn;
-    }
-
-    const scrollBottomBtn = createScrollBottomButton();
-
-    // ==================== 4. DOM 容器与元素探测器 ====================
+    // ==================== 3. 核心容器与纸张坐标算法 ====================
 
     function getChatScrollContainer() {
       const candidate = document.querySelector('.scrollbar-hide.md-table-bleed') ||
@@ -276,189 +254,188 @@
       if (turnContainer) {
         let p = turnContainer.parentElement;
         while (p && p !== document.body) {
-          const style = window.getComputedStyle(p);
-          if ((style.overflowY === 'auto' || style.overflowY === 'scroll') && p.clientHeight > 200) {
+          const s = window.getComputedStyle(p);
+          if ((s.overflowY === 'auto' || s.overflowY === 'scroll') && p.clientHeight > 200) {
             return p;
           }
           p = p.parentElement;
         }
       }
 
-      const scrollables = Array.from(document.querySelectorAll('*')).filter(el => {
-        if (el.clientHeight < 300) return false;
-        const s = window.getComputedStyle(el);
-        return (s.overflowY === 'auto' || s.overflowY === 'scroll') && el.scrollHeight > el.clientHeight;
-      });
-
-      return scrollables.find(el => el.querySelector('.flex-col.gap-y-3')) || scrollables[0] || null;
-    }
-
-    function getInputBoxRect() {
-      const windowH = window.innerHeight;
-      const cards = Array.from(document.querySelectorAll('.bg-card, form, .cursor-text'));
-      for (const el of cards) {
-        const card = el.closest('.bg-card') || el;
-        const rect = card.getBoundingClientRect();
-        if (rect.top > windowH - 260 && rect.bottom <= windowH + 40 && rect.width > 300) {
-          return rect;
-        }
-      }
-
-      const textEl = document.querySelector('.cursor-text') || document.querySelector('textarea');
-      if (textEl) {
-        const rect = textEl.getBoundingClientRect();
-        if (rect.top > windowH - 260 && rect.width > 250) {
-          return rect;
-        }
-      }
       return null;
     }
 
-    function scrollToBottomSmooth() {
+    /**
+     * 获取所有“纸张”（问答回合 Turn）的几何边界
+     */
+    function getPagesInfo() {
       const container = getChatScrollContainer();
-      if (!container) return;
-
-      isReadingLocked = false;
-
-      try {
-        container.scrollTo({
-          top: container.scrollHeight,
-          behavior: 'smooth'
-        });
-      } catch (e) {
-        container.scrollTop = container.scrollHeight;
-      }
-
-      setTimeout(() => {
-        container.scrollTop = container.scrollHeight;
-        updateScrollButton();
-      }, 200);
-    }
-
-    // ==================== 5. 按钮位置与显隐更新 ====================
-
-    function updateScrollButton() {
-      const container = getChatScrollContainer();
-      if (!container || !scrollBottomBtn) return;
-
-      const distanceFromBottom = container.scrollHeight - container.scrollTop - container.clientHeight;
-      const isFarFromBottom = distanceFromBottom > USER_CONFIG.SHOW_BUTTON_SCROLL_THRESHOLD;
-
-      if (isFarFromBottom) {
-        scrollBottomBtn.classList.add('visible');
-      } else {
-        scrollBottomBtn.classList.remove('visible');
-      }
-
-      const inputRect = getInputBoxRect();
-      if (inputRect && inputRect.width > 0 && inputRect.top > 0) {
-        const centerX = inputRect.left + inputRect.width / 2;
-        const targetY = inputRect.top - USER_CONFIG.BUTTON_OFFSET_ABOVE_INPUT;
-        scrollBottomBtn.style.left = `${centerX}px`;
-        scrollBottomBtn.style.top = `${targetY}px`;
-        scrollBottomBtn.style.bottom = 'auto';
-      } else {
-        scrollBottomBtn.style.left = '50%';
-        scrollBottomBtn.style.bottom = `${USER_CONFIG.FALLBACK_BOTTOM_DISTANCE}px`;
-        scrollBottomBtn.style.top = 'auto';
-      }
-    }
-
-    window.addEventListener('resize', updateScrollButton, { passive: true });
-    setInterval(updateScrollButton, 300);
-
-    // ==================== 6. 思考完成自动回顶阅读逻辑 ====================
-
-    let isReadingLocked = false;
-    let turnStateMap = new WeakMap();
-    let completedTurns = new WeakSet();
-
-    function checkThinkingAndScroll() {
-      const container = getChatScrollContainer();
-      if (!container) return;
+      if (!container) return { container: null, pages: [] };
 
       const turnContainer = document.querySelector('.relative.flex.flex-col.gap-y-3') ||
                             document.querySelector('.flex.flex-col.gap-y-3');
-      if (!turnContainer || turnContainer.children.length === 0) return;
-
-      const turns = Array.from(turnContainer.children);
-      const latestTurn = turns[turns.length - 1];
-      if (!latestTurn) return;
-
-      const thinkingBtn = latestTurn.querySelector('[data-testid="thinking-collapsible-trigger"]') ||
-                          latestTurn.querySelector('button[aria-label*="Thinking"], button[aria-label*="thought"]');
-
-      if (!thinkingBtn) return;
-
-      const btnText = (thinkingBtn.innerText || '').trim();
-      const isThinkingActive = (btnText.toLowerCase().includes('thinking') && !btnText.toLowerCase().includes('thought for')) ||
-                               btnText.includes('思考中') ||
-                               !!thinkingBtn.querySelector('.animate-spin, svg.animate-spin');
-
-      const isThoughtFinished = (btnText.toLowerCase().includes('thought for') ||
-                                btnText.includes('秒') ||
-                                (btnText.toLowerCase().includes('thought') && /\d+s/.test(btnText))) && !isThinkingActive;
-
-      const lastState = turnStateMap.get(latestTurn);
-
-      if (lastState === 'thinking' && isThoughtFinished) {
-        if (!completedTurns.has(latestTurn)) {
-          completedTurns.add(latestTurn);
-          console.log('[agy-read] 思考任务完成，正在平滑回滚至问题与回答顶端...');
-
-          setTimeout(() => {
-            latestTurn.scrollIntoView({
-              behavior: 'smooth',
-              block: 'start'
-            });
-            isReadingLocked = true;
-          }, 120);
-        }
+      if (!turnContainer || turnContainer.children.length === 0) {
+        return { container, pages: [] };
       }
 
-      if (isThinkingActive) {
-        turnStateMap.set(latestTurn, 'thinking');
-        isReadingLocked = false;
-      } else if (isThoughtFinished) {
-        turnStateMap.set(latestTurn, 'finished');
+      const containerHeight = container.clientHeight;
+      const pages = Array.from(turnContainer.children).map((el, idx) => {
+        const top = el.offsetTop;
+        const height = el.offsetHeight;
+        // 页头：该问答开始提问的位置（预留 8px 视口呼吸边距）
+        const headScrollTop = Math.max(0, top - 8);
+        // 页脚：该问答回复末尾的最佳舒适视口位置
+        const footScrollTop = Math.max(headScrollTop, top + height - containerHeight + 20);
+
+        return {
+          index: idx,
+          element: el,
+          top,
+          height,
+          bottom: top + height,
+          headScrollTop,
+          footScrollTop
+        };
+      });
+
+      return { container, pages };
+    }
+
+    /**
+     * 判定当前视口处于哪一张纸上
+     */
+    function getCurrentPageIndex(pages, currentScroll) {
+      if (!pages || pages.length === 0) return -1;
+
+      // 从后往前查找当前视口落在哪个 Turn 的区间中
+      for (let i = pages.length - 1; i >= 0; i--) {
+        if (currentScroll >= pages[i].top - 50) {
+          return i;
+        }
+      }
+      return 0;
+    }
+
+    // ==================== 4. 纸张式智能导航：向上 / 向下 ====================
+
+    /**
+     * 【向上翻 / 回页头】逻辑：
+     * 1. 若当前在纸张中间或页脚 -> 平滑滚回本张纸的【页头】
+     * 2. 若已经在页头附近 -> 翻到【上一张纸】的页头
+     */
+    function navigatePageUp() {
+      const { container, pages } = getPagesInfo();
+      if (!container || pages.length === 0) return;
+
+      const currentScroll = container.scrollTop;
+      const curIdx = getCurrentPageIndex(pages, currentScroll);
+      const curPage = pages[curIdx];
+
+      const threshold = USER_CONFIG.PAGE_EDGE_THRESHOLD;
+
+      // 如果当前视口距离本页页头较远（说明在纸张内向下读了一段），点一下回到本页页头
+      if (currentScroll > curPage.headScrollTop + threshold) {
+        console.log(`[agy-read] 回到第 ${curIdx + 1} 页页头`);
+        container.scrollTo({ top: curPage.headScrollTop, behavior: 'smooth' });
+      } else {
+        // 已经在当前页头附近，点一下向上翻到上一页
+        if (curIdx > 0) {
+          const prevPage = pages[curIdx - 1];
+          console.log(`[agy-read] 向上翻到第 ${curIdx} 页页头`);
+          container.scrollTo({ top: prevPage.headScrollTop, behavior: 'smooth' });
+        } else {
+          // 已经是第 1 页，直达整个页面最顶端
+          console.log('[agy-read] 直达最顶端');
+          container.scrollTo({ top: 0, behavior: 'smooth' });
+        }
       }
     }
 
-    // ==================== 7. 滚动与 DOM 监听绑定 ====================
+    /**
+     * 【向下翻 / 到页脚】逻辑：
+     * 1. 若当前在纸张上半部分或页头 -> 直达本张纸的【页脚】（看完该回复）
+     * 2. 若已经在页脚附近 -> 翻到【下一张纸】的页头（开始看下一个问答）
+     */
+    function navigatePageDown() {
+      const { container, pages } = getPagesInfo();
+      if (!container || pages.length === 0) return;
 
-    function bindScrollContainer() {
-      const container = getChatScrollContainer();
-      if (!container || container.__agy_enhancer_bound__) return;
+      const currentScroll = container.scrollTop;
+      const curIdx = getCurrentPageIndex(pages, currentScroll);
+      const curPage = pages[curIdx];
 
-      container.__agy_enhancer_bound__ = true;
-      container.addEventListener('scroll', () => {
-        updateScrollButton();
+      const threshold = USER_CONFIG.PAGE_EDGE_THRESHOLD;
 
-        const dist = container.scrollHeight - container.scrollTop - container.clientHeight;
-        if (dist < 40) {
-          isReadingLocked = false;
+      // 如果当前还没到底部页脚，点一下到本页页脚
+      if (currentScroll < curPage.footScrollTop - threshold) {
+        console.log(`[agy-read] 直达第 ${curIdx + 1} 页页脚`);
+        container.scrollTo({ top: curPage.footScrollTop, behavior: 'smooth' });
+      } else {
+        // 已经在页脚附近，翻到下一页的页头
+        if (curIdx < pages.length - 1) {
+          const nextPage = pages[curIdx + 1];
+          console.log(`[agy-read] 向下翻到第 ${curIdx + 2} 页页头`);
+          container.scrollTo({ top: nextPage.headScrollTop, behavior: 'smooth' });
+        } else {
+          // 已经是最后一页，直达最新底部
+          console.log('[agy-read] 直达最新底部');
+          container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' });
         }
-      }, { passive: true });
+      }
     }
 
-    const observer = new MutationObserver(() => {
-      bindScrollContainer();
-      updateScrollButton();
-      checkThinkingAndScroll();
-    });
+    // ==================== 5. 创建右侧常驻双按钮 ====================
 
-    observer.observe(document.body, {
-      childList: true,
-      subtree: true,
-      characterData: true
-    });
+    function createPageNavButtons() {
+      let group = document.getElementById('agy-page-nav-group');
+      if (group) group.remove();
 
-    bindScrollContainer();
-    updateScrollButton();
+      group = document.createElement('div');
+      group.id = 'agy-page-nav-group';
 
-    console.log('[agy-read] Antigravity 阅读增强器初始化完成！');
+      // 向上按钮
+      const upBtn = document.createElement('button');
+      upBtn.className = 'agy-nav-btn up';
+      upBtn.type = 'button';
+      upBtn.title = '向上：回到本问答页头 / 翻到上一页';
+      upBtn.innerHTML = `
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="18 15 12 9 6 15"></polyline>
+        </svg>
+      `;
+      upBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        navigatePageUp();
+      });
+
+      // 向下按钮
+      const downBtn = document.createElement('button');
+      downBtn.className = 'agy-nav-btn down';
+      downBtn.type = 'button';
+      downBtn.title = '向下：直达本问答页脚 / 翻到下一页';
+      downBtn.innerHTML = `
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="6 9 12 15 18 9"></polyline>
+        </svg>
+      `;
+      downBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        navigatePageDown();
+      });
+
+      group.appendChild(upBtn);
+      group.appendChild(downBtn);
+      document.body.appendChild(group);
+
+      return group;
+    }
+
+    createPageNavButtons();
+
+    console.log('[agy-read] 纸张翻页器已在右侧就绪！');
   }
 
-  // 启动安全守护
   bootstrap();
 })();
