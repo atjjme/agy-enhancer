@@ -60,6 +60,8 @@
 
   let windowPopstateHandler = null;
   let docClickHandler = null;
+  let promptKeydownHandler = null;
+  let promptClickHandler = null;
 
   window.__AGY_ENHANCER_CLEANUP__ = function () {
     activeTimers.forEach(id => {
@@ -76,6 +78,14 @@
       document.removeEventListener('click', docClickHandler);
       docClickHandler = null;
     }
+    if (promptKeydownHandler) {
+      document.removeEventListener('keydown', promptKeydownHandler, true);
+      promptKeydownHandler = null;
+    }
+    if (promptClickHandler) {
+      document.removeEventListener('click', promptClickHandler, true);
+      promptClickHandler = null;
+    }
 
     document.getElementById('agy-read-styles')?.remove();
     document.getElementById('agy-page-nav-group')?.remove();
@@ -83,6 +93,7 @@
     document.getElementById('agy-read-toast')?.remove();
     document.getElementById('agy-archive-header-btn')?.remove();
     document.getElementById('agy-archive-panel')?.remove();
+    document.getElementById('agy-project-options-dropdown')?.remove();
     document.querySelectorAll('.agy-quick-archive-btn').forEach(el => el.remove());
   };
 
@@ -355,50 +366,170 @@
       }
       .agy-archive-item {
         display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding: 6px 8px;
+        flex-direction: column;
         border-radius: 6px;
-        background: transparent;
         transition: background 0.15s ease;
       }
-      .agy-archive-item:hover {
-        background: var(--secondary, rgba(125, 125, 125, 0.1));
+      .agy-archive-item-header {
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        height: 30px;
+        padding: 0 6px;
+        border-radius: 6px;
+        cursor: pointer;
+        user-select: none;
+        color: var(--muted-foreground);
+        transition: background 0.15s ease, color 0.15s ease;
+      }
+      .agy-archive-item-header:hover {
+        background: var(--secondary, rgba(125, 125, 125, 0.12));
+        color: var(--foreground);
       }
       .agy-archive-item-main {
         display: flex;
         align-items: center;
-        gap: 8px;
+        gap: 6px;
         flex: 1;
         min-width: 0;
-        cursor: pointer;
+      }
+      .agy-archive-chevron {
+        width: 12px;
+        height: 12px;
+        flex-shrink: 0;
+        opacity: 0.55;
+        transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+      }
+      .agy-archive-item.expanded .agy-archive-chevron {
+        transform: rotate(90deg);
       }
       .agy-archive-name {
         font-size: 13px;
+        font-weight: 500;
         color: var(--foreground, #ffffff);
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
+        padding-right: 76px;
       }
-      .agy-restore-btn {
+      .agy-archive-actions {
+        position: absolute;
+        right: 4px;
+        top: 50%;
+        transform: translateY(-50%);
+        display: flex;
+        align-items: center;
+        gap: 2px;
+        opacity: 0;
+        transition: opacity 0.15s ease;
+      }
+      .agy-archive-item-header:hover .agy-archive-actions {
+        opacity: 1;
+      }
+      .agy-quick-restore-btn,
+      .agy-quick-options-btn,
+      .agy-quick-add-btn {
         display: inline-flex;
         align-items: center;
-        gap: 4px;
-        padding: 3px 8px;
+        justify-content: center;
+        width: 22px;
+        height: 22px;
         border-radius: 4px;
-        border: 1px solid var(--border, rgba(125, 125, 125, 0.2));
-        background: var(--secondary, rgba(125, 125, 125, 0.1));
-        color: var(--muted-foreground, inherit);
-        font-size: 11px;
-        font-weight: 500;
+        border: none;
+        background: transparent;
+        color: var(--muted-foreground);
         cursor: pointer;
-        transition: all 0.15s ease;
-        flex-shrink: 0;
+        outline: none;
+        transition: background 0.15s ease, color 0.15s ease;
       }
-      .agy-restore-btn:hover {
+      .agy-quick-restore-btn:hover,
+      .agy-quick-options-btn:hover,
+      .agy-quick-add-btn:hover {
+        background: var(--secondary, rgba(125, 125, 125, 0.22));
+        color: var(--foreground);
+      }
+
+      /* 项目更多操作下拉菜单 */
+      .agy-options-dropdown {
+        background: var(--card, var(--sidebar, var(--background, #ffffff)));
+        color: var(--foreground, #101010);
+        border: 1px solid var(--border, rgba(125, 125, 125, 0.25));
+        border-radius: 7px;
+        box-shadow: 0 10px 28px rgba(0, 0, 0, 0.22), 0 2px 8px rgba(0, 0, 0, 0.1);
+        padding: 4px;
+        min-width: 145px;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        animation: agyFadeIn 0.12s ease-out;
+      }
+      .agy-dd-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 6px 10px;
+        border-radius: 5px;
+        font-size: 12px;
+        cursor: pointer;
+        user-select: none;
+        color: var(--foreground, #101010);
+        transition: background 0.15s ease, color 0.15s ease;
+      }
+      .agy-dd-item:hover {
+        background: var(--secondary, rgba(125, 125, 125, 0.15));
+        color: var(--foreground, #101010);
+      }
+
+      /* 展开的对话列表 */
+      .agy-archive-convo-list {
+        display: none;
+        flex-direction: column;
+        gap: 2px;
+        padding: 2px 4px 6px 20px;
+      }
+      .agy-archive-item.expanded .agy-archive-convo-list {
+        display: flex;
+      }
+      .agy-convo-item {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 4px 6px;
+        border-radius: 4px;
+        font-size: 12px;
+        color: var(--muted-foreground);
+        cursor: pointer;
+        transition: background 0.15s ease, color 0.15s ease;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .agy-convo-item:hover {
+        background: var(--secondary, rgba(125, 125, 125, 0.15));
+        color: var(--foreground);
+      }
+      .agy-convo-empty {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 4px 6px;
+        font-size: 11px;
+        color: var(--muted-foreground);
+        opacity: 0.8;
+      }
+      .agy-open-project-btn {
+        background: transparent;
+        border: 1px solid var(--border, rgba(125, 125, 125, 0.2));
+        border-radius: 4px;
+        color: var(--foreground);
+        font-size: 10px;
+        padding: 1px 6px;
+        cursor: pointer;
+      }
+      .agy-open-project-btn:hover {
         background: var(--secondary, rgba(125, 125, 125, 0.2));
-        color: var(--foreground, #ffffff);
-        border-color: var(--border, rgba(125, 125, 125, 0.4));
       }
     `;
     document.head.appendChild(styleEl);
@@ -666,12 +797,110 @@
         return null;
       }
 
+      function getTSP() {
+        const els = Array.from(document.querySelectorAll('[data-testid="section-header"]'));
+        for (const el of els) {
+          const k = Object.keys(el).find(k => k.startsWith('__reactFiber$'));
+          let fiber = el[k];
+          while (fiber) {
+            if (fiber.memoizedProps?.value?.trajectorySummariesProvider) {
+              return fiber.memoizedProps.value.trajectorySummariesProvider;
+            }
+            fiber = fiber.return;
+          }
+        }
+        return null;
+      }
+
+      function getProjectConversations(projectId) {
+        const tsp = getTSP();
+        if (!tsp) return [];
+        const summaries = tsp.getState()?.summaries || {};
+        const list = Object.entries(summaries).map(([key, s]) => ({
+          id: key, // 使用 key 作为真实对话 ID（不能用 s.trajectoryId，否则报数据不存在且跳转首页）
+          title: s.summary || s.title || 'Untitled conversation',
+          projectId: s.projectId || s.trajectoryMetadata?.projectId,
+          time: Number(s.lastModifiedTime?.seconds || s.createdTime?.seconds || 0),
+          archived: s.annotations?.archived === true
+        }));
+        // 仅展示归属于该项目、且未被单独归档的正常对话
+        return list.filter(c => c.projectId === projectId && !c.archived).sort((a, b) => b.time - a.time);
+      }
+
+      function escapeHtml(str) {
+        if (!str) return '';
+        return String(str)
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;');
+      }
+
+      function getAppRouter() {
+        const candidates = [
+          document.querySelector('a[href^="/c/"]'),
+          document.querySelector('a[href]'),
+          document.querySelector('[data-testid="section-header"]'),
+          document.getElementById('root')
+        ].filter(Boolean);
+
+        for (const el of candidates) {
+          const k = Object.keys(el).find(k => k.startsWith('__reactFiber$'));
+          let fiber = el ? el[k] : null;
+          while (fiber) {
+            if (fiber.memoizedProps?.value?.navigate && fiber.memoizedProps?.value?.history?.push) {
+              return fiber.memoizedProps.value;
+            }
+            fiber = fiber.return;
+          }
+        }
+        return null;
+      }
+
+      function navigateTo(path) {
+        const router = getAppRouter();
+        // 1. 优先使用 TanStack Router 原生 history.push 驱动完整路由切换
+        if (router?.history?.push) {
+          try {
+            router.history.push(path);
+            return;
+          } catch (e) {
+            console.warn('[agy-read] history.push error, falling back to router.navigate:', e);
+          }
+        }
+        // 2. TanStack Router navigate 尝试
+        if (router?.navigate) {
+          try {
+            const url = new URL(path, window.location.origin);
+            const match = url.pathname.match(/\/c\/([a-f0-9-]+)/i);
+            if (match) {
+              const cascadeId = match[1];
+              const section = url.searchParams.get('section');
+              router.navigate({
+                to: '/c/$cascadeId',
+                params: { cascadeId },
+                search: section ? { section } : undefined
+              });
+              return;
+            }
+            router.navigate({ to: path });
+            return;
+          } catch (e) {
+            console.warn('[agy-read] router.navigate error:', e);
+          }
+        }
+        window.history.pushState({}, '', path);
+        window.dispatchEvent(new PopStateEvent('popstate'));
+      }
+
       let isPanelOpen = false;
+      const expandedProjects = new Set();
 
       function renderArchivePanel(pm) {
         let panel = document.getElementById('agy-archive-panel');
         if (!isPanelOpen) {
           if (panel) panel.remove();
+          document.getElementById('agy-project-options-dropdown')?.remove();
           return;
         }
 
@@ -691,8 +920,8 @@
           const hRect = header.getBoundingClientRect();
           const btnRect = headerBtn.getBoundingClientRect();
           
-          // 适配侧边栏实际宽度，预留边距
-          const panelWidth = Math.min(264, Math.max(220, hRect.width - 12));
+          // 适配侧边栏实际宽度，预留边距，容纳 3 个操作按钮
+          const panelWidth = Math.min(300, Math.max(260, hRect.width - 12));
           panel.style.width = `${panelWidth}px`;
           panel.style.top = `${btnRect.bottom + 6}px`;
           
@@ -717,18 +946,49 @@
                 No archived projects<br>
                 <span style="font-size: 11px; opacity: 0.65;">Hover over a project and click 📥 to archive</span>
               </div>
-            ` : archived.map(item => `
-              <div class="agy-archive-item" data-project-id="${item.project.id}">
-                <div class="agy-archive-item-main" title="Click to restore and open [${item.project.name}]">
-                  <svg width="15" height="15" viewBox="0 -960 960 960" fill="currentColor" style="opacity: 0.7; flex-shrink: 0;"><path d="M172.31-180Q142-180 121-201t-21-51.31V-707.69Q100-738 121-759t51.31-21H391.92l80 80H787.69Q818-700 839-679t21 51.31v375.38Q860-222 839-201t-51.31 21H172.31Zm0-60H787.69q5.39 0 8.85-3.46t3.46-8.85V-627.69q0-5.39-3.46-8.85T787.69-640H447.38l-80-80H172.31q-5.39 0-8.85 3.46T160-707.69v455.38q0 5.39 3.46 8.85t8.85 3.46ZM160-240q0 0 0-3.46t0-8.85V-707.69q0-5.39 0-8.85t0-3.46v80q0 0 0 3.46t0 8.85v375.38q0 5.39 0 8.85t0 3.46Z"/></svg>
-                  <span class="agy-archive-name">${item.project.name}</span>
+            ` : archived.map(item => {
+              const isExpanded = expandedProjects.has(item.project.id);
+              const convos = getProjectConversations(item.project.id);
+              return `
+                <div class="agy-archive-item ${isExpanded ? 'expanded' : ''}" data-project-id="${item.project.id}">
+                  <div class="agy-archive-item-header" data-project-id="${item.project.id}">
+                    <div class="agy-archive-item-main" title="Click to ${isExpanded ? 'collapse' : 'expand'} conversations">
+                      <span class="agy-archive-chevron">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                          <polyline points="9 18 15 12 9 6"></polyline>
+                        </svg>
+                      </span>
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 -960 960 960" fill="currentColor" class="shrink-0 text-muted-foreground" style="opacity: 0.8;"><path d="M170-180q-29.15,0-49.58-20.42T100-250V-707.69q0-29.15 21.58-50.73T172.31-780H391.92l80,80H787.69q26.85,0 46.31,17.35T856.54-640H447.38l-80-80H172.31q-5.39,0-8.85,3.46T160-707.69v455.38q0,4.23 2.12,6.92t5.58,4.62L261-552.31H927.31L830.46-229.69q-6.85,22.54-25.65,36.11T763.08-180H170Zm60.54-60H770.77l75.46-252.31H306L230.54-240Zm0,0L306-492.31L230.54-240ZM160-640v-67.69q0-5.39 0-8.85t0-3.46v80Z"></path></svg>
+                      <span class="agy-archive-name">${escapeHtml(item.project.name)}</span>
+                    </div>
+                    <div class="agy-archive-actions">
+                      <!-- 1. Restore 按钮 (替代 Archive) -->
+                      <button class="agy-quick-restore-btn" data-restore-id="${item.project.id}" title="Restore [${escapeHtml(item.project.name)}]">
+                        <svg width="13" height="13" viewBox="0 -960 960 960" fill="currentColor"><path d="M440-160v-327L336-383l-56-57 200-200 200 200-56 57-104-104v327h-80ZM160-600v-120q0-33 23.5-56.5T240-800h480q33 0 56.5 23.5T800-720v120h-80v-120H240v120h-80Z"/></svg>
+                      </button>
+                      <!-- 2. 三个点选项按钮 -->
+                      <button class="agy-quick-options-btn" data-project-id="${item.project.id}" title="Project options" aria-label="Project options">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 -960 960 960" fill="currentColor"><path d="M480-189.23q-24.75,0-42.37-17.62T420-249.23t17.62-42.37T480-309.23t42.37,17.62T540-249.23t-17.62,42.37T480-189.23ZM480-420q-24.75,0-42.37-17.62T420-480t17.62-42.37T480-540t42.37,17.62T540-480t-17.62,42.37T480-420Zm0-230.77q-24.75,0-42.37-17.62T420-710.77t17.62-42.37T480-770.77t42.37,17.62T540-710.77t-17.62,42.37T480-650.77Z"/></svg>
+                      </button>
+                      <!-- 3. +号新建对话按钮 -->
+                      <button class="agy-quick-add-btn" data-project-id="${item.project.id}" title="New conversation" aria-label="New conversation">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 -960 960 960" fill="currentColor"><path d="M440-440H200v-80h240v-240h80v240h240v80H520v240h-80v-240Z"/></svg>
+                      </button>
+                    </div>
+                  </div>
+                  <div class="agy-archive-convo-list">
+                    ${convos.length === 0 ? `
+                      <div class="agy-convo-empty">No conversations</div>
+                    ` : convos.map(c => `
+                      <a class="agy-convo-item" href="/c/${encodeURIComponent(c.id)}?section=${encodeURIComponent(item.project.id)}" data-convo-id="${c.id}" data-project-id="${item.project.id}" title="${escapeHtml(c.title)}">
+                        <svg width="13" height="13" viewBox="0 -960 960 960" fill="currentColor" class="shrink-0" style="opacity: 0.7;"><path d="M240-400h480v-60H240v60Zm0-120h480v-60H240v60Zm0-120h480v-60H240v60ZM80-80v-720q0-33 23.5-56.5T160-880h640q33 0 56.5 23.5T880-800v480q0 33-23.5 56.5T800-240H240L80-80Zm126-220H800v-480H160v535l46-55Zm-46 0v-480 480Z"/></svg>
+                        <span class="agy-convo-title">${escapeHtml(c.title)}</span>
+                      </a>
+                    `).join('')}
+                  </div>
                 </div>
-                <button class="agy-restore-btn" data-restore-id="${item.project.id}" title="Restore to Projects list">
-                  <svg width="12" height="12" viewBox="0 -960 960 960" fill="currentColor"><path d="M440-160v-327L336-383l-56-57 200-200 200 200-56 57-104-104v327h-80ZM160-600v-120q0-33 23.5-56.5T240-800h480q33 0 56.5 23.5T800-720v120h-80v-120H240v120h-80Z"/></svg>
-                  Restore
-                </button>
-              </div>
-            `).join('')}
+              `;
+            }).join('')}
           </div>
         `;
 
@@ -738,14 +998,16 @@
           renderArchivePanel(pm);
         });
 
-        // 绑定还原按钮
-        panel.querySelectorAll('.agy-restore-btn').forEach(btn => {
+        // 1. 绑定还原按钮 [📤]
+        panel.querySelectorAll('.agy-quick-restore-btn').forEach(btn => {
           btn.addEventListener('click', async (e) => {
             e.stopPropagation();
+            e.preventDefault();
             const id = btn.getAttribute('data-restore-id');
             const p = archived.find(x => x.project.id === id);
             if (p && pm?.updateProject) {
-              btn.textContent = 'Restoring...';
+              btn.style.pointerEvents = 'none';
+              btn.style.opacity = '0.5';
               await pm.updateProject({ ...p.project, archived: false });
               showNotification(`Project [${p.project.name}] restored`);
               renderArchivePanel(pm);
@@ -754,23 +1016,206 @@
           });
         });
 
-        // 点击项目直接还原并跳转打开
-        panel.querySelectorAll('.agy-archive-item-main').forEach(itemMain => {
-          itemMain.addEventListener('click', async (e) => {
+        // 2. 绑定三点选项按钮 [⋮]
+        panel.querySelectorAll('.agy-quick-options-btn').forEach(btn => {
+          btn.addEventListener('click', (e) => {
             e.stopPropagation();
-            const parent = itemMain.closest('.agy-archive-item');
-            const id = parent?.getAttribute('data-project-id');
+            e.preventDefault();
+            const id = btn.getAttribute('data-project-id');
             const p = archived.find(x => x.project.id === id);
-            if (p && pm?.updateProject) {
+            if (!p) return;
+
+            const existingDd = document.getElementById('agy-project-options-dropdown');
+            if (existingDd && existingDd.getAttribute('data-project-id') === id) {
+              existingDd.remove();
+              return;
+            }
+            existingDd?.remove();
+
+            const dd = document.createElement('div');
+            dd.id = 'agy-project-options-dropdown';
+            dd.className = 'agy-options-dropdown';
+            dd.setAttribute('data-project-id', id);
+
+            const rect = btn.getBoundingClientRect();
+            dd.style.position = 'fixed';
+            dd.style.top = `${rect.bottom + 4}px`;
+
+            // 右对齐到按钮右侧边缘，宽度约 145px，并确保不超出窗口可视区
+            const menuWidth = 145;
+            let leftPos = rect.right - menuWidth;
+            if (leftPos < 10) leftPos = 10;
+            if (leftPos + menuWidth > window.innerWidth - 10) leftPos = window.innerWidth - menuWidth - 10;
+            dd.style.left = `${leftPos}px`;
+            dd.style.zIndex = '9999999'; // 严格高于 panel 的 999995，绝不被遮挡
+
+            dd.innerHTML = `
+              <div class="agy-dd-item restore">
+                <svg width="13" height="13" viewBox="0 -960 960 960" fill="currentColor"><path d="M440-160v-327L336-383l-56-57 200-200 200 200-56 57-104-104v327h-80ZM160-600v-120q0-33 23.5-56.5T240-800h480q33 0 56.5 23.5T800-720v120h-80v-120H240v120h-80Z"/></svg>
+                <span>Restore</span>
+              </div>
+              <div class="agy-dd-item new-chat">
+                <svg width="13" height="13" viewBox="0 -960 960 960" fill="currentColor"><path d="M440-440H200v-80h240v-240h80v240h240v80H520v240h-80v-240Z"/></svg>
+                <span>New Conversation</span>
+              </div>
+              <div class="agy-dd-item delete" style="color: #ef4444;">
+                <svg width="13" height="13" viewBox="0 -960 960 960" fill="currentColor"><path d="M280-120q-33 0-56.5-23.5T200-200v-520h-40v-80h200v-40h240v40h200v80h-40v520q0 33-23.5 56.5T680-120H280Zm400-600H280v520h400v-520ZM360-280h80v-360h-80v360Zm160 0h80v-360h-80v360ZM280-720v520-520Z"/></svg>
+                <span>Delete Project</span>
+              </div>
+            `;
+
+            document.body.appendChild(dd);
+
+            const closeDropdown = (evt) => {
+              if (!dd.contains(evt.target) && !btn.contains(evt.target)) {
+                dd.remove();
+                document.removeEventListener('click', closeDropdown);
+              }
+            };
+            setTimeout(() => document.addEventListener('click', closeDropdown), 10);
+
+            dd.querySelector('.agy-dd-item.restore')?.addEventListener('click', async () => {
+              dd.remove();
               await pm.updateProject({ ...p.project, archived: false });
+              showNotification(`Project [${p.project.name}] restored`);
+              renderArchivePanel(pm);
+              updateArchiveUI();
+            });
+
+            dd.querySelector('.agy-dd-item.new-chat')?.addEventListener('click', () => {
+              dd.remove();
               isPanelOpen = false;
               renderArchivePanel(pm);
-              showNotification(`Restored and opened [${p.project.name}]`);
-              window.location.href = `/?section=${encodeURIComponent(id)}`;
+              navigateTo(`/?section=${encodeURIComponent(p.project.id)}`);
+            });
+
+            dd.querySelector('.agy-dd-item.delete')?.addEventListener('click', async () => {
+              dd.remove();
+              if (confirm(`Are you sure you want to delete project [${p.project.name}]?`)) {
+                if (pm.deleteProject) {
+                  await pm.deleteProject(p.project.id);
+                  showNotification(`Project [${p.project.name}] deleted`);
+                  renderArchivePanel(pm);
+                  updateArchiveUI();
+                }
+              }
+            });
+          });
+        });
+
+        // 3. 绑定 +号新建对话按钮 [+]
+        panel.querySelectorAll('.agy-quick-add-btn').forEach(btn => {
+          btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            const id = btn.getAttribute('data-project-id');
+            isPanelOpen = false;
+            renderArchivePanel(pm);
+            if (id) {
+              navigateTo(`/?section=${encodeURIComponent(id)}`);
+            }
+          });
+        });
+
+        // 4. 点击项目主条目：展开/折叠对话列表
+        panel.querySelectorAll('.agy-archive-item-header').forEach(itemHeader => {
+          itemHeader.addEventListener('click', (e) => {
+            if (e.target.closest('.agy-archive-actions')) return;
+            e.stopPropagation();
+            const id = itemHeader.getAttribute('data-project-id');
+            if (id) {
+              if (expandedProjects.has(id)) {
+                expandedProjects.delete(id);
+              } else {
+                expandedProjects.add(id);
+              }
+              renderArchivePanel(pm);
+            }
+          });
+        });
+
+        // 5. 点击对话项：关闭面板，纯路由导航（不触发页面重载，不触发还原）
+        panel.querySelectorAll('.agy-convo-item').forEach(convoLink => {
+          convoLink.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            const href = convoLink.getAttribute('href');
+            isPanelOpen = false;
+            renderArchivePanel(pm);
+            if (href) {
+              navigateTo(href);
             }
           });
         });
       }
+
+      function getCurrentProjectId() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const fromUrl = urlParams.get('section');
+        if (fromUrl) return fromUrl;
+
+        const match = window.location.pathname.match(/\/c\/([a-f0-9-]+)/i);
+        if (match) {
+          const convoId = match[1];
+          const tsp = getTSP();
+          const s = tsp?.getState()?.summaries?.[convoId];
+          if (s) {
+            return s.projectId || s.trajectoryMetadata?.projectId;
+          }
+        }
+        return null;
+      }
+
+      async function tryRestoreOnNewPrompt() {
+        const pm = getPM();
+        if (!pm) return;
+        const currentProjectId = getCurrentProjectId();
+        if (!currentProjectId || currentProjectId === 'outside-of-project') return;
+
+        const projects = pm.projectsStateProvider?.getState() || [];
+        const target = projects.find(p => p.project?.id === currentProjectId && p.project?.archived);
+        if (target) {
+          console.log(`[agy-read] New activity detected, restoring project: ${target.project.name}`);
+          await pm.updateProject({ ...target.project, archived: false });
+          showNotification(`Project [${target.project.name}] restored`);
+          updateArchiveUI();
+          if (isPanelOpen) renderArchivePanel(pm);
+        }
+      }
+
+      // 监听新提问触发还原：Enter 键提交（非 Shift+Enter）
+      promptKeydownHandler = (e) => {
+        if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) {
+          const ce = e.target?.closest?.('[contenteditable="true"]') || (e.target?.tagName === 'TEXTAREA' ? e.target : null);
+          if (ce) {
+            const text = (ce.innerText || ce.value || '').trim();
+            if (text.length > 0) {
+              tryRestoreOnNewPrompt();
+            }
+          }
+        }
+      };
+      document.addEventListener('keydown', promptKeydownHandler, true);
+
+      // 监听新提问触发还原：点击发送/提交按钮
+      promptClickHandler = (e) => {
+        const btn = e.target.closest('button');
+        if (!btn) return;
+        const label = (btn.getAttribute('aria-label') || btn.title || btn.innerText || '').toLowerCase();
+        const tooltip = (btn.getAttribute('data-tooltip-id') || '').toLowerCase();
+        if (
+          label.includes('send') ||
+          label.includes('submit') ||
+          tooltip.includes('send') ||
+          btn.querySelector('svg path[d*="M120-160v-640l760 320"]')
+        ) {
+          const ce = document.querySelector('[contenteditable="true"]') || document.querySelector('textarea');
+          if (ce && (ce.innerText || ce.value || '').trim().length > 0) {
+            tryRestoreOnNewPrompt();
+          }
+        }
+      };
+      document.addEventListener('click', promptClickHandler, true);
 
       // 点击外部自动关闭 panel
       docClickHandler = (e) => {
@@ -809,6 +1254,11 @@
               e.preventDefault();
               isPanelOpen = !isPanelOpen;
               renderArchivePanel(pm);
+              if (isPanelOpen) {
+                refreshTrajectories().then(() => {
+                  if (isPanelOpen) renderArchivePanel(pm);
+                });
+              }
             });
             actionsContainer.insertBefore(btn, actionsContainer.firstChild);
           }
@@ -855,19 +1305,6 @@
             }
           }
         });
-
-        // 3. 检查当前 URL 激活的项目：如果当前正在该项目，自动解归档
-        const urlParams = new URLSearchParams(window.location.search);
-        const currentSectionId = urlParams.get('section');
-        if (currentSectionId) {
-          const activeProject = archived.find(p => p.project.id === currentSectionId);
-          if (activeProject) {
-            pm.updateProject({ ...activeProject.project, archived: false }).then(() => {
-              showNotification(`Active session detected: [${activeProject.project.name}] restored`);
-              updateArchiveUI();
-            });
-          }
-        }
       }
 
       // 监听变更与定时保活
