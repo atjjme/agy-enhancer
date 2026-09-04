@@ -19,6 +19,12 @@
     // 导航按钮组距离窗口底部的高度（像素，默认 170px，可自由上下微调）
     NAV_BOTTOM: 170,
 
+    // 按钮平时默认透明度（0~1，例如 0.3 为 30% 半透明，避免遮挡后面背景字）
+    BUTTON_OPACITY: 0.3,
+
+    // 鼠标划过悬停时的透明度（0~1，默认 1.0 恢复完全清晰）
+    BUTTON_HOVER_OPACITY: 1.0,
+
     // 按钮直径大小（像素，默认 38px）
     BUTTON_SIZE: 38,
 
@@ -138,6 +144,11 @@
         flex-direction: column;
         gap: ${USER_CONFIG.BUTTON_GAP}px;
         user-select: none;
+        opacity: ${USER_CONFIG.BUTTON_OPACITY};
+        transition: opacity 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+      }
+      #agy-page-nav-group:hover {
+        opacity: ${USER_CONFIG.BUTTON_HOVER_OPACITY};
       }
 
       .agy-nav-btn {
