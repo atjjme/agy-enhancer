@@ -43,7 +43,7 @@
 
 ## 🎨 手动调节按钮位置、大小与透明度
 
-用记事本打开 [`src/agy-enhancer.js`](src/agy-enhancer.js)：
+用记事本打开 [`src/agy-enhancer.js`](file:///E:/Prejects/agy-enhancer/src/agy-enhancer.js)：
 在最顶部的 `USER_CONFIG` 中可随意调节：
 - `BUTTON_OPACITY`：平时默认透明度（默认 0.3 即 30% 半透明，避免遮挡背景文字）；
 - `BUTTON_HOVER_OPACITY`：鼠标划过时的透明度（默认 1.0 完全清晰，保留优质动效）；
