@@ -101,6 +101,8 @@
   let unreadScrollHandler = null;
   let unreadWheelHandler = null;
   let windowUnloadHandler = null;
+  let interruptRestoration = null;
+  let isInternalEnhancerScroll = false;
 
   window.__AGY_ENHANCER_CLEANUP__ = function () {
     activeTimers.forEach(id => {
@@ -178,6 +180,8 @@
       window.removeEventListener('pagehide', windowUnloadHandler);
       windowUnloadHandler = null;
     }
+    interruptRestoration = null;
+    isInternalEnhancerScroll = false;
     notifyNewPromptSubmitted = null;
     notifyPromptSubmittedForUnread = null;
 
@@ -952,6 +956,25 @@
 
     // ==================== 4. 纸张式智能导航：向上 / 向下 ====================
 
+    function performEnhancerScroll(container, scrollOptions) {
+      if (!container) return;
+      if (typeof interruptRestoration === 'function') {
+        interruptRestoration('nav button scroll');
+      }
+      isInternalEnhancerScroll = true;
+      try {
+        if (originalElementScrollTo) {
+          originalElementScrollTo.call(container, scrollOptions);
+        } else {
+          container.scrollTo(scrollOptions);
+        }
+      } finally {
+        setTimeout(() => {
+          isInternalEnhancerScroll = false;
+        }, 80);
+      }
+    }
+
     /**
      * 【向上翻 / 回页头】逻辑：
      * 1. 若当前在纸张中间或页脚 -> 平滑滚回本张纸的【页头】
@@ -969,18 +992,18 @@
 
       // 如果当前视口距离本页页头较远（说明在纸张内向下读了一段），点一下回到本页页头
       if (currentScroll > curPage.headScrollTop + threshold) {
-        console.log(`[agy-read] Back to turn ${curIdx + 1} top`);
-        container.scrollTo({ top: curPage.headScrollTop, behavior: 'smooth' });
+        console.log(`[agy-enhancer] Back to turn ${curIdx + 1} top`);
+        performEnhancerScroll(container, { top: curPage.headScrollTop, behavior: 'smooth' });
       } else {
         // 已经在当前页头附近，点一下向上翻到上一页
         if (curIdx > 0) {
           const prevPage = pages[curIdx - 1];
-          console.log(`[agy-read] Up to turn ${curIdx} top`);
-          container.scrollTo({ top: prevPage.headScrollTop, behavior: 'smooth' });
+          console.log(`[agy-enhancer] Up to turn ${curIdx} top`);
+          performEnhancerScroll(container, { top: prevPage.headScrollTop, behavior: 'smooth' });
         } else {
           // 已经是第 1 页，直达整个页面最顶端
-          console.log('[agy-read] Reached top');
-          container.scrollTo({ top: 0, behavior: 'smooth' });
+          console.log('[agy-enhancer] Reached top');
+          performEnhancerScroll(container, { top: 0, behavior: 'smooth' });
         }
       }
     }
@@ -1002,18 +1025,18 @@
 
       // 如果当前还没到底部页脚，点一下到本页页脚
       if (currentScroll < curPage.footScrollTop - threshold) {
-        console.log(`[agy-read] Down to turn ${curIdx + 1} bottom`);
-        container.scrollTo({ top: curPage.footScrollTop, behavior: 'smooth' });
+        console.log(`[agy-enhancer] Down to turn ${curIdx + 1} bottom`);
+        performEnhancerScroll(container, { top: curPage.footScrollTop, behavior: 'smooth' });
       } else {
         // 已经在页脚附近，翻到下一页的页头
         if (curIdx < pages.length - 1) {
           const nextPage = pages[curIdx + 1];
-          console.log(`[agy-read] Down to turn ${curIdx + 2} top`);
-          container.scrollTo({ top: nextPage.headScrollTop, behavior: 'smooth' });
+          console.log(`[agy-enhancer] Down to turn ${curIdx + 2} top`);
+          performEnhancerScroll(container, { top: nextPage.headScrollTop, behavior: 'smooth' });
         } else {
           // 已经是最后一页，直达最新底部
-          console.log('[agy-read] Reached bottom');
-          container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' });
+          console.log('[agy-enhancer] Reached bottom');
+          performEnhancerScroll(container, { top: container.scrollHeight, behavior: 'smooth' });
         }
       }
     }
@@ -1025,8 +1048,8 @@
     function navigateToBottom() {
       const container = getChatScrollContainer();
       if (!container) return;
-      console.log('[agy-read] Double click: Scrolled to bottom');
-      container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' });
+      console.log('[agy-enhancer] Double click: Scrolled to bottom');
+      performEnhancerScroll(container, { top: container.scrollHeight, behavior: 'smooth' });
     }
 
     // ==================== 5. 创建右侧常驻双按钮 ====================
@@ -2924,9 +2947,20 @@
         }, 5000);
       }
 
+      interruptRestoration = (reason) => {
+        markUserInteracting();
+        if (activeRestoringConvoId) {
+          endRestoration(reason || 'interrupted by enhancer action');
+        }
+      };
+
       // 拦截原生 scrollTo：阻止在恢复期间由于 ResizeObserver 强制滑到底部
       originalElementScrollTo = Element.prototype.scrollTo;
       Element.prototype.scrollTo = function (...args) {
+        // 关键防护：如果是增强器自身发起的平滑翻页滚动，绝对不予拦截！
+        if (isInternalEnhancerScroll) {
+          return originalElementScrollTo.apply(this, args);
+        }
         const container = getChatScrollContainer();
         if (this === container && activeRestoringConvoId) {
           const options = typeof args[0] === 'object' ? args[0] : { top: args[0], left: args[1] };
@@ -2966,6 +3000,14 @@
           // 滚轮只有在聊天容器内滚动才算真实交互
           if (!container.contains(e.target)) return;
         } else if (e.type === 'mousedown' || e.type === 'pointerdown') {
+          // 关键防护：若用户点击的是增强器悬浮翻页按钮组，立即判定为合法用户交互并解除恢复
+          if (e.target.closest('#agy-page-nav-group, .agy-nav-btn')) {
+            markUserInteracting();
+            if (activeRestoringConvoId) {
+              endRestoration('nav button clicked');
+            }
+            return;
+          }
           // 点击排除输入框、按钮、链接等，防止侧边栏点击或输入触发误判
           if (e.target.closest('textarea, input, button, a, [contenteditable="true"]')) return;
           if (!container.contains(e.target) && e.target !== container) return;
