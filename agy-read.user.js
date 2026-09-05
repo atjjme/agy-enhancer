@@ -17,7 +17,7 @@
  * 核心特性：
  * 1. 【纸张式翻页导航】右侧滚动条旁常驻「向上 / 向下」双按钮：
  *    - 点向上：如果在纸内，回到当前问答的【页头】（提问顶部）；如果在页头附近，翻到【上一页】（上一轮问答）；
- *    - 点向下：如果在纸内，直达当前问答的【页脚】（回答末尾）；如果在页脚附近，翻到【下一页】（下一轮问答或最新底部）；
+ *    - 点向下：如果在纸内，直达当前问答的【页脚】（回答末尾）；如果在页脚附近，翻到【下一页】（下一轮问答或最新底部）；双击直接直达整个页面最底部；
  * 2. 【右上角状态提示】提示增强器正在守护阅读。
  */
 
@@ -321,6 +321,8 @@
         justify-content: center;
         cursor: pointer;
         outline: none;
+        user-select: none;
+        -webkit-user-select: none;
         transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1),
                     background-color 0.2s ease,
                     box-shadow 0.2s ease,
@@ -999,6 +1001,17 @@
       }
     }
 
+    /**
+     * 【直达最底部】逻辑：
+     * 双击向下按钮时，无视当前问答位置，直接平滑滚动到整个页面的最底端
+     */
+    function navigateToBottom() {
+      const container = getChatScrollContainer();
+      if (!container) return;
+      console.log('[agy-read] Double click: Scrolled to bottom');
+      container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' });
+    }
+
     // ==================== 5. 创建右侧常驻双按钮 ====================
 
     function createPageNavButtons() {
@@ -1028,7 +1041,7 @@
       const downBtn = document.createElement('button');
       downBtn.className = 'agy-nav-btn down';
       downBtn.type = 'button';
-      downBtn.title = 'Down: Answer bottom / Next turn';
+      downBtn.title = 'Down: Answer bottom / Next turn (Double click: Bottom)';
       downBtn.innerHTML = `
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
           <polyline points="6 9 12 15 18 9"></polyline>
@@ -1038,6 +1051,11 @@
         e.preventDefault();
         e.stopPropagation();
         navigatePageDown();
+      });
+      downBtn.addEventListener('dblclick', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        navigateToBottom();
       });
 
       group.appendChild(upBtn);
