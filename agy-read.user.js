@@ -77,6 +77,8 @@ window.__AGY_BRANCH_NAME__ = "starlit_nova_spins_09h29";
   let docClickHandler = null;
   let promptKeydownHandler = null;
   let promptClickHandler = null;
+  let contextMenuHandler = null;
+  let lastContextMenuPos = null;
   let activeNativeConvoId = null;
   let nativeMenuPointerDownHandler = null;
   let nativeMenuObserver = null;
@@ -104,6 +106,11 @@ window.__AGY_BRANCH_NAME__ = "starlit_nova_spins_09h29";
       document.removeEventListener('click', promptClickHandler, true);
       promptClickHandler = null;
     }
+    if (contextMenuHandler) {
+      document.removeEventListener('contextmenu', contextMenuHandler, true);
+      contextMenuHandler = null;
+    }
+    lastContextMenuPos = null;
     if (nativeMenuPointerDownHandler) {
       document.removeEventListener('pointerdown', nativeMenuPointerDownHandler, true);
       nativeMenuPointerDownHandler = null;
@@ -1378,15 +1385,26 @@ window.__AGY_BRANCH_NAME__ = "starlit_nova_spins_09h29";
             dd.className = 'agy-options-dropdown';
             dd.setAttribute('data-project-id', id);
 
-            const rect = btn.getBoundingClientRect();
-            dd.style.position = 'fixed';
-            dd.style.top = `${rect.bottom + 4}px`;
-
-            // 右对齐到按钮右侧边缘，宽度约 160px，并确保不超出窗口可视区
             const menuWidth = 160;
-            let leftPos = rect.right - menuWidth;
+            const menuHeight = 190;
+            let leftPos, topPos;
+
+            if (lastContextMenuPos && (Date.now() - lastContextMenuPos.time < 1200)) {
+              leftPos = lastContextMenuPos.x;
+              topPos = lastContextMenuPos.y;
+              lastContextMenuPos = null;
+            } else {
+              const rect = btn.getBoundingClientRect();
+              leftPos = rect.right - menuWidth;
+              topPos = rect.bottom + 4;
+            }
+
             if (leftPos < 10) leftPos = 10;
             if (leftPos + menuWidth > window.innerWidth - 10) leftPos = window.innerWidth - menuWidth - 10;
+            if (topPos + menuHeight > window.innerHeight - 10) topPos = Math.max(10, window.innerHeight - menuHeight - 10);
+
+            dd.style.position = 'fixed';
+            dd.style.top = `${topPos}px`;
             dd.style.left = `${leftPos}px`;
             dd.style.zIndex = '9999999';
 
@@ -1496,14 +1514,26 @@ window.__AGY_BRANCH_NAME__ = "starlit_nova_spins_09h29";
             dd.setAttribute('data-convo-id', convoId);
             dd.setAttribute('data-project-id', projectId);
 
-            const rect = btn.getBoundingClientRect();
-            dd.style.position = 'fixed';
-            dd.style.top = `${rect.bottom + 4}px`;
-
             const menuWidth = 195;
-            let leftPos = rect.right - menuWidth;
+            const menuHeight = 290;
+            let leftPos, topPos;
+
+            if (lastContextMenuPos && (Date.now() - lastContextMenuPos.time < 1200)) {
+              leftPos = lastContextMenuPos.x;
+              topPos = lastContextMenuPos.y;
+              lastContextMenuPos = null;
+            } else {
+              const rect = btn.getBoundingClientRect();
+              leftPos = rect.right - menuWidth;
+              topPos = rect.bottom + 4;
+            }
+
             if (leftPos < 10) leftPos = 10;
             if (leftPos + menuWidth > window.innerWidth - 10) leftPos = window.innerWidth - menuWidth - 10;
+            if (topPos + menuHeight > window.innerHeight - 10) topPos = Math.max(10, window.innerHeight - menuHeight - 10);
+
+            dd.style.position = 'fixed';
+            dd.style.top = `${topPos}px`;
             dd.style.left = `${leftPos}px`;
             dd.style.zIndex = '9999999';
 
@@ -2043,7 +2073,47 @@ window.__AGY_BRANCH_NAME__ = "starlit_nova_spins_09h29";
           }
         }
 
+        function checkAndPositionNativeMenu() {
+          const menu = document.querySelector('[role="menu"]:not([data-agy-positioned="true"])');
+          if (!menu) return;
+
+          if (lastContextMenuPos && (Date.now() - lastContextMenuPos.time < 1200)) {
+            const savedPos = { ...lastContextMenuPos };
+            lastContextMenuPos = null;
+            menu.setAttribute('data-agy-positioned', 'true');
+
+            const wrapper = menu.parentElement;
+            if (wrapper) {
+              const applyPosition = () => {
+                const menuRect = menu.getBoundingClientRect();
+                const menuWidth = menuRect.width || 195;
+                const menuHeight = menuRect.height || 220;
+                let posX = savedPos.x;
+                let posY = savedPos.y;
+                if (posX + menuWidth > window.innerWidth - 10) {
+                  posX = Math.max(10, window.innerWidth - menuWidth - 10);
+                }
+                if (posY + menuHeight > window.innerHeight - 10) {
+                  posY = Math.max(10, window.innerHeight - menuHeight - 10);
+                }
+
+                wrapper.style.setProperty('position', 'fixed', 'important');
+                wrapper.style.setProperty('left', `${posX}px`, 'important');
+                wrapper.style.setProperty('top', `${posY}px`, 'important');
+                wrapper.style.setProperty('transform', 'none', 'important');
+                wrapper.style.removeProperty('visibility');
+              };
+
+              wrapper.style.setProperty('visibility', 'hidden', 'important');
+              applyPosition();
+              setTimeout(applyPosition, 25);
+              setTimeout(applyPosition, 60);
+            }
+          }
+        }
+
         nativeMenuObserver = new MutationObserver(() => {
+          checkAndPositionNativeMenu();
           checkAndEnhanceNativeMenu();
         });
         nativeMenuObserver.observe(document.body, { childList: true, subtree: true });
@@ -2052,9 +2122,77 @@ window.__AGY_BRANCH_NAME__ = "starlit_nova_spins_09h29";
       initNativeConvoMenuEnhancer();
     }
 
-    initProjectArchiver();
+    // ==================== 8. 全局右键上下文菜单支持 (对话与项目) ====================
+    function initContextMenuSupport() {
+      if (contextMenuHandler) {
+        document.removeEventListener('contextmenu', contextMenuHandler, true);
+      }
 
-    console.log('[agy-read] 纸张翻页器与项目折叠归档已就绪！');
+      contextMenuHandler = (e) => {
+        // 1. 原生侧边栏对话行
+        const convoRow = e.target?.closest?.('[data-testid="conversation-row-sidebar"]');
+        if (convoRow) {
+          const btn = convoRow.querySelector('button[aria-label="More options"]');
+          if (btn) {
+            e.preventDefault();
+            e.stopPropagation();
+            lastContextMenuPos = { x: e.clientX, y: e.clientY, time: Date.now() };
+            activeNativeConvoId = convoRow.getAttribute('data-cascade-id');
+            btn.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true }));
+            btn.click();
+            return;
+          }
+        }
+
+        // 2. 原生侧边栏项目卡片
+        const projectCard = e.target?.closest?.('button[data-project-card="true"], .group\\/header');
+        if (projectCard) {
+          const container = projectCard.closest('.group\\/header') || projectCard.parentElement?.parentElement;
+          const btn = container?.querySelector('button[aria-label="Project options"]');
+          if (btn) {
+            e.preventDefault();
+            e.stopPropagation();
+            lastContextMenuPos = { x: e.clientX, y: e.clientY, time: Date.now() };
+            btn.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true }));
+            btn.click();
+            return;
+          }
+        }
+
+        // 3. 归档面板内的项目头部
+        const archiveProject = e.target?.closest?.('.agy-archive-item-header');
+        if (archiveProject) {
+          const btn = archiveProject.querySelector('.agy-quick-options-btn');
+          if (btn) {
+            e.preventDefault();
+            e.stopPropagation();
+            lastContextMenuPos = { x: e.clientX, y: e.clientY, time: Date.now() };
+            btn.click();
+            return;
+          }
+        }
+
+        // 4. 归档面板内的对话项
+        const archiveConvo = e.target?.closest?.('.agy-convo-item');
+        if (archiveConvo) {
+          const btn = archiveConvo.querySelector('.agy-convo-options-btn');
+          if (btn) {
+            e.preventDefault();
+            e.stopPropagation();
+            lastContextMenuPos = { x: e.clientX, y: e.clientY, time: Date.now() };
+            btn.click();
+            return;
+          }
+        }
+      };
+
+      document.addEventListener('contextmenu', contextMenuHandler, true);
+    }
+
+    initProjectArchiver();
+    initContextMenuSupport();
+
+    console.log('[agy-read] 纸张翻页器、项目折叠归档与右键菜单已就绪！');
   }
 
   bootstrap();
