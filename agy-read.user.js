@@ -11,6 +11,8 @@
 // @run-at       document-idle
 // ==/UserScript==
 
+window.__AGY_BRANCH_TAG__ = "（分支）";
+window.__AGY_BRANCH_NAME__ = "starlit_nova_spins_09h29";
 /**
  * Antigravity 阅读增强器 (agy-read enhancer)
  * 
@@ -75,6 +77,9 @@
   let docClickHandler = null;
   let promptKeydownHandler = null;
   let promptClickHandler = null;
+  let activeNativeConvoId = null;
+  let nativeMenuPointerDownHandler = null;
+  let nativeMenuObserver = null;
 
   window.__AGY_ENHANCER_CLEANUP__ = function () {
     activeTimers.forEach(id => {
@@ -99,6 +104,14 @@
       document.removeEventListener('click', promptClickHandler, true);
       promptClickHandler = null;
     }
+    if (nativeMenuPointerDownHandler) {
+      document.removeEventListener('pointerdown', nativeMenuPointerDownHandler, true);
+      nativeMenuPointerDownHandler = null;
+    }
+    if (nativeMenuObserver) {
+      nativeMenuObserver.disconnect();
+      nativeMenuObserver = null;
+    }
 
     document.getElementById('agy-read-styles')?.remove();
     document.getElementById('agy-page-nav-group')?.remove();
@@ -109,6 +122,7 @@
     document.getElementById('agy-project-options-dropdown')?.remove();
     document.getElementById('agy-convo-options-dropdown')?.remove();
     document.querySelectorAll('.agy-quick-archive-btn').forEach(el => el.remove());
+    document.querySelectorAll('.agy-native-enhanced').forEach(el => el.remove());
   };
 
   // 执行一次初始状态与残留清理
@@ -942,6 +956,136 @@
         return list.filter(c => c.projectId === projectId && !c.archived).sort((a, b) => b.time - a.time);
       }
 
+      let cachedGeminiBaseUri = null;
+      function getGeminiBaseUri() {
+        if (cachedGeminiBaseUri) return cachedGeminiBaseUri;
+        const pm = getPM();
+        const tsp = getTSP();
+        const scanTargets = [
+          pm?.projectsStateProvider?.getState?.(),
+          tsp?.getState?.()?.summaries
+        ];
+        function scan(obj) {
+          if (!obj || cachedGeminiBaseUri) return;
+          if (typeof obj === 'string') {
+            const m = obj.match(/^(file:\/\/\/.*?[\\/]\.gemini[\\/]antigravity)[\\/]/i);
+            if (m) cachedGeminiBaseUri = m[1];
+          } else if (typeof obj === 'object') {
+            for (const k in obj) {
+              try { scan(obj[k]); } catch (e) {}
+              if (cachedGeminiBaseUri) return;
+            }
+          }
+        }
+        for (const t of scanTargets) {
+          scan(t);
+          if (cachedGeminiBaseUri) break;
+        }
+        return cachedGeminiBaseUri;
+      }
+
+      function openLocalFolder(uriOrPath) {
+        if (!uriOrPath) return false;
+        let uri = uriOrPath;
+        if (/^[a-zA-Z]:[\\/]/.test(uri)) {
+          uri = 'file:///' + uri.replace(/\\/g, '/');
+        } else if (uri.startsWith('file://')) {
+          try {
+            uri = decodeURI(uri);
+          } catch (e) {}
+        }
+
+        if (window.electronNative?.openExternal) {
+          try {
+            window.electronNative.openExternal(uri);
+            return true;
+          } catch (e) {
+            console.warn('[agy-read] openExternal error:', e);
+          }
+        }
+
+        if (window.electronNative?.revealInFilePicker) {
+          try {
+            window.electronNative.revealInFilePicker(uri);
+            return true;
+          } catch (e) {
+            console.warn('[agy-read] revealInFilePicker error:', e);
+          }
+        }
+
+        try {
+          window.open(uri, '_blank');
+          return true;
+        } catch (e) {}
+        return false;
+      }
+
+      function getConvoFolderPaths(convoId, explicitProjectId) {
+        const tsp = getTSP();
+        const summaries = tsp?.getState()?.summaries || {};
+        const s = summaries[convoId];
+        const pId = explicitProjectId || s?.projectId || s?.trajectoryMetadata?.projectId;
+
+        let projects = [];
+        const pm = getPM();
+        if (pm?.projectsStateProvider?.getState) {
+          projects = pm.projectsStateProvider.getState();
+        }
+        const projItem = projects.find(p => p.project?.id === pId);
+
+        const baseUri = getGeminiBaseUri();
+        const convoBrainUri = baseUri && convoId ? `${baseUri}/brain/${convoId}` : null;
+
+        let branchUri = null;
+        let isBranch = false;
+        const workspaces = s?.trajectoryMetadata?.workspaces || [];
+        for (const w of workspaces) {
+          if (w.workspaceFolderAbsoluteUri?.includes('/worktrees/') || w.branchName) {
+            branchUri = w.workspaceFolderAbsoluteUri;
+            isBranch = true;
+            break;
+          }
+        }
+        if (!isBranch && s?.trajectoryMetadata?.workspaceUris) {
+          for (const u of s.trajectoryMetadata.workspaceUris) {
+            if (u.includes('/worktrees/')) {
+              branchUri = u;
+              isBranch = true;
+              break;
+            }
+          }
+        }
+
+        let projectRootUri = null;
+        if (projItem?.project?.projectResources?.resources) {
+          for (const res of projItem.project.projectResources.resources) {
+            if (res.type?.value?.folderUri) {
+              projectRootUri = res.type.value.folderUri;
+              break;
+            }
+            if (res.type?.case === 'folderUri' && typeof res.type.value === 'string') {
+              projectRootUri = res.type.value;
+              break;
+            }
+          }
+        }
+        if (!projectRootUri && !isBranch && workspaces.length > 0) {
+          projectRootUri = workspaces[0].workspaceFolderAbsoluteUri;
+        }
+
+        const targetProjectUri = isBranch && branchUri ? branchUri : projectRootUri;
+
+        return {
+          convoId,
+          convoBrainUri,
+          isBranch,
+          branchUri,
+          projectRootUri,
+          targetProjectUri,
+          isOutsideOfProject: pId === 'outside-of-project' || (!targetProjectUri && !isBranch)
+        };
+      }
+
       function escapeHtml(str) {
         if (!str) return '';
         return String(str)
@@ -1327,7 +1471,7 @@
             dd.style.position = 'fixed';
             dd.style.top = `${rect.bottom + 4}px`;
 
-            const menuWidth = 180;
+            const menuWidth = 195;
             let leftPos = rect.right - menuWidth;
             if (leftPos < 10) leftPos = 10;
             if (leftPos + menuWidth > window.innerWidth - 10) leftPos = window.innerWidth - menuWidth - 10;
@@ -1359,6 +1503,15 @@
               <div class="agy-dd-item copy-project-name">
                 <svg width="13" height="13" viewBox="0 -960 960 960" fill="currentColor"><path d="M360-240q-33 0-56.5-23.5T280-320v-480q0-33 23.5-56.5T360-880h360q33 0 56.5 23.5T800-800v480q0 33-23.5 56.5T720-240H360Zm0-80h360v-480H360v480ZM200-80q-33 0-56.5-23.5T120-160v-560h80v560h440v80H200Zm160-240v-480 480Z"/></svg>
                 <span>Copy Project Name</span>
+              </div>
+              <div class="agy-dd-divider"></div>
+              <div class="agy-dd-item open-convo-folder">
+                <svg width="13" height="13" viewBox="0 -960 960 960" fill="currentColor"><path d="M160-160q-33 0-56.5-23.5T80-240v-480q0-33 23.5-56.5T160-800h240l80 80h320q33 0 56.5 23.5T880-640v400q0 33-23.5 56.5T800-160H160Zm0-80h640v-400H447l-80-80H160v480Zm0 0v-480 480Z"/></svg>
+                <span>Open Conversation Folder</span>
+              </div>
+              <div class="agy-dd-item open-project-folder">
+                <svg width="13" height="13" viewBox="0 -960 960 960" fill="currentColor"><path d="M160-160q-33 0-56.5-23.5T80-240v-480q0-33 23.5-56.5T160-800h240l80 80h320q33 0 56.5 23.5T880-640v400q0 33-23.5 56.5T800-160H160Zm0-80h640v-400H447l-80-80H160v480Zm0 0v-480 480Z"/></svg>
+                <span>Open Project Folder</span>
               </div>
             `;
 
@@ -1513,6 +1666,38 @@
               btn.classList.remove('active');
               await navigator.clipboard.writeText(p.project.name);
               showNotification(`Copied project name: "${p.project.name}"`);
+            });
+
+            // 打开: 对话文件夹
+            dd.querySelector('.open-convo-folder')?.addEventListener('click', (ev) => {
+              ev.stopPropagation();
+              dd.remove();
+              btn.classList.remove('active');
+              const paths = getConvoFolderPaths(convoId, projectId);
+              if (paths?.convoBrainUri) {
+                openLocalFolder(paths.convoBrainUri);
+                showNotification('Opened conversation folder');
+              } else {
+                showNotification('Failed to resolve conversation folder');
+              }
+            });
+
+            // 打开: 项目 / 分支文件夹
+            dd.querySelector('.open-project-folder')?.addEventListener('click', (ev) => {
+              ev.stopPropagation();
+              dd.remove();
+              btn.classList.remove('active');
+              const paths = getConvoFolderPaths(convoId, projectId);
+              if (paths?.isOutsideOfProject) {
+                showNotification('Conversation is outside of any project');
+                return;
+              }
+              if (paths?.targetProjectUri) {
+                openLocalFolder(paths.targetProjectUri);
+                showNotification(paths.isBranch ? 'Opened branch folder' : 'Opened project folder');
+              } else {
+                showNotification('Failed to resolve project folder');
+              }
             });
           });
         });
@@ -1737,6 +1922,109 @@
           if (isPanelOpen) renderArchivePanel(pm);
         });
       }
+
+      // ==================== 7. 原生侧边栏未归档对话菜单增强 ====================
+      function initNativeConvoMenuEnhancer() {
+        if (nativeMenuPointerDownHandler) {
+          document.removeEventListener('pointerdown', nativeMenuPointerDownHandler, true);
+        }
+        if (nativeMenuObserver) {
+          nativeMenuObserver.disconnect();
+        }
+
+        nativeMenuPointerDownHandler = (e) => {
+          const btn = e.target?.closest?.('button[aria-label="More options"]');
+          if (btn) {
+            const row = btn.closest('[data-testid="conversation-row-sidebar"]');
+            if (row) {
+              activeNativeConvoId = row.getAttribute('data-cascade-id');
+            }
+          }
+        };
+        document.addEventListener('pointerdown', nativeMenuPointerDownHandler, true);
+
+        function checkAndEnhanceNativeMenu() {
+          const menu = document.querySelector('[role="menu"]:not([data-agy-enhanced="true"])');
+          if (!menu) return;
+
+          // 确认是否是对话操作菜单（具有原生重命名或删除项）
+          const hasConvoActions = menu.querySelector('[data-testid="conversation-delete-menu-item"]') ||
+                                  menu.querySelector('[data-testid="conversation-rename-menu-item"]');
+          if (!hasConvoActions) return;
+
+          menu.setAttribute('data-agy-enhanced', 'true');
+
+          // 获取目标对话 ID
+          let convoId = activeNativeConvoId;
+          if (!convoId) {
+            const m = window.location.pathname.match(/\/c\/([a-f0-9-]+)/i);
+            if (m) convoId = m[1];
+          }
+          if (!convoId) {
+            const selectedRow = document.querySelector('[data-testid="conversation-row-sidebar"][data-selected="true"]');
+            if (selectedRow) convoId = selectedRow.getAttribute('data-cascade-id');
+          }
+
+          const paths = getConvoFolderPaths(convoId);
+
+          const divider = document.createElement('div');
+          divider.setAttribute('role', 'separator');
+          divider.className = 'h-px bg-border my-1 -mx-1 agy-native-enhanced';
+
+          const itemConvo = document.createElement('div');
+          itemConvo.setAttribute('role', 'menuitem');
+          itemConvo.className = 'w-full px-2 py-1 text-left text-[13px] cursor-pointer outline-none transition-colors select-none flex items-center gap-1.5 rounded-md hover:bg-secondary hover:text-foreground text-secondary-foreground agy-native-enhanced';
+          itemConvo.innerHTML = `
+            <svg width="15" height="15" viewBox="0 -960 960 960" fill="currentColor" class="text-secondary-foreground shrink-0"><path d="M160-160q-33 0-56.5-23.5T80-240v-480q0-33 23.5-56.5T160-800h240l80 80h320q33 0 56.5 23.5T880-640v400q0 33-23.5 56.5T800-160H160Zm0-80h640v-400H447l-80-80H160v480Zm0 0v-480 480Z"/></svg>
+            <span>Open Conversation Folder</span>
+          `;
+          itemConvo.addEventListener('click', (ev) => {
+            ev.stopPropagation();
+            ev.preventDefault();
+            document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+            if (paths?.convoBrainUri) {
+              openLocalFolder(paths.convoBrainUri);
+              showNotification('Opened conversation folder');
+            } else {
+              showNotification('Failed to resolve conversation folder');
+            }
+          });
+
+          const itemProject = document.createElement('div');
+          itemProject.setAttribute('role', 'menuitem');
+          itemProject.className = 'w-full px-2 py-1 text-left text-[13px] cursor-pointer outline-none transition-colors select-none flex items-center gap-1.5 rounded-md hover:bg-secondary hover:text-foreground text-secondary-foreground agy-native-enhanced';
+          itemProject.innerHTML = `
+            <svg width="15" height="15" viewBox="0 -960 960 960" fill="currentColor" class="text-secondary-foreground shrink-0"><path d="M160-160q-33 0-56.5-23.5T80-240v-480q0-33 23.5-56.5T160-800h240l80 80h320q33 0 56.5 23.5T880-640v400q0 33-23.5 56.5T800-160H160Zm0-80h640v-400H447l-80-80H160v480Zm0 0v-480 480Z"/></svg>
+            <span>Open Project Folder</span>
+          `;
+          itemProject.addEventListener('click', (ev) => {
+            ev.stopPropagation();
+            ev.preventDefault();
+            document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+            if (paths?.isOutsideOfProject) {
+              showNotification('Conversation is outside of any project');
+              return;
+            }
+            if (paths?.targetProjectUri) {
+              openLocalFolder(paths.targetProjectUri);
+              showNotification(paths.isBranch ? 'Opened branch folder' : 'Opened project folder');
+            } else {
+              showNotification('Failed to resolve project folder');
+            }
+          });
+
+          menu.appendChild(divider);
+          menu.appendChild(itemConvo);
+          menu.appendChild(itemProject);
+        }
+
+        nativeMenuObserver = new MutationObserver(() => {
+          checkAndEnhanceNativeMenu();
+        });
+        nativeMenuObserver.observe(document.body, { childList: true, subtree: true });
+      }
+
+      initNativeConvoMenuEnhancer();
     }
 
     initProjectArchiver();
