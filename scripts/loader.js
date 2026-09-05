@@ -159,8 +159,8 @@ async function connectAndAttach() {
     ws.onmessage = (msg) => {
       try {
         const data = JSON.parse(msg.data);
-        if (data.method === 'Page.loadEventFired' || data.method === 'Page.frameNavigated') {
-          log(`收到页面导航/加载事件 (${data.method})，执行即时重注`);
+        if (data.method === 'Page.loadEventFired') {
+          log(`收到页面整页加载事件 (${data.method})，执行即时重注`);
           setTimeout(() => injectEnhancer(ws), 60);
         } else if (data.method === 'Runtime.consoleAPICalled') {
           const text = data.params?.args?.[0]?.value;
@@ -174,10 +174,11 @@ async function connectAndAttach() {
             saveStoredUnreadStates(jsonStr);
           }
         } else if (data.id === 77777) {
-          // 心跳探测返回：如果页面当前未就绪（如用户刚登录跳转、DOM 重新挂载）
+          // 心跳探测返回：如果探测出错或异常，切勿当成未就绪而乱注
+          if (data.error || data.result?.exceptionDetails) return;
           const isLoaded = data.result?.result?.value === true;
           if (!isLoaded) {
-            log(`[主动巡检] 发现当前页面插件尚未渲染就绪，触发毫秒级主动注入！`);
+            log(`[主动巡检] 发现当前页面插件尚未渲染就绪，触发主动注入！`);
             lastHeartbeatInjectTime = Date.now();
             injectEnhancer(ws);
           }
@@ -202,17 +203,17 @@ async function connectAndAttach() {
   }
 }
 
-// 主动巡检心跳：每 300ms 探测一次页面上增强器是否在正常运行，毫秒级响应登录跳转
+// 主动巡检心跳：毫秒级响应初次加载与登录跳转，已加载状态下保持静默
 function checkPageReadiness() {
   if (!currentWs || currentWs.readyState !== WebSocket.OPEN) return;
-  if (Date.now() - lastHeartbeatInjectTime < 800) return;
+  if (Date.now() - lastHeartbeatInjectTime < 4000) return;
 
   try {
     currentWs.send(JSON.stringify({
       id: 77777,
       method: 'Runtime.evaluate',
       params: {
-        expression: `Boolean(window.__AGY_ENHANCER_LOADED__ && document.getElementById('agy-read-toast'))`,
+        expression: `Boolean(window.__AGY_ENHANCER_LOADED__)`,
         returnByValue: true
       }
     }));
@@ -280,9 +281,9 @@ function injectEnhancer(ws) {
   }
 }
 
-// 快速轮询：每 250ms 检查一次客户端与页面连接状态，每 350ms 主动探测页面就绪状态
+// 快速轮询：每 250ms 检查一次客户端与页面连接状态，每 1800ms 主动探测页面就绪状态
 setInterval(connectAndAttach, 250);
-setInterval(checkPageReadiness, 350);
+setInterval(checkPageReadiness, 1800);
 connectAndAttach();
 
 // 监听源码变动：修改保存时瞬间同步到窗口

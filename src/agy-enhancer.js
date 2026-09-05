@@ -55,11 +55,11 @@
     // 判定长短文的比例阈值（默认 0.8，末轮问答高度 < 视口 80% 为短文，反之为长文）
     LONG_TEXT_RATIO: 0.8,
 
-    // 底部触底判定灵敏度（像素，默认 150px，容纳底部安全边距与呼吸空隙）
-    BOTTOM_THRESHOLD: 150,
+    // 底部触底判定灵敏度（像素，默认 120px，容纳底部安全边距与呼吸空隙）
+    BOTTOM_THRESHOLD: 120,
 
-    // 离开底部判定阈值（像素，默认 200px，向上翻阅超过该距离判定离开底部）
-    LEAVE_BOTTOM_THRESHOLD: 200,
+    // 离开底部判定阈值（像素，默认 180px，向上翻阅超过该距离判定离开底部）
+    LEAVE_BOTTOM_THRESHOLD: 180,
   };
 
   // ==================== 1. 全局清理与定时器安全管理机制 ====================
@@ -169,7 +169,8 @@
     document.getElementById('agy-read-styles')?.remove();
     document.getElementById('agy-page-nav-group')?.remove();
     document.getElementById('agy-scroll-bottom-btn')?.remove();
-    document.getElementById('agy-read-toast')?.remove();
+    // 保留 #agy-read-toast 单例，避免清理重建时反复重置并重新展开
+    // document.getElementById('agy-read-toast')?.remove();
     document.getElementById('agy-archive-header-btn')?.remove();
     document.getElementById('agy-archive-panel')?.remove();
     document.getElementById('agy-project-options-dropdown')?.remove();
@@ -777,47 +778,55 @@
 
     function createToast() {
       let toast = document.getElementById('agy-read-toast');
-      if (toast) toast.remove();
-
-      toast = document.createElement('div');
-      toast.id = 'agy-read-toast';
       const branchTag = window.__AGY_BRANCH_TAG__ || '';
-      toast.title = `Antigravity 阅读增强器已就绪${branchTag}`;
-      toast.innerHTML = `
-        <div class="dot"></div>
-        <span class="toast-text">Antigravity 增强器生效中${branchTag}</span>
-      `;
+      let collapseTimer = null;
 
-      document.body.appendChild(toast);
+      if (!toast) {
+        toast = document.createElement('div');
+        toast.id = 'agy-read-toast';
+        toast.title = `Antigravity 阅读增强器已就绪${branchTag}`;
+        toast.innerHTML = `
+          <div class="dot"></div>
+          <span class="toast-text">Antigravity 增强器生效中${branchTag}</span>
+        `;
 
-      requestAnimationFrame(() => {
-        setTimeout(() => toast.classList.add('show'), 80);
-      });
+        document.body.appendChild(toast);
 
-      let collapseTimer = setTimeout(() => {
-        toast.classList.add('collapsed');
-      }, USER_CONFIG.TOAST_EXPAND_DURATION_MS);
+        requestAnimationFrame(() => {
+          setTimeout(() => toast.classList.add('show'), 80);
+        });
 
-      toast.addEventListener('mouseenter', () => {
-        clearTimeout(collapseTimer);
-        toast.classList.remove('collapsed');
-      });
+        collapseTimer = setTimeout(() => {
+          toast.classList.add('collapsed');
+        }, USER_CONFIG.TOAST_EXPAND_DURATION_MS);
 
-      toast.addEventListener('mouseleave', () => {
-        toast.classList.add('collapsed');
-      });
+        toast.addEventListener('mouseenter', () => {
+          if (collapseTimer) clearTimeout(collapseTimer);
+          toast.classList.remove('collapsed');
+        });
 
-      toast.addEventListener('click', () => {
-        clearTimeout(collapseTimer);
-        toast.classList.toggle('collapsed');
-      });
+        toast.addEventListener('mouseleave', () => {
+          toast.classList.add('collapsed');
+        });
+
+        toast.addEventListener('click', () => {
+          if (collapseTimer) clearTimeout(collapseTimer);
+          toast.classList.toggle('collapsed');
+        });
+      } else {
+        // 已存在单例 Toast，仅更新标题，绝对不重置收折状态，绝不重新展开！
+        toast.title = `Antigravity 阅读增强器已就绪${branchTag}`;
+        if (!toast.classList.contains('collapsed')) {
+          toast.classList.add('collapsed');
+        }
+      }
 
       showNotification = (msg) => {
         const textSpan = toast.querySelector('.toast-text');
         if (textSpan) textSpan.textContent = msg;
         toast.classList.remove('collapsed');
         toast.classList.add('show');
-        clearTimeout(collapseTimer);
+        if (collapseTimer) clearTimeout(collapseTimer);
         collapseTimer = setTimeout(() => {
           toast.classList.add('collapsed');
         }, 3000);
@@ -1785,7 +1794,9 @@
                 if (!s.annotations) s.annotations = {};
                 s.annotations.markedAsUnread = newUnread;
               }
-              showNotification(newUnread ? 'Marked as unread' : 'Marked as read');
+              if (newUnread) {
+                showNotification('Marked as unread');
+              }
               renderArchivePanel(pm);
             });
 
@@ -2910,6 +2921,7 @@
       let hasLeftBottom = false;
       let longTextBottomTimer = null;
       let shortTextStayTimer = null;
+      let readingSessionType = null; // 'long' | 'short'
 
       function cleanupReadingSession() {
         if (longTextBottomTimer) {
@@ -2922,6 +2934,7 @@
         }
         currentReadingConvoId = null;
         hasLeftBottom = false;
+        readingSessionType = null;
       }
 
       function setupReadingSession(convoId) {
@@ -2930,7 +2943,7 @@
           return;
         }
 
-        // 同一对话阅读期间，保留用户已离开底部的状态，切勿反复重置 hasLeftBottom
+        // 同一对话阅读期间，保留用户已离开底部的状态，切勿反复重置
         if (currentReadingConvoId === convoId) {
           return;
         }
@@ -2941,10 +2954,12 @@
         if (!container) return;
 
         const isLong = checkIsLongText();
+        readingSessionType = isLong ? 'long' : 'short';
         console.log(`[agy-read] 对话 [${convoId}] 处于未读状态，启动阅读状态追踪 (类型: ${isLong ? '长文' : '短文'})`);
 
         const maxScroll = Math.max(0, container.scrollHeight - container.clientHeight);
         const distFromBottom = maxScroll - container.scrollTop;
+        // 如果一进来就已经在较上面（例如位置记忆恢复在顶部/中间），判定已离开底部
         hasLeftBottom = distFromBottom > USER_CONFIG.LEAVE_BOTTOM_THRESHOLD;
 
         if (!isLong) {
@@ -2983,7 +2998,7 @@
             console.log(`[agy-read] 对话 [${effectiveConvoId}] 检测到离开底部 (距底 ${Math.round(distFromBottom)}px)，等待二次触底`);
           }
           // 用户大幅往上翻阅时才清除 5s 底部倒计时
-          if (distFromBottom > USER_CONFIG.LEAVE_BOTTOM_THRESHOLD + 100) {
+          if (distFromBottom > USER_CONFIG.LEAVE_BOTTOM_THRESHOLD + 120) {
             if (longTextBottomTimer) {
               clearTimeout(longTextBottomTimer);
               longTextBottomTimer = null;
@@ -2991,7 +3006,7 @@
           }
         } else if (isAtBottom && hasLeftBottom) {
           // 二次触底达成！
-          const isLong = checkIsLongText();
+          const isLong = (readingSessionType === 'long') || checkIsLongText();
           if (!isLong) {
             // 短文：二次触底立即满足已读条件，即刻标记为已读！
             console.log(`[agy-read] 对话 [${effectiveConvoId}] 短文二次触底达成，立即标记为已读`);
@@ -3001,9 +3016,9 @@
             if (!longTextBottomTimer) {
               console.log(`[agy-read] 对话 [${effectiveConvoId}] 长文二次触底达成，启动底部 5 秒倒计时`);
               longTextBottomTimer = setTimeout(() => {
-                if (currentReadingConvoId && unreadConvosMap.has(currentReadingConvoId)) {
-                  console.log(`[agy-read] 对话 [${currentReadingConvoId}] 长文底部停留满 5 秒，标记为已读`);
-                  markConvoAsRead(currentReadingConvoId, '长文二次触底并在底部平稳停留满 5 秒');
+                if (currentReadingConvoId === effectiveConvoId && unreadConvosMap.has(effectiveConvoId)) {
+                  console.log(`[agy-read] 对话 [${effectiveConvoId}] 长文底部停留满 5 秒，标记为已读`);
+                  markConvoAsRead(effectiveConvoId, '长文二次触底并在底部平稳停留满 5 秒');
                 }
               }, USER_CONFIG.LONG_TEXT_BOTTOM_DURATION_MS);
             }
@@ -3030,6 +3045,9 @@
       };
       window.addEventListener('wheel', unreadWheelHandler, { capture: true, passive: true });
 
+      // 周期性检测触底与停留状态（弥补平滑滚动与动态内容渲染）
+      addInterval(handleReadingScroll, 200);
+
       // 对话切换监测
       let trackedConvoId = null;
       function checkConvoSwitchForUnread() {
@@ -3037,95 +3055,102 @@
         const effectiveConvoId = (container ? getContainerConvoId(container) : null) || getCurrentUrlConvoId();
         if (effectiveConvoId && effectiveConvoId !== trackedConvoId) {
           trackedConvoId = effectiveConvoId;
-          setupReadingSession(effectiveConvoId);
+          if (unreadConvosMap.has(effectiveConvoId)) {
+            setupReadingSession(effectiveConvoId);
+          } else {
+            cleanupReadingSession();
+          }
         }
       }
       addInterval(checkConvoSwitchForUnread, 150);
 
-      // 监听 AI 生成状态变化
-      let isAiGenerating = false;
+      // 精准监听 AI 生成状态变化：严格绑定具体正在生成的对话 ID，绝不误标切换后的对话！
+      let lastObservedGeneratingConvoId = null;
       function checkAiGeneratingState() {
         const stopBtn = document.querySelector('button[aria-label*="Stop execution"], button[aria-label*="Stop Task"], [data-testid="stop-button"]');
-        const generatingNow = !!stopBtn;
-        if (isAiGenerating && !generatingNow) {
-          // AI 刚完成输出
-          const container = getChatScrollContainer();
-          const convoId = (container ? getContainerConvoId(container) : null) || getCurrentUrlConvoId();
-          if (convoId) {
-            markConvoAsUnread(convoId, 'AI 回复生成完毕');
-            setupReadingSession(convoId);
+        const container = getChatScrollContainer();
+        const currentConvoId = (container ? getContainerConvoId(container) : null) || getCurrentUrlConvoId();
+
+        if (stopBtn) {
+          if (currentConvoId) {
+            lastObservedGeneratingConvoId = currentConvoId;
+          }
+        } else {
+          if (lastObservedGeneratingConvoId) {
+            // 之前在生成的具体对话完成输出，标记该对话为未读
+            const finishedConvoId = lastObservedGeneratingConvoId;
+            lastObservedGeneratingConvoId = null;
+            console.log(`[agy-read] 对话 [${finishedConvoId}] AI 回复生成完毕，标记为未读`);
+            markConvoAsUnread(finishedConvoId, 'AI 回复生成完毕');
           }
         }
-        isAiGenerating = generatingNow;
       }
       addInterval(checkAiGeneratingState, 250);
 
-      // 监听原生未读小绿点/红点（后台任务完成等原生事件）
+      // 监听后台原生任务完成事件：仅捕获非当前正在查看的后台对话
       function checkNativeUnreadDots() {
+        const container = getChatScrollContainer();
+        const activeConvoId = (container ? getContainerConvoId(container) : null) || getCurrentUrlConvoId();
+
         const dots = document.querySelectorAll('[data-testid="status-unread-dot"]');
         dots.forEach(dot => {
           const row = dot.closest('[data-testid="conversation-row-sidebar"]');
           if (row) {
             const id = row.getAttribute('data-cascade-id');
-            if (id && !unreadConvosMap.has(id)) {
-              markConvoAsUnread(id, '捕获到原生完成未读指示点');
+            // 切勿将用户当前正在阅读的对话误打上未读
+            if (id && id !== activeConvoId && !unreadConvosMap.has(id)) {
+              markConvoAsUnread(id, '捕获到后台原生完成未读指示点');
             }
           }
         });
       }
-      addInterval(checkNativeUnreadDots, 400);
+      addInterval(checkNativeUnreadDots, 500);
 
-      // 侧边栏行点击拦截：确保切入未读对话时状态不被原生抹除
-      const handleSidebarRowClick = (e) => {
-        const row = e.target.closest('[data-testid="conversation-row-sidebar"]');
-        if (row) {
-          const id = row.getAttribute('data-cascade-id');
-          const hasNativeDot = !!row.querySelector('[data-testid="status-unread-dot"]');
-          if (id && hasNativeDot && !unreadConvosMap.has(id)) {
-            markConvoAsUnread(id, '点击未读侧边栏行');
-          }
-        }
-      };
-      document.addEventListener('click', handleSidebarRowClick, true);
-
-      // 同步侧边栏未读高亮脉冲徽标
+      // 同步侧边栏指示点：与系统合二为一，共用单一点位，绝不出现双点！
       function syncSidebarIndicators() {
         const rows = document.querySelectorAll('[data-testid="conversation-row-sidebar"]');
         rows.forEach(row => {
           const id = row.getAttribute('data-cascade-id');
           if (!id) return;
           const isUnread = unreadConvosMap.has(id);
+          const nativeDot = row.querySelector('[data-testid="status-unread-dot"]');
           let badge = row.querySelector('.agy-unread-dot-badge');
 
           if (isUnread) {
-            if (!badge) {
-              const rightArea = row.querySelector('.relative.flex.items-center.shrink-0') ||
-                                row.querySelector('[data-testid="conversation-kebab"]')?.parentElement ||
-                                row.lastElementChild;
-              badge = document.createElement('div');
-              badge.className = 'agy-unread-dot-badge';
-              badge.title = '未读内容（需满足阅读条件后自动消除）';
-              badge.innerHTML = `
-                <div class="agy-unread-dot-pulse"></div>
-                <div class="agy-unread-dot-core"></div>
-              `;
-              if (rightArea && rightArea.parentElement) {
-                rightArea.parentElement.insertBefore(badge, rightArea);
-              } else {
-                row.appendChild(badge);
+            if (nativeDot) {
+              // 1. 原生未读点已存在：直接复用原生点，绝不重复插入插件徽标！
+              nativeDot.style.removeProperty('display');
+              if (badge) badge.remove();
+            } else {
+              // 2. 原生点已被系统移除（如用户点开查看或增强器记录的未读）：
+              // 将插件点精准挂载在原生点所在的时间右侧容器内，无缝接管单一点位！
+              const timeContainer = row.querySelector('.flex.items-center.gap-1\\.5') ||
+                                    row.querySelector('[data-screenshot-volatile="true"]')?.parentElement;
+              if (timeContainer) {
+                if (!badge) {
+                  badge = document.createElement('div');
+                  badge.className = 'agy-unread-dot-badge';
+                  badge.title = '未读内容（满足阅读条件后自动消除）';
+                  badge.innerHTML = `
+                    <div class="agy-unread-dot-pulse"></div>
+                    <div class="agy-unread-dot-core"></div>
+                  `;
+                  timeContainer.insertBefore(badge, timeContainer.firstChild);
+                }
               }
             }
           } else {
-            if (badge && !badge.classList.contains('agy-unread-fade-out')) {
-              badge.classList.add('agy-unread-fade-out');
-              setTimeout(() => {
-                if (badge.parentElement) badge.remove();
-              }, 320);
+            // 已读状态：彻底消除插件点，若有残留原生点也一并隐藏
+            if (badge) {
+              badge.remove();
+            }
+            if (nativeDot) {
+              nativeDot.style.setProperty('display', 'none', 'important');
             }
           }
         });
       }
-      addInterval(syncSidebarIndicators, 300);
+      addInterval(syncSidebarIndicators, 200);
 
       // 对外暴露辅助方法供右键菜单等模块协同调用
       window.__AGY_MARK_READ__ = (id) => markConvoAsRead(id || getCurrentUrlConvoId(), 'manual API');
