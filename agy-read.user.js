@@ -107,6 +107,7 @@
     document.getElementById('agy-archive-header-btn')?.remove();
     document.getElementById('agy-archive-panel')?.remove();
     document.getElementById('agy-project-options-dropdown')?.remove();
+    document.getElementById('agy-convo-options-dropdown')?.remove();
     document.querySelectorAll('.agy-quick-archive-btn').forEach(el => el.remove());
   };
 
@@ -463,7 +464,7 @@
         color: var(--foreground);
       }
 
-      /* 项目更多操作下拉菜单 */
+      /* 项目/对话操作下拉菜单 */
       .agy-options-dropdown {
         background: var(--card, var(--sidebar, var(--background, #ffffff)));
         color: var(--foreground, #101010);
@@ -471,14 +472,21 @@
         border-radius: 7px;
         box-shadow: 0 10px 28px rgba(0, 0, 0, 0.22), 0 2px 8px rgba(0, 0, 0, 0.1);
         padding: 4px;
-        min-width: 145px;
+        min-width: 155px;
         display: flex;
         flex-direction: column;
         gap: 2px;
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
         animation: agyFadeIn 0.12s ease-out;
+        z-index: 9999999;
+      }
+      .agy-dd-divider {
+        height: 1px;
+        background: var(--border, rgba(125, 125, 125, 0.18));
+        margin: 3px 2px;
       }
       .agy-dd-item {
+        position: relative;
         display: flex;
         align-items: center;
         gap: 8px;
@@ -490,9 +498,40 @@
         color: var(--foreground, #101010);
         transition: background 0.15s ease, color 0.15s ease;
       }
-      .agy-dd-item:hover {
+      .agy-dd-item:hover,
+      .agy-dd-item.active {
         background: var(--secondary, rgba(125, 125, 125, 0.15));
         color: var(--foreground, #101010);
+      }
+      .agy-dd-item .agy-dd-chevron {
+        margin-left: auto;
+        opacity: 0.6;
+      }
+      /* 子菜单 Submenu */
+      .agy-dd-submenu {
+        display: none;
+        position: absolute;
+        top: -4px;
+        left: calc(100% + 4px);
+        background: var(--card, var(--sidebar, var(--background, #ffffff)));
+        color: var(--foreground, #101010);
+        border: 1px solid var(--border, rgba(125, 125, 125, 0.25));
+        border-radius: 7px;
+        box-shadow: 0 10px 28px rgba(0, 0, 0, 0.22), 0 2px 8px rgba(0, 0, 0, 0.1);
+        padding: 4px;
+        min-width: 150px;
+        flex-direction: column;
+        gap: 2px;
+        z-index: 10000000;
+        animation: agyFadeIn 0.1s ease-out;
+      }
+      .agy-dd-submenu.flip-left {
+        left: auto;
+        right: calc(100% + 4px);
+      }
+      .agy-dd-item.has-submenu:hover > .agy-dd-submenu,
+      .agy-dd-item.has-submenu.open > .agy-dd-submenu {
+        display: flex;
       }
 
       /* 展开的对话列表 */
@@ -500,12 +539,13 @@
         display: none;
         flex-direction: column;
         gap: 2px;
-        padding: 2px 4px 6px 20px;
+        padding: 2px 4px 6px 16px;
       }
       .agy-archive-item.expanded .agy-archive-convo-list {
         display: flex;
       }
       .agy-convo-item {
+        position: relative;
         display: flex;
         align-items: center;
         gap: 6px;
@@ -515,13 +555,73 @@
         color: var(--muted-foreground);
         cursor: pointer;
         transition: background 0.15s ease, color 0.15s ease;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
+        text-decoration: none;
+        min-height: 26px;
+        box-sizing: border-box;
       }
       .agy-convo-item:hover {
         background: var(--secondary, rgba(125, 125, 125, 0.15));
         color: var(--foreground);
+      }
+      .agy-convo-title {
+        flex: 1;
+        min-width: 0;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .agy-convo-item.unread .agy-convo-title {
+        font-weight: 600;
+        color: var(--foreground);
+      }
+      .agy-convo-unread-dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: #3b82f6;
+        flex-shrink: 0;
+        margin-left: -2px;
+      }
+      .agy-convo-options-btn {
+        display: none;
+        align-items: center;
+        justify-content: center;
+        width: 20px;
+        height: 20px;
+        border-radius: 4px;
+        border: none;
+        background: transparent;
+        color: var(--muted-foreground);
+        cursor: pointer;
+        flex-shrink: 0;
+        margin-left: auto;
+        opacity: 0.8;
+        transition: background 0.15s ease, color 0.15s ease, opacity 0.15s ease;
+      }
+      .agy-convo-item:hover .agy-convo-options-btn,
+      .agy-convo-options-btn.active {
+        display: flex;
+      }
+      .agy-convo-options-btn:hover {
+        background: var(--secondary, rgba(125, 125, 125, 0.28));
+        color: var(--foreground);
+        opacity: 1;
+      }
+      .agy-convo-rename-input {
+        flex: 1;
+        min-width: 0;
+        height: 22px;
+        padding: 0 4px;
+        font-size: 12px;
+        font-family: inherit;
+        color: var(--foreground);
+        background: var(--input, rgba(125, 125, 125, 0.18));
+        border: 1px solid var(--border, rgba(125, 125, 125, 0.4));
+        border-radius: 3px;
+        outline: none;
+      }
+      .agy-convo-rename-input:focus {
+        border-color: var(--primary, #3b82f6);
       }
       .agy-convo-empty {
         display: flex;
@@ -834,7 +934,8 @@
           title: s.summary || s.title || 'Untitled conversation',
           projectId: s.projectId || s.trajectoryMetadata?.projectId,
           time: Number(s.lastModifiedTime?.seconds || s.createdTime?.seconds || 0),
-          archived: s.annotations?.archived === true
+          archived: s.annotations?.archived === true,
+          markedAsUnread: s.annotations?.markedAsUnread === true
         }));
         // 仅展示归属于该项目、且未被单独归档的正常对话
         return list.filter(c => c.projectId === projectId && !c.archived).sort((a, b) => b.time - a.time);
@@ -906,6 +1007,53 @@
         window.dispatchEvent(new PopStateEvent('popstate'));
       }
 
+      function getAgentService() {
+        const candidates = [
+          ...Array.from(document.querySelectorAll('[data-testid="section-header"]')),
+          document.getElementById('root')
+        ].filter(Boolean);
+        for (const el of candidates) {
+          const k = Object.keys(el).find(k => k.startsWith('__reactFiber$'));
+          let fiber = el ? el[k] : null;
+          while (fiber) {
+            if (fiber.memoizedProps?.value?.deleteCascadeTrajectory && fiber.memoizedProps?.value?.updateConversationAnnotations) {
+              return fiber.memoizedProps.value;
+            }
+            fiber = fiber.return;
+          }
+        }
+        return null;
+      }
+
+      async function refreshTrajectories() {
+        const as = getAgentService();
+        if (as?.getAllCascadeTrajectories) {
+          try { await as.getAllCascadeTrajectories(); } catch (e) {}
+        }
+      }
+
+      function openProjectSettings(projectId) {
+        const router = getAppRouter();
+        if (router?.navigate) {
+          try {
+            router.navigate({
+              search: (prev) => ({
+                ...(typeof prev === 'object' ? prev : {}),
+                settingsOpen: 'true',
+                settingsProjectId: projectId
+              })
+            });
+            return;
+          } catch (e) {
+            console.warn('[agy-read] router.navigate error:', e);
+          }
+        }
+        const u = new URL(window.location.href);
+        u.searchParams.set('settingsOpen', 'true');
+        u.searchParams.set('settingsProjectId', projectId);
+        navigateTo(u.pathname + u.search);
+      }
+
       let isPanelOpen = false;
       const expandedProjects = new Set();
 
@@ -914,6 +1062,7 @@
         if (!isPanelOpen) {
           if (panel) panel.remove();
           document.getElementById('agy-project-options-dropdown')?.remove();
+          document.getElementById('agy-convo-options-dropdown')?.remove();
           return;
         }
 
@@ -993,9 +1142,13 @@
                     ${convos.length === 0 ? `
                       <div class="agy-convo-empty">No conversations</div>
                     ` : convos.map(c => `
-                      <a class="agy-convo-item" href="/c/${encodeURIComponent(c.id)}?section=${encodeURIComponent(item.project.id)}" data-convo-id="${c.id}" data-project-id="${item.project.id}" title="${escapeHtml(c.title)}">
+                      <a class="agy-convo-item ${c.markedAsUnread ? 'unread' : ''}" href="/c/${encodeURIComponent(c.id)}?section=${encodeURIComponent(item.project.id)}" data-convo-id="${c.id}" data-project-id="${item.project.id}" title="${escapeHtml(c.title)}">
+                        ${c.markedAsUnread ? '<span class="agy-convo-unread-dot" title="Unread"></span>' : ''}
                         <svg width="13" height="13" viewBox="0 -960 960 960" fill="currentColor" class="shrink-0" style="opacity: 0.7;"><path d="M240-400h480v-60H240v60Zm0-120h480v-60H240v60Zm0-120h480v-60H240v60ZM80-80v-720q0-33 23.5-56.5T160-880h640q33 0 56.5 23.5T880-800v480q0 33-23.5 56.5T800-240H240L80-80Zm126-220H800v-480H160v535l46-55Zm-46 0v-480 480Z"/></svg>
                         <span class="agy-convo-title">${escapeHtml(c.title)}</span>
+                        <button class="agy-convo-options-btn" data-convo-id="${c.id}" data-project-id="${item.project.id}" title="Conversation options" aria-label="Conversation options">
+                          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 -960 960 960" fill="currentColor"><path d="M480-189.23q-24.75,0-42.37-17.62T420-249.23t17.62-42.37T480-309.23t42.37,17.62T540-249.23t-17.62,42.37T480-189.23ZM480-420q-24.75,0-42.37-17.62T420-480t17.62-42.37T480-540t42.37,17.62T540-480t-17.62,42.37T480-420Zm0-230.77q-24.75,0-42.37-17.62T420-710.77t17.62-42.37T480-770.77t42.37,17.62T540-710.77t-17.62,42.37T480-650.77Z"/></svg>
+                        </button>
                       </a>
                     `).join('')}
                   </div>
@@ -1029,7 +1182,7 @@
           });
         });
 
-        // 2. 绑定三点选项按钮 [⋮]
+        // 2. 绑定项目三点选项按钮 [⋮]
         panel.querySelectorAll('.agy-quick-options-btn').forEach(btn => {
           btn.addEventListener('click', (e) => {
             e.stopPropagation();
@@ -1044,6 +1197,7 @@
               return;
             }
             existingDd?.remove();
+            document.getElementById('agy-convo-options-dropdown')?.remove();
 
             const dd = document.createElement('div');
             dd.id = 'agy-project-options-dropdown';
@@ -1054,15 +1208,24 @@
             dd.style.position = 'fixed';
             dd.style.top = `${rect.bottom + 4}px`;
 
-            // 右对齐到按钮右侧边缘，宽度约 145px，并确保不超出窗口可视区
-            const menuWidth = 145;
+            // 右对齐到按钮右侧边缘，宽度约 160px，并确保不超出窗口可视区
+            const menuWidth = 160;
             let leftPos = rect.right - menuWidth;
             if (leftPos < 10) leftPos = 10;
             if (leftPos + menuWidth > window.innerWidth - 10) leftPos = window.innerWidth - menuWidth - 10;
             dd.style.left = `${leftPos}px`;
-            dd.style.zIndex = '9999999'; // 严格高于 panel 的 999995，绝不被遮挡
+            dd.style.zIndex = '9999999';
 
             dd.innerHTML = `
+              <div class="agy-dd-item copy-name">
+                <svg width="13" height="13" viewBox="0 -960 960 960" fill="currentColor"><path d="M360-240q-33 0-56.5-23.5T280-320v-480q0-33 23.5-56.5T360-880h360q33 0 56.5 23.5T800-800v480q0 33-23.5 56.5T720-240H360Zm0-80h360v-480H360v480ZM200-80q-33 0-56.5-23.5T120-160v-560h80v560h440v80H200Zm160-240v-480 480Z"/></svg>
+                <span>Copy Project Name</span>
+              </div>
+              <div class="agy-dd-item settings">
+                <svg width="13" height="13" viewBox="0 -960 960 960" fill="currentColor"><path d="m370-80-16-128q-13-5-24.5-12T307-235l-119 50L78-375l103-78q-1-7-1-13.5v-27q0-6.5 1-13.5L78-585l110-190 119 50q11-8 23-15t24-12l16-128h220l16 128q13 5 24.5 12t22.5 15l119-50 110 190-103 78q1 7 1 13.5v27q0 6.5-1 13.5l103 78-110 190-119-50q-11 8-23 15t-24 12L590-80H370Zm70-80h79l14-106q31-8 57.5-23.5T639-327l99 41 39-68-86-65q5-14 7-29.5t2-31.5q0-16-2-31.5t-7-29.5l86-65-39-68-99 42q-22-23-48.5-38.5T533-694l-13-106h-79l-14 106q-31 8-57.5 23.5T321-633l-99-41-39 68 86 64q-5 15-7 30t-2 32q0 16 2 31t7 30l-86 65 39 68 99-42q22 23 48.5 38.5T427-266l13 106Zm40-220q42 0 71-29t29-71q0-42-29-71t-71-29q-42 0-71 29t-29 71q0 42 29 71t71 29Z"/></svg>
+                <span>Project Settings</span>
+              </div>
+              <div class="agy-dd-divider"></div>
               <div class="agy-dd-item restore">
                 <svg width="13" height="13" viewBox="0 -960 960 960" fill="currentColor"><path d="M440-160v-327L336-383l-56-57 200-200 200 200-56 57-104-104v327h-80ZM160-600v-120q0-33 23.5-56.5T240-800h480q33 0 56.5 23.5T800-720v120h-80v-120H240v120h-80Z"/></svg>
                 <span>Restore</span>
@@ -1071,6 +1234,7 @@
                 <svg width="13" height="13" viewBox="0 -960 960 960" fill="currentColor"><path d="M440-440H200v-80h240v-240h80v240h240v80H520v240h-80v-240Z"/></svg>
                 <span>New Conversation</span>
               </div>
+              <div class="agy-dd-divider"></div>
               <div class="agy-dd-item delete" style="color: #ef4444;">
                 <svg width="13" height="13" viewBox="0 -960 960 960" fill="currentColor"><path d="M280-120q-33 0-56.5-23.5T200-200v-520h-40v-80h200v-40h240v40h200v80h-40v520q0 33-23.5 56.5T680-120H280Zm400-600H280v520h400v-520ZM360-280h80v-360h-80v360Zm160 0h80v-360h-80v360ZM280-720v520-520Z"/></svg>
                 <span>Delete Project</span>
@@ -1086,6 +1250,19 @@
               }
             };
             setTimeout(() => document.addEventListener('click', closeDropdown), 10);
+
+            dd.querySelector('.agy-dd-item.copy-name')?.addEventListener('click', async () => {
+              dd.remove();
+              await navigator.clipboard.writeText(p.project.name);
+              showNotification(`Copied project name: "${p.project.name}"`);
+            });
+
+            dd.querySelector('.agy-dd-item.settings')?.addEventListener('click', () => {
+              dd.remove();
+              isPanelOpen = false;
+              renderArchivePanel(pm);
+              openProjectSettings(p.project.id);
+            });
 
             dd.querySelector('.agy-dd-item.restore')?.addEventListener('click', async () => {
               dd.remove();
@@ -1116,7 +1293,240 @@
           });
         });
 
-        // 3. 绑定 +号新建对话按钮 [+]
+        // 3. 绑定对话项三点选项按钮 [⋮]
+        panel.querySelectorAll('.agy-convo-options-btn').forEach(btn => {
+          btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            const convoId = btn.getAttribute('data-convo-id');
+            const projectId = btn.getAttribute('data-project-id');
+            const convos = getProjectConversations(projectId);
+            const c = convos.find(x => x.id === convoId);
+            const p = archived.find(x => x.project.id === projectId);
+            if (!c || !p) return;
+
+            const existingDd = document.getElementById('agy-convo-options-dropdown');
+            if (existingDd && existingDd.getAttribute('data-convo-id') === convoId) {
+              existingDd.remove();
+              btn.classList.remove('active');
+              return;
+            }
+            existingDd?.remove();
+            document.getElementById('agy-project-options-dropdown')?.remove();
+            document.querySelectorAll('.agy-convo-options-btn.active').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+
+            const dd = document.createElement('div');
+            dd.id = 'agy-convo-options-dropdown';
+            dd.className = 'agy-options-dropdown';
+            dd.setAttribute('data-convo-id', convoId);
+            dd.setAttribute('data-project-id', projectId);
+
+            const rect = btn.getBoundingClientRect();
+            dd.style.position = 'fixed';
+            dd.style.top = `${rect.bottom + 4}px`;
+
+            const menuWidth = 150;
+            let leftPos = rect.right - menuWidth;
+            if (leftPos < 10) leftPos = 10;
+            if (leftPos + menuWidth > window.innerWidth - 10) leftPos = window.innerWidth - menuWidth - 10;
+            dd.style.left = `${leftPos}px`;
+            dd.style.zIndex = '9999999';
+
+            dd.innerHTML = `
+              <div class="agy-dd-item convo-rename">
+                <svg width="13" height="13" viewBox="0 -960 960 960" fill="currentColor"><path d="M200-200h57l391-391-57-57-391 391v57Zm-80 80v-170l528-527q12-11 26.5-17t30.5-6q16 0 31 6t26 18l55 56q12 11 17.5 26t5.5 30q0 16-5.5 30.5T817-647L290-120H120Zm640-584-56-56 56 56Zm-141 85-28-29 57 57-29-28Z"/></svg>
+                <span>Rename</span>
+              </div>
+              <div class="agy-dd-item convo-unread">
+                <svg width="13" height="13" viewBox="0 -960 960 960" fill="currentColor"><path d="M200-120v-680h360l16 80h224v400H520l-16-80H280v280h-80Zm300-440Zm86 160h134v-240H510l-16-80H280v240h290l16 80Z"/></svg>
+                <span>${c.markedAsUnread ? 'Mark as Read' : 'Mark Unread'}</span>
+              </div>
+              <div class="agy-dd-item convo-delete" style="color: #ef4444;">
+                <svg width="13" height="13" viewBox="0 -960 960 960" fill="currentColor"><path d="M280-120q-33 0-56.5-23.5T200-200v-520h-40v-80h200v-40h240v40h200v80h-40v520q0 33-23.5 56.5T680-120H280Zm400-600H280v520h400v-520ZM360-280h80v-360h-80v360Zm160 0h80v-360h-80v360ZM280-720v520-520Z"/></svg>
+                <span>Delete</span>
+              </div>
+              <div class="agy-dd-divider"></div>
+              <div class="agy-dd-item has-submenu convo-copy-item">
+                <svg width="13" height="13" viewBox="0 -960 960 960" fill="currentColor"><path d="M360-240q-33 0-56.5-23.5T280-320v-480q0-33 23.5-56.5T360-880h360q33 0 56.5 23.5T800-800v480q0 33-23.5 56.5T720-240H360Zm0-80h360v-480H360v480ZM200-80q-33 0-56.5-23.5T120-160v-560h80v560h440v80H200Zm160-240v-480 480Z"/></svg>
+                <span>Copy</span>
+                <svg class="agy-dd-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                <div class="agy-dd-submenu">
+                  <div class="agy-dd-item copy-convo-name">Conversation Name</div>
+                  <div class="agy-dd-item copy-convo-id">Conversation ID</div>
+                  <div class="agy-dd-item copy-project-name">Project Name</div>
+                </div>
+              </div>
+            `;
+
+            document.body.appendChild(dd);
+
+            // 智能翻转子菜单
+            const copyItem = dd.querySelector('.convo-copy-item');
+            const submenu = dd.querySelector('.agy-dd-submenu');
+            copyItem?.addEventListener('mouseenter', () => {
+              const ddRect = dd.getBoundingClientRect();
+              if (ddRect.right + 155 > window.innerWidth) {
+                submenu?.classList.add('flip-left');
+              } else {
+                submenu?.classList.remove('flip-left');
+              }
+            });
+
+            const closeConvoDd = (evt) => {
+              if (!dd.contains(evt.target) && !btn.contains(evt.target)) {
+                dd.remove();
+                btn.classList.remove('active');
+                document.removeEventListener('click', closeConvoDd);
+              }
+            };
+            setTimeout(() => document.addEventListener('click', closeConvoDd), 10);
+
+            // 重命名
+            dd.querySelector('.convo-rename')?.addEventListener('click', (ev) => {
+              ev.stopPropagation();
+              dd.remove();
+              btn.classList.remove('active');
+
+              const convoLink = panel.querySelector(`.agy-convo-item[data-convo-id="${convoId}"]`);
+              const titleSpan = convoLink?.querySelector('.agy-convo-title');
+              if (!titleSpan) return;
+
+              const currentTitle = c.title;
+              const input = document.createElement('input');
+              input.type = 'text';
+              input.className = 'agy-convo-rename-input';
+              input.value = currentTitle;
+
+              input.addEventListener('click', (ie) => {
+                ie.stopPropagation();
+                ie.preventDefault();
+              });
+
+              let isSaved = false;
+              const commitRename = async () => {
+                if (isSaved) return;
+                isSaved = true;
+                const newTitle = input.value.trim();
+                if (newTitle && newTitle !== currentTitle) {
+                  const as = getAgentService();
+                  if (as?.updateConversationAnnotations) {
+                    try {
+                      await as.updateConversationAnnotations(c.id, { title: newTitle }, true);
+                    } catch (err) {
+                      console.warn('[agy-read] updateConversationAnnotations title error:', err);
+                    }
+                  }
+                  const tsp = getTSP();
+                  const s = tsp?.getState()?.summaries?.[c.id];
+                  if (s) {
+                    s.summary = newTitle;
+                    s.title = newTitle;
+                  }
+                  showNotification('Conversation renamed');
+                }
+                renderArchivePanel(pm);
+              };
+
+              input.addEventListener('keydown', (ke) => {
+                ke.stopPropagation();
+                if (ke.key === 'Enter') {
+                  ke.preventDefault();
+                  commitRename();
+                } else if (ke.key === 'Escape') {
+                  ke.preventDefault();
+                  isSaved = true;
+                  renderArchivePanel(pm);
+                }
+              });
+
+              input.addEventListener('blur', () => {
+                commitRename();
+              });
+
+              titleSpan.replaceWith(input);
+              input.focus();
+              input.select();
+            });
+
+            // 标为未读 / 标为已读
+            dd.querySelector('.convo-unread')?.addEventListener('click', async (ev) => {
+              ev.stopPropagation();
+              dd.remove();
+              btn.classList.remove('active');
+              const newUnread = !c.markedAsUnread;
+              const as = getAgentService();
+              if (as?.updateConversationAnnotations) {
+                try {
+                  await as.updateConversationAnnotations(c.id, { markedAsUnread: newUnread }, true);
+                } catch (err) {
+                  console.warn('[agy-read] updateConversationAnnotations unread error:', err);
+                }
+              }
+              const tsp = getTSP();
+              const s = tsp?.getState()?.summaries?.[c.id];
+              if (s) {
+                if (!s.annotations) s.annotations = {};
+                s.annotations.markedAsUnread = newUnread;
+              }
+              showNotification(newUnread ? 'Marked as unread' : 'Marked as read');
+              renderArchivePanel(pm);
+            });
+
+            // 删除对话
+            dd.querySelector('.convo-delete')?.addEventListener('click', async (ev) => {
+              ev.stopPropagation();
+              dd.remove();
+              btn.classList.remove('active');
+              if (confirm(`Delete conversation "${c.title}"?`)) {
+                const as = getAgentService();
+                if (as?.deleteCascadeTrajectory) {
+                  try {
+                    await as.deleteCascadeTrajectory(c.id);
+                  } catch (err) {
+                    console.warn('[agy-read] deleteCascadeTrajectory error:', err);
+                  }
+                }
+                const tsp = getTSP();
+                const state = tsp?.getState();
+                if (state?.summaries?.[c.id]) {
+                  delete state.summaries[c.id];
+                }
+                showNotification('Conversation deleted');
+                renderArchivePanel(pm);
+              }
+            });
+
+            // 复制: 对话名称
+            dd.querySelector('.copy-convo-name')?.addEventListener('click', async (ev) => {
+              ev.stopPropagation();
+              dd.remove();
+              btn.classList.remove('active');
+              await navigator.clipboard.writeText(c.title);
+              showNotification(`Copied conversation name: "${c.title}"`);
+            });
+
+            // 复制: 对话 ID
+            dd.querySelector('.copy-convo-id')?.addEventListener('click', async (ev) => {
+              ev.stopPropagation();
+              dd.remove();
+              btn.classList.remove('active');
+              await navigator.clipboard.writeText(c.id);
+              showNotification(`Copied conversation ID: ${c.id}`);
+            });
+
+            // 复制: 项目名称
+            dd.querySelector('.copy-project-name')?.addEventListener('click', async (ev) => {
+              ev.stopPropagation();
+              dd.remove();
+              btn.classList.remove('active');
+              await navigator.clipboard.writeText(p.project.name);
+              showNotification(`Copied project name: "${p.project.name}"`);
+            });
+          });
+        });
+
+        // 4. 绑定 +号新建对话按钮 [+]
         panel.querySelectorAll('.agy-quick-add-btn').forEach(btn => {
           btn.addEventListener('click', (e) => {
             e.stopPropagation();
@@ -1130,7 +1540,7 @@
           });
         });
 
-        // 4. 点击项目主条目：展开/折叠对话列表
+        // 5. 点击项目主条目：展开/折叠对话列表
         panel.querySelectorAll('.agy-archive-item-header').forEach(itemHeader => {
           itemHeader.addEventListener('click', (e) => {
             if (e.target.closest('.agy-archive-actions')) return;
@@ -1147,9 +1557,12 @@
           });
         });
 
-        // 5. 点击对话项：关闭面板，纯路由导航（不触发页面重载，不触发还原）
+        // 6. 点击对话项：关闭面板，纯路由导航（不触发页面重载，不触发还原）
         panel.querySelectorAll('.agy-convo-item').forEach(convoLink => {
           convoLink.addEventListener('click', (e) => {
+            if (e.target.closest('.agy-convo-options-btn') || e.target.closest('.agy-convo-rename-input')) {
+              return;
+            }
             e.preventDefault();
             e.stopPropagation();
             const href = convoLink.getAttribute('href');
