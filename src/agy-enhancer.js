@@ -39,6 +39,9 @@
 
     // 右上角提示收折时长（毫秒，默认 3500ms 即 3.5 秒）
     TOAST_EXPAND_DURATION_MS: 3500,
+
+    // 是否开启多对话滚动阅读位置记忆与恢复（默认开启）
+    ENABLE_SCROLL_POSITION_PERSISTENCE: true,
   };
 
   // ==================== 1. 全局清理与定时器安全管理机制 ====================
@@ -67,6 +70,12 @@
   let activeNativeConvoId = null;
   let nativeMenuPointerDownHandler = null;
   let nativeMenuObserver = null;
+  let originalElementScrollTo = null;
+  let originalPushState = null;
+  let originalReplaceState = null;
+  let scrollCaptureHandler = null;
+  let userInteractionHandler = null;
+  let notifyNewPromptSubmitted = null;
 
   window.__AGY_ENHANCER_CLEANUP__ = function () {
     activeTimers.forEach(id => {
@@ -104,6 +113,30 @@
       nativeMenuObserver.disconnect();
       nativeMenuObserver = null;
     }
+
+    if (originalElementScrollTo) {
+      Element.prototype.scrollTo = originalElementScrollTo;
+      originalElementScrollTo = null;
+    }
+    if (originalPushState) {
+      history.pushState = originalPushState;
+      originalPushState = null;
+    }
+    if (originalReplaceState) {
+      history.replaceState = originalReplaceState;
+      originalReplaceState = null;
+    }
+    if (scrollCaptureHandler) {
+      window.removeEventListener('scroll', scrollCaptureHandler, true);
+      scrollCaptureHandler = null;
+    }
+    if (userInteractionHandler) {
+      ['wheel', 'pointerdown', 'mousedown', 'keydown', 'touchstart'].forEach(type => {
+        window.removeEventListener(type, userInteractionHandler, true);
+      });
+      userInteractionHandler = null;
+    }
+    notifyNewPromptSubmitted = null;
 
     document.getElementById('agy-read-styles')?.remove();
     document.getElementById('agy-page-nav-group')?.remove();
@@ -1858,6 +1891,7 @@
             const text = (ce.innerText || ce.value || '').trim();
             if (text.length > 0) {
               tryRestoreOnNewPrompt();
+              notifyNewPromptSubmitted?.();
             }
           }
         }
@@ -1879,6 +1913,7 @@
           const ce = document.querySelector('[contenteditable="true"]') || document.querySelector('textarea');
           if (ce && (ce.innerText || ce.value || '').trim().length > 0) {
             tryRestoreOnNewPrompt();
+            notifyNewPromptSubmitted?.();
           }
         }
       };
@@ -2199,10 +2234,325 @@
       document.addEventListener('contextmenu', contextMenuHandler, true);
     }
 
+    // ==================== 9. 对话阅读位置记忆与恢复 (Scroll Position Persistence) ====================
+    function initConversationScrollPersistence() {
+      if (!USER_CONFIG.ENABLE_SCROLL_POSITION_PERSISTENCE) return;
+
+      const STORAGE_KEY = 'agy_convo_scroll_positions';
+      const convoPositionsMap = new Map();
+
+      function loadPositions() {
+        try {
+          const raw = sessionStorage.getItem(STORAGE_KEY);
+          if (raw) {
+            const data = JSON.parse(raw);
+            if (data && typeof data === 'object') {
+              for (const [id, val] of Object.entries(data)) {
+                convoPositionsMap.set(id, val);
+              }
+            }
+          }
+        } catch (e) {}
+      }
+
+      function savePositions() {
+        try {
+          const obj = {};
+          for (const [id, val] of convoPositionsMap.entries()) {
+            obj[id] = val;
+          }
+          sessionStorage.setItem(STORAGE_KEY, JSON.stringify(obj));
+        } catch (e) {}
+      }
+
+      loadPositions();
+
+      function getContainerConvoId(c) {
+        if (!c) return null;
+        try {
+          const k = Object.keys(c).find(key => key.startsWith('__reactFiber$'));
+          let cur = c[k];
+          while (cur) {
+            if (cur.memoizedProps?.cascadeId) return cur.memoizedProps.cascadeId;
+            if (cur.memoizedProps?.conversationId) return cur.memoizedProps.conversationId;
+            cur = cur.return;
+          }
+        } catch (e) {}
+        return null;
+      }
+
+      function getCurrentUrlConvoId() {
+        const match = window.location.pathname.match(/\/c\/([a-f0-9-]+)/i);
+        if (match) return match[1];
+        const row = document.querySelector('[data-testid="conversation-row-sidebar"][data-selected="true"]');
+        if (row) {
+          const id = row.getAttribute('data-cascade-id');
+          if (id) return id;
+        }
+        return null;
+      }
+
+      let activeRestoringConvoId = null;
+      let activeRestoringTarget = null;
+      let restorationExpireTime = 0;
+
+      function endRestoration(reason) {
+        if (activeRestoringConvoId) {
+          activeRestoringConvoId = null;
+          activeRestoringTarget = null;
+          restorationExpireTime = 0;
+        }
+      }
+
+      function recordConvoPosition(targetConvoId) {
+        const container = getChatScrollContainer();
+        if (!container || container.clientHeight <= 0) return;
+
+        const containerId = getContainerConvoId(container);
+        const convoId = targetConvoId || containerId || getCurrentUrlConvoId();
+        if (!convoId) return;
+
+        // 若传入目标 ID，但容器所属对话与之不符（如处于路由过渡期），不写入以防数据污染
+        if (targetConvoId && containerId && targetConvoId !== containerId) {
+          return;
+        }
+
+        const scrollTop = container.scrollTop;
+        const scrollHeight = container.scrollHeight;
+        const clientHeight = container.clientHeight;
+        const isBottom = (scrollHeight - scrollTop - clientHeight) <= 45;
+
+        let turnIndex = 0;
+        let turnTopOffset = 0;
+        try {
+          const { pages } = getPagesInfo();
+          if (pages && pages.length > 0) {
+            const idx = getCurrentPageIndex(pages, scrollTop);
+            if (idx >= 0 && pages[idx]) {
+              turnIndex = idx;
+              turnTopOffset = Math.max(0, scrollTop - pages[idx].top);
+            }
+          }
+        } catch (e) {}
+
+        convoPositionsMap.set(convoId, {
+          scrollTop,
+          scrollHeight,
+          clientHeight,
+          isBottom,
+          turnIndex,
+          turnTopOffset,
+          timestamp: Date.now()
+        });
+        savePositions();
+      }
+
+      let saveTimer = null;
+      function scheduleSavePosition(convoId) {
+        if (saveTimer) clearTimeout(saveTimer);
+        saveTimer = setTimeout(() => {
+          recordConvoPosition(convoId);
+        }, 80);
+      }
+
+      function syncFiberAutoScrollDisabled(container) {
+        if (!container) return;
+        try {
+          const k = Object.keys(container).find(key => key.startsWith('__reactFiber$'));
+          let cur = container[k];
+          while (cur) {
+            let hook = cur.memoizedState;
+            while (hook) {
+              if (hook.memoizedState?.current === container) {
+                // hook.next.next 是 shouldAutoScroll ref (h)
+                const hRef = hook.next?.next?.memoizedState;
+                if (hRef && typeof hRef.current === 'boolean') {
+                  hRef.current = false;
+                }
+                // hook.next.next.next.next 是 lastScrollTop ref (l)
+                const lRef = hook.next?.next?.next?.next?.memoizedState;
+                if (lRef && typeof lRef.current === 'number') {
+                  lRef.current = container.scrollTop;
+                }
+                return;
+              }
+              hook = hook.next;
+            }
+            cur = cur.return;
+          }
+        } catch (e) {}
+      }
+
+      function getTargetScrollTop(container, targetState) {
+        if (!targetState || !container) return 0;
+        const maxScroll = Math.max(0, container.scrollHeight - container.clientHeight);
+        try {
+          const { pages } = getPagesInfo();
+          if (pages && pages.length > targetState.turnIndex && pages[targetState.turnIndex]) {
+            const page = pages[targetState.turnIndex];
+            const calculated = page.top + (targetState.turnTopOffset || 0);
+            if (calculated >= 0 && calculated <= maxScroll) {
+              return calculated;
+            }
+          }
+        } catch (e) {}
+        return Math.max(0, Math.min(targetState.scrollTop, maxScroll));
+      }
+
+      function applyRestoration() {
+        if (!activeRestoringConvoId || Date.now() > restorationExpireTime) {
+          endRestoration('expired');
+          return;
+        }
+        const container = getChatScrollContainer();
+        if (!container) return;
+
+        // 仅当容器已成功挂载为当前目标对话时才执行定位
+        const containerId = getContainerConvoId(container);
+        if (containerId && containerId !== activeRestoringConvoId) {
+          return;
+        }
+
+        const targetTop = getTargetScrollTop(container, activeRestoringTarget);
+        syncFiberAutoScrollDisabled(container);
+
+        if (Math.abs(container.scrollTop - targetTop) > 2) {
+          container.scrollTop = targetTop;
+        }
+      }
+
+      function startRestoration(convoId, saved) {
+        activeRestoringConvoId = convoId;
+        activeRestoringTarget = saved;
+        restorationExpireTime = Date.now() + 850;
+
+        applyRestoration();
+        [15, 35, 75, 130, 210, 320, 480, 680].forEach(ms => {
+          addTimeout(() => {
+            if (activeRestoringConvoId === convoId) {
+              applyRestoration();
+            }
+          }, ms);
+        });
+      }
+
+      // 拦截原生 scrollTo
+      originalElementScrollTo = Element.prototype.scrollTo;
+      Element.prototype.scrollTo = function (...args) {
+        const container = getChatScrollContainer();
+        if (this === container && activeRestoringConvoId && Date.now() <= restorationExpireTime) {
+          const options = typeof args[0] === 'object' ? args[0] : { top: args[0], left: args[1] };
+          if (options && typeof options.top === 'number' && options.top >= this.scrollHeight - 60) {
+            const targetTop = getTargetScrollTop(this, activeRestoringTarget);
+            syncFiberAutoScrollDisabled(this);
+            return originalElementScrollTo.call(this, { ...options, top: targetTop, behavior: 'instant' });
+          }
+        }
+        return originalElementScrollTo.apply(this, args);
+      };
+
+      // 监听全局滚动捕获
+      scrollCaptureHandler = (e) => {
+        const container = getChatScrollContainer();
+        if (e.target === container) {
+          if (activeRestoringConvoId && Date.now() <= restorationExpireTime) {
+            return;
+          }
+          const convoId = getContainerConvoId(container) || getCurrentUrlConvoId();
+          if (convoId) {
+            scheduleSavePosition(convoId);
+          }
+        }
+      };
+      window.addEventListener('scroll', scrollCaptureHandler, true);
+
+      // 用户交互即刻解除恢复保护
+      userInteractionHandler = (e) => {
+        if (activeRestoringConvoId) {
+          endRestoration('user manual interaction');
+        }
+      };
+      ['wheel', 'pointerdown', 'mousedown', 'keydown', 'touchstart'].forEach(type => {
+        window.addEventListener(type, userInteractionHandler, true);
+      });
+
+      // 路由与对话切换监测
+      let currentActiveConvoId = null;
+
+      function handleConvoSwitch() {
+        const container = getChatScrollContainer();
+        const containerConvoId = getContainerConvoId(container);
+        const urlConvoId = getCurrentUrlConvoId();
+
+        // 判定有效对话 ID：当容器已挂载该对话时即生效
+        const effectiveConvoId = containerConvoId || urlConvoId;
+        if (!effectiveConvoId) return;
+
+        if (effectiveConvoId !== currentActiveConvoId) {
+          if (currentActiveConvoId) {
+            recordConvoPosition(currentActiveConvoId);
+          }
+          currentActiveConvoId = effectiveConvoId;
+
+          const saved = convoPositionsMap.get(effectiveConvoId);
+          if (saved && !saved.isBottom && saved.scrollTop > 5) {
+            console.log(`[agy-read] 恢复对话 [${effectiveConvoId}] 阅读位置 (scrollTop: ${saved.scrollTop}px)`);
+            startRestoration(effectiveConvoId, saved);
+          } else {
+            endRestoration('new convo or at bottom');
+          }
+        }
+      }
+
+      // 初始化一次
+      handleConvoSwitch();
+
+      originalPushState = history.pushState;
+      history.pushState = function (...args) {
+        if (currentActiveConvoId) {
+          recordConvoPosition(currentActiveConvoId);
+        }
+        const res = originalPushState.apply(this, args);
+        handleConvoSwitch();
+        return res;
+      };
+
+      originalReplaceState = history.replaceState;
+      history.replaceState = function (...args) {
+        if (currentActiveConvoId) {
+          recordConvoPosition(currentActiveConvoId);
+        }
+        const res = originalReplaceState.apply(this, args);
+        handleConvoSwitch();
+        return res;
+      };
+
+      window.addEventListener('popstate', handleConvoSwitch);
+      addInterval(handleConvoSwitch, 80);
+
+      // 新提问提交通知钩子
+      notifyNewPromptSubmitted = () => {
+        const container = getChatScrollContainer();
+        const convoId = getContainerConvoId(container) || getCurrentUrlConvoId();
+        if (convoId) {
+          convoPositionsMap.set(convoId, {
+            scrollTop: 9999999,
+            scrollHeight: 9999999,
+            clientHeight: 0,
+            isBottom: true,
+            timestamp: Date.now()
+          });
+          savePositions();
+          endRestoration('new prompt submitted');
+        }
+      };
+    }
+
     initProjectArchiver();
     initContextMenuSupport();
+    initConversationScrollPersistence();
 
-    console.log('[agy-read] 纸张翻页器、项目折叠归档与右键菜单已就绪！');
+    console.log('[agy-read] 纸张翻页器、项目折叠归档、右键菜单与阅读位置记忆已就绪！');
   }
 
   bootstrap();
