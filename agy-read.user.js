@@ -11,8 +11,6 @@
 // @run-at       document-idle
 // ==/UserScript==
 
-window.__AGY_BRANCH_TAG__ = "（分支）";
-window.__AGY_BRANCH_NAME__ = "starlit_nova_spins_09h29";
 /**
  * Antigravity 阅读增强器 (agy-read enhancer)
  * 
