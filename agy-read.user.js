@@ -11,6 +11,8 @@
 // @run-at       document-idle
 // ==/UserScript==
 
+window.__AGY_BRANCH_TAG__ = " (branch)";
+window.__AGY_BRANCH_NAME__ = "add_open_folder_context_menu";
 /**
  * Antigravity 阅读增强器 (agy-read enhancer)
  * 
@@ -405,6 +407,18 @@
       .agy-quick-archive-btn {
         outline: none;
         cursor: pointer;
+      }
+
+      /* 修复未归档项目展开或激活后操作图标常驻/在子对话上仍显现的问题：仅在鼠标直接悬停于项目卡片或呼出菜单时才显现 */
+      .group\\/header:has(button[data-project-card="true"]) .absolute.right-1 {
+        opacity: 0 !important;
+        pointer-events: none !important;
+        transition: opacity 0.15s ease;
+      }
+      .group\\/header:has(button[data-project-card="true"]):hover .absolute.right-1,
+      .group\\/header:has(button[data-project-card="true"]):has(button[aria-label="Project options"][aria-expanded="true"]) .absolute.right-1 {
+        opacity: 1 !important;
+        pointer-events: auto !important;
       }
 
       /* 已归档项目折叠面板 */
