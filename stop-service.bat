@@ -1,9 +1,9 @@
 @echo off
 chcp 65001 >nul
-title Antigravity Reading Enhancer - Stop Background Service
+title Antigravity Enhancer - Stop Background Service
 
 echo ====================================================
-echo    Stopping Antigravity Reading Enhancer Daemon...
+echo    Stopping Antigravity Enhancer Daemon...
 echo ====================================================
 echo.
 

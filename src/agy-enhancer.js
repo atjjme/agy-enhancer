@@ -1,11 +1,11 @@
 /**
- * Antigravity 阅读增强器 (agy-read enhancer)
+ * Antigravity 增强器 (agy-enhancer enhancer)
  * 
  * 核心特性：
  * 1. 【纸张式翻页导航】右侧滚动条旁常驻「向上 / 向下」双按钮：
  *    - 点向上：如果在纸内，回到当前问答的【页头】（提问顶部）；如果在页头附近，翻到【上一页】（上一轮问答）；
  *    - 点向下：如果在纸内，直达当前问答的【页脚】（回答末尾）；如果在页脚附近，翻到【下一页】（下一轮问答或最新底部）；双击直接直达整个页面最底部；
- * 2. 【右上角状态提示】提示增强器正在守护阅读。
+ * 2. 【右上角状态提示】提示增强器正在守护运行。
  */
 
 (function () {
@@ -40,14 +40,14 @@
     // 右上角提示收折时长（毫秒，默认 3500ms 即 3.5 秒）
     TOAST_EXPAND_DURATION_MS: 3500,
 
-    // 是否开启多对话滚动阅读位置记忆与恢复（默认开启）
+    // 是否开启多对话滚动位置记忆与恢复（默认开启）
     ENABLE_SCROLL_POSITION_PERSISTENCE: true,
 
     // 是否开启智能已读/未读状态追踪与提醒（默认开启）
     ENABLE_SMART_UNREAD: true,
 
     // 短文自动已读停留时长（毫秒，默认 10000 即 10 秒）
-    SHORT_TEXT_READ_DURATION_MS: 10000,
+    SHORT_TEXT_VIEW_DURATION_MS: 10000,
 
     // 长文二次触底后底部平稳停留时长（毫秒，默认 5000 即 5 秒）
     LONG_TEXT_BOTTOM_DURATION_MS: 5000,
@@ -175,11 +175,11 @@
     notifyNewPromptSubmitted = null;
     notifyPromptSubmittedForUnread = null;
 
-    document.getElementById('agy-read-styles')?.remove();
+    document.getElementById('agy-enhancer-styles')?.remove();
     document.getElementById('agy-page-nav-group')?.remove();
     document.getElementById('agy-scroll-bottom-btn')?.remove();
-    // 保留 #agy-read-toast 单例，避免清理重建时反复重置并重新展开
-    // document.getElementById('agy-read-toast')?.remove();
+    // 保留 #agy-enhancer-toast 单例，避免清理重建时反复重置并重新展开
+    // document.getElementById('agy-enhancer-toast')?.remove();
     document.getElementById('agy-archive-header-btn')?.remove();
     document.getElementById('agy-archive-panel')?.remove();
     document.getElementById('agy-project-options-dropdown')?.remove();
@@ -200,7 +200,7 @@
       return;
     }
 
-    console.log('[agy-read] Initializing page navigator...');
+    console.log('[agy-enhancer] Initializing page navigator...');
     initEnhancer();
   }
 
@@ -209,10 +209,10 @@
 
     // ==================== 1. 注入专用样式 ====================
     const styleEl = document.createElement('style');
-    styleEl.id = 'agy-read-styles';
+    styleEl.id = 'agy-enhancer-styles';
     styleEl.textContent = `
       /* 右上角生效提示 Toast */
-      #agy-read-toast {
+      #agy-enhancer-toast {
         position: fixed;
         top: 14px;
         right: 140px;
@@ -239,27 +239,27 @@
         opacity: 0;
         transform: translateY(-8px) scale(0.95);
       }
-      #agy-read-toast,
-      #agy-read-toast * {
+      #agy-enhancer-toast,
+      #agy-enhancer-toast * {
         -webkit-app-region: no-drag !important;
         app-region: no-drag !important;
         pointer-events: auto !important;
       }
-      #agy-read-toast.show {
+      #agy-enhancer-toast.show {
         opacity: 1;
         transform: translateY(0) scale(1);
       }
-      #agy-read-toast.collapsed {
+      #agy-enhancer-toast.collapsed {
         padding: 6px 9px;
         opacity: 0.8;
         background: rgba(24, 24, 27, 0.75);
       }
-      #agy-read-toast.collapsed:hover {
+      #agy-enhancer-toast.collapsed:hover {
         opacity: 1;
         padding: 6px 14px;
         background: rgba(24, 24, 27, 0.95);
       }
-      #agy-read-toast .dot {
+      #agy-enhancer-toast .dot {
         width: 8px;
         height: 8px;
         border-radius: 50%;
@@ -267,17 +267,17 @@
         box-shadow: 0 0 10px #22c55e;
         flex-shrink: 0;
       }
-      #agy-read-toast .toast-text {
+      #agy-enhancer-toast .toast-text {
         white-space: nowrap;
         transition: all 0.25s ease;
       }
-      #agy-read-toast.collapsed .toast-text {
+      #agy-enhancer-toast.collapsed .toast-text {
         max-width: 0;
         opacity: 0;
         margin: 0;
         overflow: hidden;
       }
-      #agy-read-toast.collapsed:hover .toast-text {
+      #agy-enhancer-toast.collapsed:hover .toast-text {
         max-width: 220px;
         opacity: 1;
         margin-left: 2px;
@@ -345,15 +345,15 @@
 
       /* 亮色模式自动适配 */
       @media (prefers-color-scheme: light) {
-        #agy-read-toast {
+        #agy-enhancer-toast {
           background: rgba(255, 255, 255, 0.95);
           color: #18181b;
           box-shadow: 0 4px 18px rgba(0, 0, 0, 0.12), 0 0 0 1px rgba(0, 0, 0, 0.08);
         }
-        #agy-read-toast.collapsed {
+        #agy-enhancer-toast.collapsed {
           background: rgba(255, 255, 255, 0.85);
         }
-        #agy-read-toast.collapsed:hover {
+        #agy-enhancer-toast.collapsed:hover {
           background: rgba(255, 255, 255, 0.98);
         }
         .agy-nav-btn {
@@ -800,13 +800,13 @@
     let showNotification = (msg) => {};
 
     function createToast() {
-      let toast = document.getElementById('agy-read-toast');
+      let toast = document.getElementById('agy-enhancer-toast');
       const branchTag = window.__AGY_BRANCH_TAG__ || '';
       let collapseTimer = null;
 
       if (!toast) {
         toast = document.createElement('div');
-        toast.id = 'agy-read-toast';
+        toast.id = 'agy-enhancer-toast';
         toast.title = `Antigravity Enhancer ready${branchTag}`;
         toast.innerHTML = `
           <div class="dot"></div>
@@ -958,17 +958,17 @@
 
       // 如果当前视口距离本页页头较远（说明在纸张内向下读了一段），点一下回到本页页头
       if (currentScroll > curPage.headScrollTop + threshold) {
-        console.log(`[agy-read] Back to turn ${curIdx + 1} top`);
+        console.log(`[agy-enhancer] Back to turn ${curIdx + 1} top`);
         container.scrollTo({ top: curPage.headScrollTop, behavior: 'smooth' });
       } else {
         // 已经在当前页头附近，点一下向上翻到上一页
         if (curIdx > 0) {
           const prevPage = pages[curIdx - 1];
-          console.log(`[agy-read] Up to turn ${curIdx} top`);
+          console.log(`[agy-enhancer] Up to turn ${curIdx} top`);
           container.scrollTo({ top: prevPage.headScrollTop, behavior: 'smooth' });
         } else {
           // 已经是第 1 页，直达整个页面最顶端
-          console.log('[agy-read] Reached top');
+          console.log('[agy-enhancer] Reached top');
           container.scrollTo({ top: 0, behavior: 'smooth' });
         }
       }
@@ -991,17 +991,17 @@
 
       // 如果当前还没到底部页脚，点一下到本页页脚
       if (currentScroll < curPage.footScrollTop - threshold) {
-        console.log(`[agy-read] Down to turn ${curIdx + 1} bottom`);
+        console.log(`[agy-enhancer] Down to turn ${curIdx + 1} bottom`);
         container.scrollTo({ top: curPage.footScrollTop, behavior: 'smooth' });
       } else {
         // 已经在页脚附近，翻到下一页的页头
         if (curIdx < pages.length - 1) {
           const nextPage = pages[curIdx + 1];
-          console.log(`[agy-read] Down to turn ${curIdx + 2} top`);
+          console.log(`[agy-enhancer] Down to turn ${curIdx + 2} top`);
           container.scrollTo({ top: nextPage.headScrollTop, behavior: 'smooth' });
         } else {
           // 已经是最后一页，直达最新底部
-          console.log('[agy-read] Reached bottom');
+          console.log('[agy-enhancer] Reached bottom');
           container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' });
         }
       }
@@ -1014,7 +1014,7 @@
     function navigateToBottom() {
       const container = getChatScrollContainer();
       if (!container) return;
-      console.log('[agy-read] Double click: Scrolled to bottom');
+      console.log('[agy-enhancer] Double click: Scrolled to bottom');
       container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' });
     }
 
@@ -1162,7 +1162,7 @@
             await window.electronNative.revealInFilePicker(directChildUri);
             return true;
           } catch (err) {
-            console.warn('[agy-read] direct inside reveal failed, falling back to folder uri:', err);
+            console.warn('[agy-enhancer] direct inside reveal failed, falling back to folder uri:', err);
           }
         }
 
@@ -1171,7 +1171,7 @@
           await window.electronNative.revealInFilePicker(uri);
           return true;
         } catch (e) {
-          console.warn('[agy-read] revealInFilePicker fallback error:', e);
+          console.warn('[agy-enhancer] revealInFilePicker fallback error:', e);
         }
       }
 
@@ -1180,7 +1180,7 @@
           await window.electronNative.openExternal(uri);
           return true;
         } catch (e) {
-          console.warn('[agy-read] openExternal error:', e);
+          console.warn('[agy-enhancer] openExternal error:', e);
         }
       }
 
@@ -1425,7 +1425,7 @@
             router.history.push(path);
             return;
           } catch (e) {
-            console.warn('[agy-read] history.push error, falling back to router.navigate:', e);
+            console.warn('[agy-enhancer] history.push error, falling back to router.navigate:', e);
           }
         }
         // 2. TanStack Router navigate 尝试
@@ -1446,7 +1446,7 @@
             router.navigate({ to: path });
             return;
           } catch (e) {
-            console.warn('[agy-read] router.navigate error:', e);
+            console.warn('[agy-enhancer] router.navigate error:', e);
           }
         }
         window.history.pushState({}, '', path);
@@ -1491,7 +1491,7 @@
             });
             return;
           } catch (e) {
-            console.warn('[agy-read] router.navigate error:', e);
+            console.warn('[agy-enhancer] router.navigate error:', e);
           }
         }
         const u = new URL(window.location.href);
@@ -1825,7 +1825,7 @@
               </div>
               <div class="agy-dd-item convo-unread">
                 <svg width="16" height="16" viewBox="0 -960 960 960" fill="currentColor"><path d="M200-120v-680h360l16 80h224v400H520l-16-80H280v280h-80Zm300-440Zm86 160h134v-240H510l-16-80H280v240h290l16 80Z"/></svg>
-                <span>${c.markedAsUnread ? 'Mark as Read' : 'Mark Unread'}</span>
+                <span>${c.markedAsUnread ? 'Mark as Seen' : 'Mark Unread'}</span>
               </div>
               <div class="agy-dd-item convo-delete" style="color: #ef4444;">
                 <svg width="16" height="16" viewBox="0 -960 960 960" fill="currentColor"><path d="M280-120q-33 0-56.5-23.5T200-200v-520h-40v-80h200v-40h240v40h200v80h-40v520q0 33-23.5 56.5T680-120H280Zm400-600H280v520h400v-520ZM360-280h80v-360h-80v360Zm160 0h80v-360h-80v360ZM280-720v520-520Z"/></svg>
@@ -1898,7 +1898,7 @@
                     try {
                       await as.updateConversationAnnotations(c.id, { title: newTitle }, true);
                     } catch (err) {
-                      console.warn('[agy-read] updateConversationAnnotations title error:', err);
+                      console.warn('[agy-enhancer] updateConversationAnnotations title error:', err);
                     }
                   }
                   const tsp = getTSP();
@@ -1944,7 +1944,7 @@
                 try {
                   await as.updateConversationAnnotations(c.id, { markedAsUnread: newUnread }, true);
                 } catch (err) {
-                  console.warn('[agy-read] updateConversationAnnotations unread error:', err);
+                  console.warn('[agy-enhancer] updateConversationAnnotations unread error:', err);
                 }
               }
               const tsp = getTSP();
@@ -1970,7 +1970,7 @@
                   try {
                     await as.deleteCascadeTrajectory(c.id);
                   } catch (err) {
-                    console.warn('[agy-read] deleteCascadeTrajectory error:', err);
+                    console.warn('[agy-enhancer] deleteCascadeTrajectory error:', err);
                   }
                 }
                 const tsp = getTSP();
@@ -2115,7 +2115,7 @@
         const projects = pm.projectsStateProvider?.getState() || [];
         const target = projects.find(p => p.project?.id === currentProjectId && p.project?.archived);
         if (target) {
-          console.log(`[agy-read] New activity detected, restoring project: ${target.project.name}`);
+          console.log(`[agy-enhancer] New activity detected, restoring project: ${target.project.name}`);
           await pm.updateProject({ ...target.project, archived: false });
           showNotification(`Project [${target.project.name}] restored`);
           updateArchiveUI();
@@ -2387,20 +2387,20 @@
             // 标记已读/未读切换项
             if (convoId && typeof window.__AGY_IS_UNREAD__ === 'function') {
               const isUnread = window.__AGY_IS_UNREAD__(convoId);
-              const itemToggleRead = document.createElement('div');
-              itemToggleRead.setAttribute('role', 'menuitem');
-              itemToggleRead.className = 'w-full px-2 py-1 text-left text-[13px] cursor-pointer outline-none transition-colors select-none flex items-center gap-1.5 rounded-md hover:bg-secondary hover:text-foreground text-secondary-foreground agy-native-enhanced';
-              itemToggleRead.innerHTML = `
+              const itemToggleUnread = document.createElement('div');
+              itemToggleUnread.setAttribute('role', 'menuitem');
+              itemToggleUnread.className = 'w-full px-2 py-1 text-left text-[13px] cursor-pointer outline-none transition-colors select-none flex items-center gap-1.5 rounded-md hover:bg-secondary hover:text-foreground text-secondary-foreground agy-native-enhanced';
+              itemToggleUnread.innerHTML = `
                 <svg width="16" height="16" viewBox="0 -960 960 960" fill="currentColor" class="text-secondary-foreground shrink-0"><path d="M480-80q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-83 31.5-156T197-763q54-54 127-85.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 83-31.5 156T763-197q-54 54-127 85.5T480-80Zm0-80q134 0 227-93t93-227q0-134-93-227t-227-93q-134 0-227 93t-93 227q0 134 93 227t227 93Zm0-320Z"/></svg>
-                <span>${isUnread ? 'Mark as Read' : 'Mark as Unread'}</span>
+                <span>${isUnread ? 'Mark as Seen' : 'Mark as Unread'}</span>
               `;
-              itemToggleRead.addEventListener('click', (ev) => {
+              itemToggleUnread.addEventListener('click', (ev) => {
                 ev.stopPropagation();
                 ev.preventDefault();
                 document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
                 if (isUnread) {
-                  if (typeof window.__AGY_MARK_READ__ === 'function') {
-                    window.__AGY_MARK_READ__(convoId);
+                  if (typeof window.__AGY_MARK_SEEN__ === 'function') {
+                    window.__AGY_MARK_SEEN__(convoId);
                   }
                 } else {
                   if (typeof window.__AGY_MARK_UNREAD__ === 'function') {
@@ -2408,7 +2408,7 @@
                   }
                 }
               });
-              menu.appendChild(itemToggleRead);
+              menu.appendChild(itemToggleUnread);
             }
 
             activeNativeConvoId = null;
@@ -2589,7 +2589,7 @@
       document.addEventListener('contextmenu', contextMenuHandler, true);
     }
 
-    // ==================== 9. 对话阅读位置记忆与恢复 (Scroll Position Persistence) ====================
+    // ==================== 9. 对话滚动位置记忆与恢复 (Scroll Position Persistence) ====================
     function initConversationScrollPersistence() {
       if (!USER_CONFIG.ENABLE_SCROLL_POSITION_PERSISTENCE) return;
 
@@ -2967,7 +2967,7 @@
         if (!effectiveConvoId) return;
 
         if (effectiveConvoId !== currentActiveConvoId) {
-          // 仅在当前确实是用户在阅读该对话时才保存
+          // 仅在当前确实是用户在查看该对话时才保存
           if (currentActiveConvoId && isUserInteracting) {
             recordConvoPosition(currentActiveConvoId);
           }
@@ -2975,7 +2975,7 @@
 
           const saved = convoPositionsMap.get(effectiveConvoId);
           if (saved && !saved.isBottom && saved.scrollTop > 5) {
-            console.log(`[agy-read] Switched to convo [${effectiveConvoId}], restoring position (scrollTop: ${saved.scrollTop}px)`);
+            console.log(`[agy-enhancer] Switched to convo [${effectiveConvoId}], restoring position (scrollTop: ${saved.scrollTop}px)`);
             startRestoration(effectiveConvoId, saved);
           } else {
             endRestoration('new convo or at bottom');
@@ -3024,7 +3024,7 @@
         }
       };
 
-      // 软件窗口关闭/刷新时，确保当前正在阅读的对话位置立即落盘
+      // 软件窗口关闭/刷新时，确保当前激活的对话位置立即落盘
       const handleWindowUnload = () => {
         if (currentActiveConvoId && !activeRestoringConvoId) {
           recordConvoPosition(currentActiveConvoId);
@@ -3170,35 +3170,35 @@
         if (!unreadConvosMap.has(convoId)) {
           unreadConvosMap.set(convoId, { unread: true, timestamp: Date.now() });
           saveUnreadStates();
-          console.log(`[agy-read] Convo [${convoId}] marked as unread (${reason})`);
+          console.log(`[agy-enhancer] Convo [${convoId}] marked as unread (${reason})`);
           syncSidebarIndicators();
         }
         const container = getChatScrollContainer();
         const effectiveConvoId = (container ? getContainerConvoId(container) : null) || getCurrentUrlConvoId();
         if (effectiveConvoId === convoId) {
-          setupReadingSession(convoId);
+          setupViewingSession(convoId);
         }
       }
 
-      function markConvoAsRead(convoId, reason) {
+      function markConvoAsSeen(convoId, reason) {
         if (!convoId) return;
         if (unreadConvosMap.has(convoId)) {
           unreadConvosMap.delete(convoId);
           saveUnreadStates();
-          console.log(`[agy-read] Convo [${convoId}] marked as read (${reason})`);
-          cleanupReadingSession();
+          console.log(`[agy-enhancer] Convo [${convoId}] marked as seen (${reason})`);
+          cleanupViewingSession();
           syncSidebarIndicators();
         }
       }
 
-      // 阅读物理状态机
-      let currentReadingConvoId = null;
+      // 浏览状态机
+      let currentViewingConvoId = null;
       let hasLeftBottom = false;
       let longTextBottomTimer = null;
       let shortTextStayTimer = null;
-      let readingSessionType = null; // 'long' | 'short'
+      let viewingSessionType = null; // 'long' | 'short'
 
-      function cleanupReadingSession() {
+      function cleanupViewingSession() {
         if (longTextBottomTimer) {
           clearTimeout(longTextBottomTimer);
           longTextBottomTimer = null;
@@ -3207,30 +3207,30 @@
           clearTimeout(shortTextStayTimer);
           shortTextStayTimer = null;
         }
-        currentReadingConvoId = null;
+        currentViewingConvoId = null;
         hasLeftBottom = false;
-        readingSessionType = null;
+        viewingSessionType = null;
       }
 
-      function setupReadingSession(convoId) {
+      function setupViewingSession(convoId) {
         if (!convoId || !unreadConvosMap.has(convoId)) {
-          cleanupReadingSession();
+          cleanupViewingSession();
           return;
         }
 
-        // 同一对话阅读期间，保留用户已离开底部的状态，切勿反复重置
-        if (currentReadingConvoId === convoId) {
+        // 同一对话查看期间，保留用户已离开底部的状态，切勿反复重置
+        if (currentViewingConvoId === convoId) {
           return;
         }
 
-        cleanupReadingSession();
-        currentReadingConvoId = convoId;
+        cleanupViewingSession();
+        currentViewingConvoId = convoId;
         const container = getChatScrollContainer();
         if (!container) return;
 
         const isLong = checkIsLongText();
-        readingSessionType = isLong ? 'long' : 'short';
-        console.log(`[agy-read] Convo [${convoId}] is unread, tracking reading (type: ${isLong ? 'long' : 'short'})`);
+        viewingSessionType = isLong ? 'long' : 'short';
+        console.log(`[agy-enhancer] Convo [${convoId}] is unread, tracking view (type: ${isLong ? 'long' : 'short'})`);
 
         const maxScroll = Math.max(0, container.scrollHeight - container.clientHeight);
         const distFromBottom = maxScroll - container.scrollTop;
@@ -3241,25 +3241,25 @@
         if (!isLong) {
           // 短文条件二：停留满 10s 即已读
           shortTextStayTimer = setTimeout(() => {
-            if (currentReadingConvoId === convoId && unreadConvosMap.has(convoId)) {
-              markConvoAsRead(convoId, 'Short text stayed for 10s');
+            if (currentViewingConvoId === convoId && unreadConvosMap.has(convoId)) {
+              markConvoAsSeen(convoId, 'Short text stayed for 10s');
             }
-          }, USER_CONFIG.SHORT_TEXT_READ_DURATION_MS);
+          }, USER_CONFIG.SHORT_TEXT_VIEW_DURATION_MS);
         }
       }
 
-      function handleReadingScroll() {
+      function handleViewingScroll() {
         const container = getChatScrollContainer();
         if (!container) return;
 
         const effectiveConvoId = getContainerConvoId(container) || getCurrentUrlConvoId();
         if (!effectiveConvoId || !unreadConvosMap.has(effectiveConvoId)) {
-          if (currentReadingConvoId) cleanupReadingSession();
+          if (currentViewingConvoId) cleanupViewingSession();
           return;
         }
 
-        if (currentReadingConvoId !== effectiveConvoId) {
-          setupReadingSession(effectiveConvoId);
+        if (currentViewingConvoId !== effectiveConvoId) {
+          setupViewingSession(effectiveConvoId);
         }
 
         const maxScroll = Math.max(0, container.scrollHeight - container.clientHeight);
@@ -3272,7 +3272,7 @@
           // 用户向上大幅翻阅离开底部
           if (!hasLeftBottom) {
             hasLeftBottom = true;
-            console.log(`[agy-read] Convo [${effectiveConvoId}] left bottom (${Math.round(distFromBottom)}px), waiting for re-bottoming`);
+            console.log(`[agy-enhancer] Convo [${effectiveConvoId}] left bottom (${Math.round(distFromBottom)}px), waiting for re-bottoming`);
           }
           // 用户大幅往上翻阅时才清除 5s 底部倒计时
           if (distFromBottom > leaveThreshold + 120) {
@@ -3283,19 +3283,19 @@
           }
         } else if (isAtBottom && hasLeftBottom) {
           // 二次触底达成！
-          const isLong = readingSessionType ? (readingSessionType === 'long') : checkIsLongText();
+          const isLong = viewingSessionType ? (viewingSessionType === 'long') : checkIsLongText();
           if (!isLong) {
             // 短文：二次触底立即满足已读条件，即刻标记为已读！
-            console.log(`[agy-read] Convo [${effectiveConvoId}] short text re-bottomed, marking as read`);
-            markConvoAsRead(effectiveConvoId, 'Short text re-bottomed');
+            console.log(`[agy-enhancer] Convo [${effectiveConvoId}] short text re-bottomed, marking as seen`);
+            markConvoAsSeen(effectiveConvoId, 'Short text re-bottomed');
           } else {
             // 长文：二次触底 + 底部平稳停留 5 秒同时满足
             if (!longTextBottomTimer) {
-              console.log(`[agy-read] Convo [${effectiveConvoId}] long text re-bottomed, starting 5s countdown`);
+              console.log(`[agy-enhancer] Convo [${effectiveConvoId}] long text re-bottomed, starting 5s countdown`);
               longTextBottomTimer = setTimeout(() => {
-                if (currentReadingConvoId === effectiveConvoId && unreadConvosMap.has(effectiveConvoId)) {
-                  console.log(`[agy-read] Convo [${effectiveConvoId}] long text stayed for 5s, marking as read`);
-                  markConvoAsRead(effectiveConvoId, 'Long text re-bottomed and stayed for 5s');
+                if (currentViewingConvoId === effectiveConvoId && unreadConvosMap.has(effectiveConvoId)) {
+                  console.log(`[agy-enhancer] Convo [${effectiveConvoId}] long text stayed for 5s, marking as seen`);
+                  markConvoAsSeen(effectiveConvoId, 'Long text re-bottomed and stayed for 5s');
                 }
               }, USER_CONFIG.LONG_TEXT_BOTTOM_DURATION_MS);
             }
@@ -3308,7 +3308,7 @@
         const container = getChatScrollContainer();
         if (!container) return;
         if (e.target === container || e.target === document || container.contains(e.target)) {
-          handleReadingScroll();
+          handleViewingScroll();
         }
       };
       window.addEventListener('scroll', unreadScrollHandler, true);
@@ -3317,13 +3317,13 @@
         const container = getChatScrollContainer();
         if (!container) return;
         if (container.contains(e.target) || e.target === container) {
-          setTimeout(handleReadingScroll, 16);
+          setTimeout(handleViewingScroll, 16);
         }
       };
       window.addEventListener('wheel', unreadWheelHandler, { capture: true, passive: true });
 
       // 周期性检测触底与停留状态（弥补平滑滚动与动态内容渲染）
-      addInterval(handleReadingScroll, 200);
+      addInterval(handleViewingScroll, 200);
 
       // 对话切换监测
       let trackedConvoId = null;
@@ -3333,9 +3333,9 @@
         if (effectiveConvoId && effectiveConvoId !== trackedConvoId) {
           trackedConvoId = effectiveConvoId;
           if (unreadConvosMap.has(effectiveConvoId)) {
-            setupReadingSession(effectiveConvoId);
+            setupViewingSession(effectiveConvoId);
           } else {
-            cleanupReadingSession();
+            cleanupViewingSession();
           }
         }
       }
@@ -3398,7 +3398,7 @@
           }
         });
 
-        // 1. 处理后台原生完成未读点：直接同步为未读（仅针对非当前正在阅读的后台对话）
+        // 1. 处理后台原生完成未读点：直接同步为未读（仅针对非当前激活的后台对话）
         rowNativeDotIds.forEach(id => {
           if (id !== activeConvoId) {
             activelyGeneratingConvos.delete(id);
@@ -3473,7 +3473,7 @@
               activelyGeneratingConvos.delete(genId);
               promptSubmittedConvos.delete(genId);
               if (record.confirmedGenerated) {
-                console.log(`[agy-read] Foreground convo [${genId}] AI response completed, marking unread`);
+                console.log(`[agy-enhancer] Foreground convo [${genId}] AI response completed, marking unread`);
                 markConvoAsUnread(genId, 'Foreground AI response completed');
               }
             }
@@ -3484,7 +3484,7 @@
               activelyGeneratingConvos.delete(genId);
               promptSubmittedConvos.delete(genId);
               if (record.confirmedGenerated) {
-                console.log(`[agy-read] Background convo [${genId}] AI response completed, marking unread`);
+                console.log(`[agy-enhancer] Background convo [${genId}] AI response completed, marking unread`);
                 markConvoAsUnread(genId, 'Background AI response completed');
               }
             }
@@ -3517,7 +3517,7 @@
                 if (!badge) {
                   badge = document.createElement('div');
                   badge.className = 'agy-unread-dot-badge';
-                  badge.title = 'Unread (auto-clears after reading)';
+                  badge.title = 'Unread (auto-clears after viewing)';
                   badge.innerHTML = `
                     <div class="agy-unread-dot-pulse"></div>
                     <div class="agy-unread-dot-core"></div>
@@ -3540,7 +3540,7 @@
       addInterval(syncSidebarIndicators, 200);
 
       // 对外暴露辅助方法供右键菜单等模块协同调用与测试
-      window.__AGY_MARK_READ__ = (id) => markConvoAsRead(id || getCurrentUrlConvoId(), 'manual API');
+      window.__AGY_MARK_SEEN__ = (id) => markConvoAsSeen(id || getCurrentUrlConvoId(), 'manual API');
       window.__AGY_MARK_UNREAD__ = (id) => markConvoAsUnread(id || getCurrentUrlConvoId(), 'manual API');
       window.__AGY_IS_UNREAD__ = (id) => unreadConvosMap.has(id || getCurrentUrlConvoId());
       window.__AGY_UNREAD_MAP__ = unreadConvosMap;
@@ -3553,7 +3553,7 @@
     initConversationScrollPersistence();
     initSmartUnreadTracker();
 
-    console.log('[agy-read] Page navigator, project archiver, context menu, scroll memory, and unread tracker ready!');
+    console.log('[agy-enhancer] Page navigator, project archiver, context menu, scroll memory, and unread tracker ready!');
   }
 
   bootstrap();

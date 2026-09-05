@@ -1,9 +1,9 @@
 @echo off
 chcp 65001 >nul
-title Antigravity Reading Enhancer - Setup Autostart
+title Antigravity Enhancer - Setup Autostart
 
 echo ====================================================
-echo    Configuring Antigravity Reading Enhancer Autostart...
+echo    Configuring Antigravity Enhancer Autostart...
 echo ====================================================
 echo.
 
@@ -21,11 +21,12 @@ if not exist "%VBS_PATH%" (
 powershell -NoProfile -ExecutionPolicy Bypass -Command ^
     "$ws = New-Object -ComObject WScript.Shell;" ^
     "$startupDir = [Environment]::GetFolderPath([Environment+SpecialFolder]::Startup);" ^
-    "$shortcutPath = Join-Path $startupDir 'AntigravityReaderEnhancer.lnk';" ^
+    "$oldShortcut = Join-Path $startupDir 'AntigravityReaderEnhancer.lnk'; if (Test-Path $oldShortcut) { Remove-Item $oldShortcut -Force };" ^
+    "$shortcutPath = Join-Path $startupDir 'AntigravityEnhancer.lnk';" ^
     "$shortcut = $ws.CreateShortcut($shortcutPath);" ^
     "$shortcut.TargetPath = '%VBS_PATH%';" ^
     "$shortcut.WorkingDirectory = '%SCRIPT_DIR%';" ^
-    "$shortcut.Description = 'Antigravity Reader Enhancer Silent Service';" ^
+    "$shortcut.Description = 'Antigravity Enhancer Silent Service';" ^
     "$shortcut.Save();" ^
     "if (Test-Path $shortcutPath) { exit 0 } else { exit 1 }"
 
@@ -33,7 +34,7 @@ if %ERRORLEVEL% equ 0 (
     echo [Success] Autostart shortcut configured successfully!
     echo.
     echo Shortcut added to Startup folder:
-    powershell -NoProfile -Command "Write-Host ('  ' + (Join-Path ([Environment]::GetFolderPath([Environment+SpecialFolder]::Startup)) 'AntigravityReaderEnhancer.lnk')) -ForegroundColor Green"
+    powershell -NoProfile -Command "Write-Host ('  ' + (Join-Path ([Environment]::GetFolderPath([Environment+SpecialFolder]::Startup)) 'AntigravityEnhancer.lnk')) -ForegroundColor Green"
     echo.
     echo The service will start silently on every system login.
     echo.

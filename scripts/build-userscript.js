@@ -2,10 +2,10 @@ const fs = require('fs');
 const path = require('path');
 
 const corePath = path.join(__dirname, '../src/agy-enhancer.js');
-const targetPath = path.join(__dirname, '../agy-read.user.js');
+const targetPath = path.join(__dirname, '../agy-enhancer.user.js');
 
 const header = `// ==UserScript==
-// @name         Antigravity Reading Enhancer (agy-read)
+// @name         Antigravity Enhancer (agy-enhancer)
 // @namespace    https://antigravity.google/
 // @version      1.0.0
 // @description  Optimize scrolling experience for Antigravity: turn-based navigation, scroll memory, and unread tracking.

@@ -1,9 +1,9 @@
 @echo off
 chcp 65001 >nul
-title Antigravity Reading Enhancer - Install & Autostart
+title Antigravity Enhancer - Install & Autostart
 
 echo ====================================================
-echo    Antigravity Reading Enhancer Install & Autostart
+echo    Antigravity Enhancer Install & Autostart
 echo ====================================================
 echo.
 call "%~dp0setup-autostart.bat"

@@ -1,5 +1,5 @@
 /**
- * Antigravity 阅读增强器 - 终极安全守护服务 (Safe Background Service)
+ * Antigravity 增强器 - 终极安全守护服务 (Safe Background Service)
  * 
  * 特性：
  * 1. 0 侵入，0 破坏风险，绝不修改客户端原生文件
@@ -47,7 +47,7 @@ function log(...args) {
   } catch (e) {}
 }
 
-log('=== Antigravity Reading Enhancer daemon started ===');
+log('=== Antigravity Enhancer daemon started ===');
 
 const enhancerFile = path.resolve(__dirname, '../src/agy-enhancer.js');
 

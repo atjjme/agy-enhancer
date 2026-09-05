@@ -1,8 +1,8 @@
 @echo off
 chcp 65001 >nul
-title Antigravity Reading Enhancer - Daemon
+title Antigravity Enhancer - Daemon
 echo ====================================================
-echo    Antigravity Reading Enhancer (Hot-Reload Mode)
+echo    Antigravity Enhancer (Hot-Reload Mode)
 echo ====================================================
 echo.
 echo [Info] 100%% zero-intrusion, safe for original app files.

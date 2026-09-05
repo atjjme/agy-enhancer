@@ -1,21 +1,16 @@
 @echo off
 chcp 65001 >nul
-title Antigravity Reading Enhancer - Uninstall & Stop Service
+title Antigravity Enhancer - Uninstall & Stop Service
 
 echo ====================================================
-echo    Antigravity Reading Enhancer Uninstall
+echo    Antigravity Enhancer Uninstall
 echo ====================================================
 echo.
 echo [1/2] Removing startup autostart shortcut...
 set "STARTUP_DIR=%APPDATA%\Microsoft\Windows\Start Menu\Programs\Startup"
-set "SHORTCUT_PATH=%STARTUP_DIR%\AntigravityReaderEnhancer.lnk"
-
-if exist "%SHORTCUT_PATH%" (
-    del /f /q "%SHORTCUT_PATH%"
-    echo Startup shortcut removed.
-) else (
-    echo No startup shortcut found.
-)
+if exist "%STARTUP_DIR%\AntigravityEnhancer.lnk" del /f /q "%STARTUP_DIR%\AntigravityEnhancer.lnk"
+if exist "%STARTUP_DIR%\AntigravityReaderEnhancer.lnk" del /f /q "%STARTUP_DIR%\AntigravityReaderEnhancer.lnk"
+echo Startup shortcut cleanup completed.
 
 echo.
 echo [2/2] Stopping background daemon...
