@@ -1059,6 +1059,293 @@
 
     createPageNavButtons();
 
+    // ==================== 项目与对话底层数据及文件夹工具 (Core Helpers) ====================
+    function getPM() {
+      const header = document.querySelector('[data-testid="section-header"][data-title="Projects"]');
+      if (!header) return null;
+      const fiberKey = Object.keys(header).find(k => k.startsWith('__reactFiber$'));
+      let fiber = header ? header[fiberKey] : null;
+      while (fiber) {
+        if (fiber.memoizedProps?.value?.projectManagementFeature) {
+          return fiber.memoizedProps.value.projectManagementFeature;
+        }
+        fiber = fiber.return;
+      }
+      return null;
+    }
+
+    function getTSP() {
+      const els = Array.from(document.querySelectorAll('[data-testid="section-header"]'));
+      for (const el of els) {
+        const k = Object.keys(el).find(k => k.startsWith('__reactFiber$'));
+        let fiber = el[k];
+        while (fiber) {
+          if (fiber.memoizedProps?.value?.trajectorySummariesProvider) {
+            return fiber.memoizedProps.value.trajectorySummariesProvider;
+          }
+          fiber = fiber.return;
+        }
+      }
+      return null;
+    }
+
+    let cachedGeminiBaseUri = null;
+    function getGeminiBaseUri() {
+      if (cachedGeminiBaseUri) return cachedGeminiBaseUri;
+      const pm = getPM();
+      const tsp = getTSP();
+      const scanTargets = [
+        pm?.projectsStateProvider?.getState?.(),
+        tsp?.getState?.()?.summaries
+      ];
+      function scan(obj) {
+        if (!obj || cachedGeminiBaseUri) return;
+        if (typeof obj === 'string') {
+          const m = obj.match(/^(file:\/\/\/.*?[\\/]\.gemini[\\/]antigravity)[\\/]/i);
+          if (m) cachedGeminiBaseUri = m[1];
+        } else if (typeof obj === 'object') {
+          for (const k in obj) {
+            try { scan(obj[k]); } catch (e) {}
+            if (cachedGeminiBaseUri) return;
+          }
+        }
+      }
+      for (const t of scanTargets) {
+        scan(t);
+        if (cachedGeminiBaseUri) break;
+      }
+      return cachedGeminiBaseUri;
+    }
+
+    async function openLocalFolder(uriOrPath, type = 'folder') {
+      if (!uriOrPath) return false;
+      let uri = uriOrPath;
+      if (/^[a-zA-Z]:[\\/]/.test(uri)) {
+        uri = 'file:///' + uri.replace(/\\/g, '/');
+      } else if (uri.startsWith('file://')) {
+        try {
+          uri = decodeURI(uri);
+        } catch (e) {}
+      }
+
+      // 确保使用标准 file:/// URI 协议格式，并去除末尾斜杠
+      if (!uri.startsWith('file:///')) {
+        uri = 'file:///' + uri.replace(/^file:\/*/, '');
+      }
+      uri = uri.replace(/\/+$/, '');
+
+      // 1. 本地文件夹在 Antigravity Electron 中必须使用 revealInFilePicker 打开
+      if (window.electronNative?.revealInFilePicker) {
+        let directChildUri = null;
+        if (type === 'convo') {
+          directChildUri = `${uri}/.system_generated`;
+        } else if (type === 'project') {
+          directChildUri = `${uri}/.git`;
+        }
+
+        if (directChildUri) {
+          try {
+            await window.electronNative.revealInFilePicker(directChildUri);
+            return true;
+          } catch (err) {
+            console.warn('[agy-read] direct inside reveal failed, falling back to folder uri:', err);
+          }
+        }
+
+        // 降级保护：直接定位目标文件夹本身
+        try {
+          await window.electronNative.revealInFilePicker(uri);
+          return true;
+        } catch (e) {
+          console.warn('[agy-read] revealInFilePicker fallback error:', e);
+        }
+      }
+
+      if (window.electronNative?.openExternal) {
+        try {
+          await window.electronNative.openExternal(uri);
+          return true;
+        } catch (e) {
+          console.warn('[agy-read] openExternal error:', e);
+        }
+      }
+
+      try {
+        window.open(uri, '_blank');
+        return true;
+      } catch (e) {}
+      return false;
+    }
+
+    function getProjectFolderUri(projectOrId) {
+      if (!projectOrId) return null;
+      let project = null;
+      const pm = getPM();
+      const projects = pm?.projectsStateProvider?.getState?.() || [];
+
+      if (typeof projectOrId === 'string') {
+        const pItem = projects.find(p => p.project?.id === projectOrId || p.project?.name === projectOrId);
+        project = pItem?.project || null;
+      } else if (typeof projectOrId === 'object') {
+        project = projectOrId.project || projectOrId;
+      }
+
+      if (!project) return null;
+
+      // 1. 从 projectResources 提取标准 folderUri
+      if (project.projectResources?.resources) {
+        for (const res of project.projectResources.resources) {
+          if (res.type?.value?.folderUri) return res.type.value.folderUri;
+          if (res.type?.case === 'folderUri' && typeof res.type.value === 'string') return res.type.value;
+          if (typeof res.folderUri === 'string') return res.folderUri;
+          if (typeof res.uri === 'string' && (res.uri.startsWith('file:') || /^[a-zA-Z]:[\\/]/.test(res.uri))) return res.uri;
+        }
+      }
+
+      // 2. 检查常见直接字段
+      if (typeof project.rootUri === 'string') return project.rootUri;
+      if (typeof project.folderUri === 'string') return project.folderUri;
+      if (typeof project.projectUri === 'string') return project.projectUri;
+      if (typeof project.workspaceUri === 'string') return project.workspaceUri;
+
+      // 3. 从该项目关联的对话记录中提取非 worktree 的工作区路径作为兜底
+      const pId = project.id;
+      if (pId) {
+        const tsp = getTSP();
+        const summaries = tsp?.getState?.()?.summaries || {};
+        for (const cid in summaries) {
+          const s = summaries[cid];
+          const spId = s?.projectId || s?.trajectoryMetadata?.projectId;
+          if (spId === pId) {
+            const workspaces = s?.trajectoryMetadata?.workspaces || [];
+            for (const w of workspaces) {
+              if (w.workspaceFolderAbsoluteUri && !w.workspaceFolderAbsoluteUri.includes('/worktrees/')) {
+                return w.workspaceFolderAbsoluteUri;
+              }
+            }
+            if (s?.trajectoryMetadata?.workspaceUris) {
+              for (const u of s.trajectoryMetadata.workspaceUris) {
+                if (!u.includes('/worktrees/')) return u;
+              }
+            }
+          }
+        }
+      }
+
+      return null;
+    }
+
+    function resolveProjectFromElement(el) {
+      if (!el) return null;
+      const pm = getPM();
+      const projects = pm?.projectsStateProvider?.getState?.() || [];
+
+      // 1. 尝试从 React Fiber 获取精确的 project 或 projectId
+      let curr = el;
+      while (curr && curr !== document.body) {
+        const k = Object.keys(curr).find(key => key.startsWith('__reactFiber$'));
+        if (k && curr[k]) {
+          let fiber = curr[k];
+          let depth = 0;
+          while (fiber && depth < 25) {
+            const props = fiber.memoizedProps;
+            if (props?.project?.id) return props.project;
+            if (props?.projectItem?.project?.id) return props.projectItem.project;
+            if (props?.projectId) {
+              const found = projects.find(p => p.project?.id === props.projectId);
+              if (found?.project) return found.project;
+            }
+            fiber = fiber.return;
+            depth++;
+          }
+        }
+        curr = curr.parentElement;
+      }
+
+      // 2. 尝试从 DOM 项目名称匹配
+      const card = el.closest('button[data-project-card="true"]') ||
+                   el.closest('.group\\/header')?.querySelector('button[data-project-card="true"]') ||
+                   el.parentElement?.querySelector?.('button[data-project-card="true"]');
+      if (card) {
+        const nameEl = card.querySelector('.truncate') || card.querySelector('span');
+        const name = nameEl?.innerText?.trim();
+        if (name) {
+          const found = projects.find(p => p.project?.name === name && !p.project?.archived) ||
+                        projects.find(p => p.project?.name === name);
+          if (found?.project) return found.project;
+        }
+      }
+
+      // 3. 尝试从整个项目的容器或祖先中找任何带名字的文本
+      const header = el.closest('.group\\/header') || el.closest('[data-testid="section-header"]');
+      if (header) {
+        const nameEl = header.querySelector('.truncate');
+        const name = nameEl?.innerText?.trim();
+        if (name) {
+          const found = projects.find(p => p.project?.name === name && !p.project?.archived) ||
+                        projects.find(p => p.project?.name === name);
+          if (found?.project) return found.project;
+        }
+      }
+
+      return null;
+    }
+
+    function getConvoFolderPaths(convoId, explicitProjectId) {
+      const tsp = getTSP();
+      const summaries = tsp?.getState()?.summaries || {};
+      const s = summaries[convoId];
+      const pId = explicitProjectId || s?.projectId || s?.trajectoryMetadata?.projectId;
+
+      let projects = [];
+      const pm = getPM();
+      if (pm?.projectsStateProvider?.getState) {
+        projects = pm.projectsStateProvider.getState();
+      }
+      const projItem = projects.find(p => p.project?.id === pId);
+
+      const baseUri = getGeminiBaseUri();
+      const convoBrainUri = baseUri && convoId ? `${baseUri}/brain/${convoId}` : null;
+
+      let branchUri = null;
+      let isBranch = false;
+      const workspaces = s?.trajectoryMetadata?.workspaces || [];
+      for (const w of workspaces) {
+        if (w.workspaceFolderAbsoluteUri?.includes('/worktrees/') || w.branchName) {
+          branchUri = w.workspaceFolderAbsoluteUri;
+          isBranch = true;
+          break;
+        }
+      }
+      if (!isBranch && s?.trajectoryMetadata?.workspaceUris) {
+        for (const u of s.trajectoryMetadata.workspaceUris) {
+          if (u.includes('/worktrees/')) {
+            branchUri = u;
+            isBranch = true;
+            break;
+          }
+        }
+      }
+
+      let projectRootUri = getProjectFolderUri(projItem?.project || pId);
+      if (!projectRootUri && !isBranch && workspaces.length > 0) {
+        projectRootUri = workspaces[0].workspaceFolderAbsoluteUri;
+      }
+
+      const targetProjectUri = isBranch && branchUri ? branchUri : projectRootUri;
+      const isInsideProject = !!pId && pId !== 'outside-of-project';
+
+      return {
+        convoId,
+        convoBrainUri,
+        isBranch,
+        branchUri,
+        projectRootUri,
+        targetProjectUri,
+        isInsideProject
+      };
+    }
+
     // ==================== 6. 项目折叠归档管理器 (Project Archiver) ====================
     function initProjectArchiver() {
       // 1. 确保系统底层归档能力开启
@@ -1069,35 +1356,6 @@
           localStorage.setItem('jetski.developer.featureEnvironmentOverride', JSON.stringify(override));
         }
       } catch (e) {}
-
-      function getPM() {
-        const header = document.querySelector('[data-testid="section-header"][data-title="Projects"]');
-        if (!header) return null;
-        const fiberKey = Object.keys(header).find(k => k.startsWith('__reactFiber$'));
-        let fiber = header ? header[fiberKey] : null;
-        while (fiber) {
-          if (fiber.memoizedProps?.value?.projectManagementFeature) {
-            return fiber.memoizedProps.value.projectManagementFeature;
-          }
-          fiber = fiber.return;
-        }
-        return null;
-      }
-
-      function getTSP() {
-        const els = Array.from(document.querySelectorAll('[data-testid="section-header"]'));
-        for (const el of els) {
-          const k = Object.keys(el).find(k => k.startsWith('__reactFiber$'));
-          let fiber = el[k];
-          while (fiber) {
-            if (fiber.memoizedProps?.value?.trajectorySummariesProvider) {
-              return fiber.memoizedProps.value.trajectorySummariesProvider;
-            }
-            fiber = fiber.return;
-          }
-        }
-        return null;
-      }
 
       function getProjectConversations(projectId) {
         const tsp = getTSP();
@@ -1113,267 +1371,6 @@
         }));
         // 仅展示归属于该项目、且未被单独归档的正常对话
         return list.filter(c => c.projectId === projectId && !c.archived).sort((a, b) => b.time - a.time);
-      }
-
-      let cachedGeminiBaseUri = null;
-      function getGeminiBaseUri() {
-        if (cachedGeminiBaseUri) return cachedGeminiBaseUri;
-        const pm = getPM();
-        const tsp = getTSP();
-        const scanTargets = [
-          pm?.projectsStateProvider?.getState?.(),
-          tsp?.getState?.()?.summaries
-        ];
-        function scan(obj) {
-          if (!obj || cachedGeminiBaseUri) return;
-          if (typeof obj === 'string') {
-            const m = obj.match(/^(file:\/\/\/.*?[\\/]\.gemini[\\/]antigravity)[\\/]/i);
-            if (m) cachedGeminiBaseUri = m[1];
-          } else if (typeof obj === 'object') {
-            for (const k in obj) {
-              try { scan(obj[k]); } catch (e) {}
-              if (cachedGeminiBaseUri) return;
-            }
-          }
-        }
-        for (const t of scanTargets) {
-          scan(t);
-          if (cachedGeminiBaseUri) break;
-        }
-        return cachedGeminiBaseUri;
-      }
-
-      async function openLocalFolder(uriOrPath, type = 'folder') {
-        if (!uriOrPath) return false;
-        let uri = uriOrPath;
-        if (/^[a-zA-Z]:[\\/]/.test(uri)) {
-          uri = 'file:///' + uri.replace(/\\/g, '/');
-        } else if (uri.startsWith('file://')) {
-          try {
-            uri = decodeURI(uri);
-          } catch (e) {}
-        }
-
-        // 确保使用标准 file:/// URI 协议格式，并去除末尾斜杠
-        if (!uri.startsWith('file:///')) {
-          uri = 'file:///' + uri.replace(/^file:\/*/, '');
-        }
-        uri = uri.replace(/\/+$/, '');
-
-        // 1. 本地文件夹在 Antigravity Electron 中必须使用 revealInFilePicker 打开
-        if (window.electronNative?.revealInFilePicker) {
-          // 为了直接进入文件夹内部（而非停留在父级目录高亮选中该文件夹）：
-          // 优先尝试定位该文件夹内部必定存在的特征子项：
-          // - 对话文件夹：.system_generated（每个 Antigravity brain 对话数据目录必有）
-          // - 项目/分支文件夹：.git（每个代码工程及 worktree 必有）
-          let directChildUri = null;
-          if (type === 'convo') {
-            directChildUri = `${uri}/.system_generated`;
-          } else if (type === 'project') {
-            directChildUri = `${uri}/.git`;
-          }
-
-          if (directChildUri) {
-            try {
-              await window.electronNative.revealInFilePicker(directChildUri);
-              return true;
-            } catch (err) {
-              console.warn('[agy-read] direct inside reveal failed, falling back to folder uri:', err);
-            }
-          }
-
-          // 降级保护：直接定位目标文件夹本身
-          try {
-            await window.electronNative.revealInFilePicker(uri);
-            return true;
-          } catch (e) {
-            console.warn('[agy-read] revealInFilePicker fallback error:', e);
-          }
-        }
-
-        if (window.electronNative?.openExternal) {
-          try {
-            await window.electronNative.openExternal(uri);
-            return true;
-          } catch (e) {
-            console.warn('[agy-read] openExternal error:', e);
-          }
-        }
-
-        try {
-          window.open(uri, '_blank');
-          return true;
-        } catch (e) {}
-        return false;
-      }
-
-      function getProjectFolderUri(projectOrId) {
-        if (!projectOrId) return null;
-        let project = null;
-        const pm = getPM();
-        const projects = pm?.projectsStateProvider?.getState?.() || [];
-
-        if (typeof projectOrId === 'string') {
-          const pItem = projects.find(p => p.project?.id === projectOrId || p.project?.name === projectOrId);
-          project = pItem?.project || null;
-        } else if (typeof projectOrId === 'object') {
-          project = projectOrId.project || projectOrId;
-        }
-
-        if (!project) return null;
-
-        // 1. 从 projectResources 提取标准 folderUri
-        if (project.projectResources?.resources) {
-          for (const res of project.projectResources.resources) {
-            if (res.type?.value?.folderUri) return res.type.value.folderUri;
-            if (res.type?.case === 'folderUri' && typeof res.type.value === 'string') return res.type.value;
-            if (typeof res.folderUri === 'string') return res.folderUri;
-            if (typeof res.uri === 'string' && (res.uri.startsWith('file:') || /^[a-zA-Z]:[\\/]/.test(res.uri))) return res.uri;
-          }
-        }
-
-        // 2. 检查常见直接字段
-        if (typeof project.rootUri === 'string') return project.rootUri;
-        if (typeof project.folderUri === 'string') return project.folderUri;
-        if (typeof project.projectUri === 'string') return project.projectUri;
-        if (typeof project.workspaceUri === 'string') return project.workspaceUri;
-
-        // 3. 从该项目关联的对话记录中提取非 worktree 的工作区路径作为兜底
-        const pId = project.id;
-        if (pId) {
-          const tsp = getTSP();
-          const summaries = tsp?.getState?.()?.summaries || {};
-          for (const cid in summaries) {
-            const s = summaries[cid];
-            const spId = s?.projectId || s?.trajectoryMetadata?.projectId;
-            if (spId === pId) {
-              const workspaces = s?.trajectoryMetadata?.workspaces || [];
-              for (const w of workspaces) {
-                if (w.workspaceFolderAbsoluteUri && !w.workspaceFolderAbsoluteUri.includes('/worktrees/')) {
-                  return w.workspaceFolderAbsoluteUri;
-                }
-              }
-              if (s?.trajectoryMetadata?.workspaceUris) {
-                for (const u of s.trajectoryMetadata.workspaceUris) {
-                  if (!u.includes('/worktrees/')) return u;
-                }
-              }
-            }
-          }
-        }
-
-        return null;
-      }
-
-      function resolveProjectFromElement(el) {
-        if (!el) return null;
-        const pm = getPM();
-        const projects = pm?.projectsStateProvider?.getState?.() || [];
-
-        // 1. 尝试从 React Fiber 获取精确的 project 或 projectId
-        let curr = el;
-        while (curr && curr !== document.body) {
-          const k = Object.keys(curr).find(key => key.startsWith('__reactFiber$'));
-          if (k && curr[k]) {
-            let fiber = curr[k];
-            let depth = 0;
-            while (fiber && depth < 25) {
-              const props = fiber.memoizedProps;
-              if (props?.project?.id) return props.project;
-              if (props?.projectItem?.project?.id) return props.projectItem.project;
-              if (props?.projectId) {
-                const found = projects.find(p => p.project?.id === props.projectId);
-                if (found?.project) return found.project;
-              }
-              fiber = fiber.return;
-              depth++;
-            }
-          }
-          curr = curr.parentElement;
-        }
-
-        // 2. 尝试从 DOM 项目名称匹配
-        const card = el.closest('button[data-project-card="true"]') ||
-                     el.closest('.group\\/header')?.querySelector('button[data-project-card="true"]') ||
-                     el.parentElement?.querySelector?.('button[data-project-card="true"]');
-        if (card) {
-          const nameEl = card.querySelector('.truncate') || card.querySelector('span');
-          const name = nameEl?.innerText?.trim();
-          if (name) {
-            const found = projects.find(p => p.project?.name === name && !p.project?.archived) ||
-                          projects.find(p => p.project?.name === name);
-            if (found?.project) return found.project;
-          }
-        }
-
-        // 3. 尝试从整个项目的容器或祖先中找任何带名字的文本
-        const header = el.closest('.group\\/header') || el.closest('[data-testid="section-header"]');
-        if (header) {
-          const nameEl = header.querySelector('.truncate');
-          const name = nameEl?.innerText?.trim();
-          if (name) {
-            const found = projects.find(p => p.project?.name === name && !p.project?.archived) ||
-                          projects.find(p => p.project?.name === name);
-            if (found?.project) return found.project;
-          }
-        }
-
-        return null;
-      }
-
-      function getConvoFolderPaths(convoId, explicitProjectId) {
-        const tsp = getTSP();
-        const summaries = tsp?.getState()?.summaries || {};
-        const s = summaries[convoId];
-        const pId = explicitProjectId || s?.projectId || s?.trajectoryMetadata?.projectId;
-
-        let projects = [];
-        const pm = getPM();
-        if (pm?.projectsStateProvider?.getState) {
-          projects = pm.projectsStateProvider.getState();
-        }
-        const projItem = projects.find(p => p.project?.id === pId);
-
-        const baseUri = getGeminiBaseUri();
-        const convoBrainUri = baseUri && convoId ? `${baseUri}/brain/${convoId}` : null;
-
-        let branchUri = null;
-        let isBranch = false;
-        const workspaces = s?.trajectoryMetadata?.workspaces || [];
-        for (const w of workspaces) {
-          if (w.workspaceFolderAbsoluteUri?.includes('/worktrees/') || w.branchName) {
-            branchUri = w.workspaceFolderAbsoluteUri;
-            isBranch = true;
-            break;
-          }
-        }
-        if (!isBranch && s?.trajectoryMetadata?.workspaceUris) {
-          for (const u of s.trajectoryMetadata.workspaceUris) {
-            if (u.includes('/worktrees/')) {
-              branchUri = u;
-              isBranch = true;
-              break;
-            }
-          }
-        }
-
-        let projectRootUri = getProjectFolderUri(projItem?.project || pId);
-        if (!projectRootUri && !isBranch && workspaces.length > 0) {
-          projectRootUri = workspaces[0].workspaceFolderAbsoluteUri;
-        }
-
-        const targetProjectUri = isBranch && branchUri ? branchUri : projectRootUri;
-        const isInsideProject = !!pId && pId !== 'outside-of-project';
-
-        return {
-          convoId,
-          convoBrainUri,
-          isBranch,
-          branchUri,
-          projectRootUri,
-          targetProjectUri,
-          isInsideProject
-        };
       }
 
       function escapeHtml(str) {
