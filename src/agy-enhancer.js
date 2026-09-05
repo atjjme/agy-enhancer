@@ -1313,7 +1313,7 @@
             dd.style.position = 'fixed';
             dd.style.top = `${rect.bottom + 4}px`;
 
-            const menuWidth = 150;
+            const menuWidth = 180;
             let leftPos = rect.right - menuWidth;
             if (leftPos < 10) leftPos = 10;
             if (leftPos + menuWidth > window.innerWidth - 10) leftPos = window.innerWidth - menuWidth - 10;
@@ -1334,31 +1334,21 @@
                 <span>Delete</span>
               </div>
               <div class="agy-dd-divider"></div>
-              <div class="agy-dd-item has-submenu convo-copy-item">
+              <div class="agy-dd-item copy-convo-name">
                 <svg width="13" height="13" viewBox="0 -960 960 960" fill="currentColor"><path d="M360-240q-33 0-56.5-23.5T280-320v-480q0-33 23.5-56.5T360-880h360q33 0 56.5 23.5T800-800v480q0 33-23.5 56.5T720-240H360Zm0-80h360v-480H360v480ZM200-80q-33 0-56.5-23.5T120-160v-560h80v560h440v80H200Zm160-240v-480 480Z"/></svg>
-                <span>Copy</span>
-                <svg class="agy-dd-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
-                <div class="agy-dd-submenu">
-                  <div class="agy-dd-item copy-convo-name">Conversation Name</div>
-                  <div class="agy-dd-item copy-convo-id">Conversation ID</div>
-                  <div class="agy-dd-item copy-project-name">Project Name</div>
-                </div>
+                <span>Copy Conversation Name</span>
+              </div>
+              <div class="agy-dd-item copy-convo-id">
+                <svg width="13" height="13" viewBox="0 -960 960 960" fill="currentColor"><path d="M360-240q-33 0-56.5-23.5T280-320v-480q0-33 23.5-56.5T360-880h360q33 0 56.5 23.5T800-800v480q0 33-23.5 56.5T720-240H360Zm0-80h360v-480H360v480ZM200-80q-33 0-56.5-23.5T120-160v-560h80v560h440v80H200Zm160-240v-480 480Z"/></svg>
+                <span>Copy Conversation ID</span>
+              </div>
+              <div class="agy-dd-item copy-project-name">
+                <svg width="13" height="13" viewBox="0 -960 960 960" fill="currentColor"><path d="M360-240q-33 0-56.5-23.5T280-320v-480q0-33 23.5-56.5T360-880h360q33 0 56.5 23.5T800-800v480q0 33-23.5 56.5T720-240H360Zm0-80h360v-480H360v480ZM200-80q-33 0-56.5-23.5T120-160v-560h80v560h440v80H200Zm160-240v-480 480Z"/></svg>
+                <span>Copy Project Name</span>
               </div>
             `;
 
             document.body.appendChild(dd);
-
-            // 智能翻转子菜单
-            const copyItem = dd.querySelector('.convo-copy-item');
-            const submenu = dd.querySelector('.agy-dd-submenu');
-            copyItem?.addEventListener('mouseenter', () => {
-              const ddRect = dd.getBoundingClientRect();
-              if (ddRect.right + 155 > window.innerWidth) {
-                submenu?.classList.add('flip-left');
-              } else {
-                submenu?.classList.remove('flip-left');
-              }
-            });
 
             const closeConvoDd = (evt) => {
               if (!dd.contains(evt.target) && !btn.contains(evt.target)) {
