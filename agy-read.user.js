@@ -11,7 +11,7 @@
 // @run-at       document-idle
 // ==/UserScript==
 
-window.__AGY_BRANCH_TAG__ = "（分支）";
+window.__AGY_BRANCH_TAG__ = " (branch)";
 window.__AGY_BRANCH_NAME__ = "add_open_folder_context_menu";
 /**
  * Antigravity 阅读增强器 (agy-read enhancer)
