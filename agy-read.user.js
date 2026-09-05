@@ -11,6 +11,8 @@
 // @run-at       document-idle
 // ==/UserScript==
 
+window.__AGY_BRANCH_TAG__ = " (branch)";
+window.__AGY_BRANCH_NAME__ = "remove_open_folder_option";
 /**
  * Antigravity 阅读增强器 (agy-read enhancer)
  * 
@@ -101,6 +103,7 @@
   let activeNativeConvoId = null;
   let activeNativeProjectObj = null;
   let activeNativeProjectId = null;
+  let lastProjectActionTime = 0;
   let nativeMenuPointerDownHandler = null;
   let nativeMenuObserver = null;
   let originalElementScrollTo = null;
@@ -144,6 +147,7 @@
     activeNativeConvoId = null;
     activeNativeProjectObj = null;
     activeNativeProjectId = null;
+    lastProjectActionTime = 0;
     if (nativeMenuPointerDownHandler) {
       document.removeEventListener('pointerdown', nativeMenuPointerDownHandler, true);
       nativeMenuPointerDownHandler = null;
@@ -2285,19 +2289,26 @@
 
         nativeMenuPointerDownHandler = (e) => {
           const btn = e.target?.closest?.('button[aria-label="More options"]');
+          const projBtn = e.target?.closest?.('button[aria-label="Project options"]');
           if (btn) {
             const row = btn.closest('[data-testid="conversation-row-sidebar"]');
             if (row) {
               activeNativeConvoId = row.getAttribute('data-cascade-id');
               activeNativeProjectObj = null;
               activeNativeProjectId = null;
+              lastProjectActionTime = 0;
             }
-          }
-          const projBtn = e.target?.closest?.('button[aria-label="Project options"]');
-          if (projBtn) {
+          } else if (projBtn) {
             activeNativeProjectObj = resolveProjectFromElement(projBtn);
             activeNativeProjectId = activeNativeProjectObj?.id || null;
             activeNativeConvoId = null;
+            lastProjectActionTime = Date.now();
+          } else {
+            // 点击侧边栏筛选按钮、新建按钮或其他任意非对话/项目选项区域，立即清空活跃状态，防止状态残留污染其他菜单
+            activeNativeConvoId = null;
+            activeNativeProjectObj = null;
+            activeNativeProjectId = null;
+            lastProjectActionTime = 0;
           }
         };
         document.addEventListener('pointerdown', nativeMenuPointerDownHandler, true);
@@ -2305,6 +2316,19 @@
         function checkAndEnhanceNativeMenu() {
           const menu = document.querySelector('[role="menu"]:not([data-agy-enhanced="true"])');
           if (!menu) return;
+
+          // 0. 明确过滤并排除筛选与排序菜单 (Filter / Group By / Sort)
+          // 侧边栏顶部的筛选排序菜单绝对不属于对话或项目操作菜单，坚决不作任何增强
+          const isFilterOrSortMenu = menu.textContent.includes('Group By') ||
+                                     menu.textContent.includes('Sort Conversations') ||
+                                     menu.textContent.includes('Subtitles') ||
+                                     menu.querySelector('[data-testid*="filter"]') ||
+                                     menu.querySelector('[data-testid*="sort"]') ||
+                                     menu.querySelector('[data-testid*="group-by"]');
+          if (isFilterOrSortMenu) {
+            menu.setAttribute('data-agy-enhanced', 'true');
+            return;
+          }
 
           // 1. 确认是否是对话操作菜单（具有原生重命名或删除项）
           const hasConvoActions = menu.querySelector('[data-testid="conversation-delete-menu-item"]') ||
@@ -2401,34 +2425,37 @@
               });
               menu.appendChild(itemToggleRead);
             }
+
+            activeNativeConvoId = null;
             return;
           }
 
           // 2. 确认是否是项目操作菜单
-          let targetProject = activeNativeProjectObj;
-          if (!targetProject && activeNativeProjectId) {
+          // 仅在明确通过点击项目选项按钮或右键项目卡片时生效（时效1.5秒内），坚决杜绝宽泛匹配其他无关菜单
+          const isRecentProjectAction = (Date.now() - lastProjectActionTime < 1500);
+          let targetProject = isRecentProjectAction ? activeNativeProjectObj : null;
+          if (!targetProject && isRecentProjectAction && activeNativeProjectId) {
             const pm = getPM();
             const projects = pm?.projectsStateProvider?.getState?.() || [];
             targetProject = projects.find(p => p.project?.id === activeNativeProjectId)?.project || null;
           }
 
-          const isProjectMenu = !!targetProject ||
-                                !!menu.querySelector('[data-testid*="project"]') ||
-                                (menu.textContent.includes('Settings') && !menu.textContent.includes('Log out'));
+          const hasProjectActions = menu.querySelector('[data-testid="project-delete-menu-item"]') ||
+                                    menu.querySelector('[data-testid="project-rename-menu-item"]') ||
+                                    menu.querySelector('[data-testid="project-settings-menu-item"]');
+
+          const isProjectMenu = (isRecentProjectAction && !!targetProject) || !!hasProjectActions;
 
           if (isProjectMenu) {
             if (!menu.children.length) return;
 
-            if (!targetProject) {
-              const currentPId = getCurrentProjectId();
-              if (currentPId) {
-                const pm = getPM();
-                const projects = pm?.projectsStateProvider?.getState?.() || [];
-                targetProject = projects.find(p => p.project?.id === currentPId)?.project || null;
-              }
-            }
-
             menu.setAttribute('data-agy-enhanced', 'true');
+            activeNativeProjectObj = null;
+            activeNativeProjectId = null;
+            lastProjectActionTime = 0;
+
+            const targetUri = getProjectFolderUri(targetProject);
+            if (!targetUri) return;
 
             const divider = document.createElement('div');
             divider.setAttribute('role', 'separator');
@@ -2445,13 +2472,8 @@
               ev.stopPropagation();
               ev.preventDefault();
               document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
-              const targetUri = getProjectFolderUri(targetProject);
-              if (targetUri) {
-                openLocalFolder(targetUri, 'project');
-                showNotification('Opened project folder');
-              } else {
-                showNotification('Failed to resolve project folder');
-              }
+              openLocalFolder(targetUri, 'project');
+              showNotification('Opened project folder');
             });
 
             menu.appendChild(divider);
@@ -2526,6 +2548,7 @@
             activeNativeConvoId = convoRow.getAttribute('data-cascade-id');
             activeNativeProjectObj = null;
             activeNativeProjectId = null;
+            lastProjectActionTime = 0;
             btn.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true }));
             btn.click();
             return;
@@ -2544,6 +2567,7 @@
             activeNativeProjectObj = resolveProjectFromElement(projectCard) || resolveProjectFromElement(btn);
             activeNativeProjectId = activeNativeProjectObj?.id || null;
             activeNativeConvoId = null;
+            lastProjectActionTime = Date.now();
             btn.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true }));
             btn.click();
             return;
