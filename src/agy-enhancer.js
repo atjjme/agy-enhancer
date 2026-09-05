@@ -55,8 +55,11 @@
     // 判定长短文的比例阈值（默认 0.8，末轮问答高度 < 视口 80% 为短文，反之为长文）
     LONG_TEXT_RATIO: 0.8,
 
-    // 底部触底判定灵敏度（像素，默认 60px）
-    BOTTOM_THRESHOLD: 60,
+    // 底部触底判定灵敏度（像素，默认 150px，容纳底部安全边距与呼吸空隙）
+    BOTTOM_THRESHOLD: 150,
+
+    // 离开底部判定阈值（像素，默认 200px，向上翻阅超过该距离判定离开底部）
+    LEAVE_BOTTOM_THRESHOLD: 200,
   };
 
   // ==================== 1. 全局清理与定时器安全管理机制 ====================
@@ -91,6 +94,8 @@
   let scrollCaptureHandler = null;
   let userInteractionHandler = null;
   let notifyNewPromptSubmitted = null;
+  let unreadScrollHandler = null;
+  let unreadWheelHandler = null;
 
   window.__AGY_ENHANCER_CLEANUP__ = function () {
     activeTimers.forEach(id => {
@@ -144,6 +149,14 @@
     if (scrollCaptureHandler) {
       window.removeEventListener('scroll', scrollCaptureHandler, true);
       scrollCaptureHandler = null;
+    }
+    if (unreadScrollHandler) {
+      window.removeEventListener('scroll', unreadScrollHandler, true);
+      unreadScrollHandler = null;
+    }
+    if (unreadWheelHandler) {
+      window.removeEventListener('wheel', unreadWheelHandler, true);
+      unreadWheelHandler = null;
     }
     if (userInteractionHandler) {
       ['wheel', 'pointerdown', 'mousedown', 'keydown', 'touchstart'].forEach(type => {
@@ -2849,8 +2862,18 @@
       }
 
       function checkIsLongText() {
-        const { container, pages } = getPagesInfo();
-        if (!container || !pages || pages.length === 0) return false;
+        const container = getChatScrollContainer();
+        if (!container) return false;
+        const maxScroll = Math.max(0, container.scrollHeight - container.clientHeight);
+        // 如果页面总可滚动距离不足半屏（小于 450px），绝对属于短文
+        if (maxScroll < Math.min(450, container.clientHeight * 0.6)) {
+          return false;
+        }
+
+        const { pages } = getPagesInfo();
+        if (!pages || pages.length === 0) {
+          return maxScroll > container.clientHeight * 0.8;
+        }
         const lastTurn = pages[pages.length - 1];
         if (!lastTurn || typeof lastTurn.height !== 'number') return false;
         return lastTurn.height >= (container.clientHeight * USER_CONFIG.LONG_TEXT_RATIO);
@@ -2866,7 +2889,7 @@
         }
         const container = getChatScrollContainer();
         const effectiveConvoId = (container ? getContainerConvoId(container) : null) || getCurrentUrlConvoId();
-        if (effectiveConvoId === convoId && currentReadingConvoId !== convoId) {
+        if (effectiveConvoId === convoId) {
           setupReadingSession(convoId);
         }
       }
@@ -2902,9 +2925,17 @@
       }
 
       function setupReadingSession(convoId) {
-        cleanupReadingSession();
-        if (!convoId || !unreadConvosMap.has(convoId)) return;
+        if (!convoId || !unreadConvosMap.has(convoId)) {
+          cleanupReadingSession();
+          return;
+        }
 
+        // 同一对话阅读期间，保留用户已离开底部的状态，切勿反复重置 hasLeftBottom
+        if (currentReadingConvoId === convoId) {
+          return;
+        }
+
+        cleanupReadingSession();
         currentReadingConvoId = convoId;
         const container = getChatScrollContainer();
         if (!container) return;
@@ -2913,8 +2944,8 @@
         console.log(`[agy-read] 对话 [${convoId}] 处于未读状态，启动阅读状态追踪 (类型: ${isLong ? '长文' : '短文'})`);
 
         const maxScroll = Math.max(0, container.scrollHeight - container.clientHeight);
-        const atBottom = maxScroll <= 10 || container.scrollTop >= maxScroll - USER_CONFIG.BOTTOM_THRESHOLD;
-        hasLeftBottom = !atBottom;
+        const distFromBottom = maxScroll - container.scrollTop;
+        hasLeftBottom = distFromBottom > USER_CONFIG.LEAVE_BOTTOM_THRESHOLD;
 
         if (!isLong) {
           // 短文条件二：停留满 10s 即已读
@@ -2941,26 +2972,37 @@
         }
 
         const maxScroll = Math.max(0, container.scrollHeight - container.clientHeight);
-        const isAtBottom = maxScroll <= 10 || container.scrollTop >= maxScroll - USER_CONFIG.BOTTOM_THRESHOLD;
+        const distFromBottom = maxScroll - container.scrollTop;
+        const isAtBottom = maxScroll <= 20 || distFromBottom <= USER_CONFIG.BOTTOM_THRESHOLD;
+        const hasScrolledUp = distFromBottom > USER_CONFIG.LEAVE_BOTTOM_THRESHOLD;
 
-        if (!isAtBottom) {
-          // 向上滚动离开底部
-          hasLeftBottom = true;
-          if (longTextBottomTimer) {
-            clearTimeout(longTextBottomTimer);
-            longTextBottomTimer = null;
+        if (hasScrolledUp) {
+          // 用户向上大幅翻阅离开底部
+          if (!hasLeftBottom) {
+            hasLeftBottom = true;
+            console.log(`[agy-read] 对话 [${effectiveConvoId}] 检测到离开底部 (距底 ${Math.round(distFromBottom)}px)，等待二次触底`);
+          }
+          // 用户大幅往上翻阅时才清除 5s 底部倒计时
+          if (distFromBottom > USER_CONFIG.LEAVE_BOTTOM_THRESHOLD + 100) {
+            if (longTextBottomTimer) {
+              clearTimeout(longTextBottomTimer);
+              longTextBottomTimer = null;
+            }
           }
         } else if (isAtBottom && hasLeftBottom) {
           // 二次触底达成！
           const isLong = checkIsLongText();
           if (!isLong) {
-            // 短文：二次触底立即满足已读条件
-            markConvoAsRead(currentReadingConvoId, '短文二次触底');
+            // 短文：二次触底立即满足已读条件，即刻标记为已读！
+            console.log(`[agy-read] 对话 [${effectiveConvoId}] 短文二次触底达成，立即标记为已读`);
+            markConvoAsRead(effectiveConvoId, '短文二次触底');
           } else {
             // 长文：二次触底 + 底部平稳停留 5 秒同时满足
             if (!longTextBottomTimer) {
+              console.log(`[agy-read] 对话 [${effectiveConvoId}] 长文二次触底达成，启动底部 5 秒倒计时`);
               longTextBottomTimer = setTimeout(() => {
                 if (currentReadingConvoId && unreadConvosMap.has(currentReadingConvoId)) {
+                  console.log(`[agy-read] 对话 [${currentReadingConvoId}] 长文底部停留满 5 秒，标记为已读`);
                   markConvoAsRead(currentReadingConvoId, '长文二次触底并在底部平稳停留满 5 秒');
                 }
               }, USER_CONFIG.LONG_TEXT_BOTTOM_DURATION_MS);
@@ -2969,13 +3011,24 @@
         }
       }
 
-      // 监听全局滚动捕获
-      window.addEventListener('scroll', (e) => {
+      // 监听全局滚动捕获与鼠标滚轮事件
+      unreadScrollHandler = (e) => {
         const container = getChatScrollContainer();
-        if (e.target === container) {
+        if (!container) return;
+        if (e.target === container || e.target === document || container.contains(e.target)) {
           handleReadingScroll();
         }
-      }, true);
+      };
+      window.addEventListener('scroll', unreadScrollHandler, true);
+
+      unreadWheelHandler = (e) => {
+        const container = getChatScrollContainer();
+        if (!container) return;
+        if (container.contains(e.target) || e.target === container) {
+          setTimeout(handleReadingScroll, 16);
+        }
+      };
+      window.addEventListener('wheel', unreadWheelHandler, { capture: true, passive: true });
 
       // 对话切换监测
       let trackedConvoId = null;
