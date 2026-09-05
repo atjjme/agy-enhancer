@@ -11,8 +11,6 @@
 // @run-at       document-idle
 // ==/UserScript==
 
-window.__AGY_BRANCH_TAG__ = " (branch)";
-window.__AGY_BRANCH_NAME__ = "remove_open_folder_option";
 /**
  * Antigravity 阅读增强器 (agy-read enhancer)
  * 
