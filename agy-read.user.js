@@ -11,6 +11,8 @@
 // @run-at       document-idle
 // ==/UserScript==
 
+window.__AGY_BRANCH_TAG__ = "（分支）";
+window.__AGY_BRANCH_NAME__ = "persist_chat_scroll_position";
 /**
  * Antigravity 阅读增强器 (agy-read enhancer)
  * 
@@ -2309,17 +2311,62 @@
 
       let activeRestoringConvoId = null;
       let activeRestoringTarget = null;
-      let restorationExpireTime = 0;
+      let restorationObserver = null;
+      let observedContainer = null;
+      let restorationTimeoutId = null;
+
+      function ensureObserver(container) {
+        if (!container || observedContainer === container) return;
+        if (restorationObserver) {
+          try { restorationObserver.disconnect(); } catch (e) {}
+          restorationObserver = null;
+        }
+        try {
+          restorationObserver = new MutationObserver(() => {
+            if (activeRestoringConvoId) {
+              applyRestoration();
+            }
+          });
+          restorationObserver.observe(container, { childList: true, subtree: true });
+          observedContainer = container;
+        } catch (e) {}
+      }
 
       function endRestoration(reason) {
         if (activeRestoringConvoId) {
           activeRestoringConvoId = null;
           activeRestoringTarget = null;
-          restorationExpireTime = 0;
+          observedContainer = null;
+          if (restorationObserver) {
+            try { restorationObserver.disconnect(); } catch (e) {}
+            restorationObserver = null;
+          }
+          if (restorationTimeoutId) {
+            clearTimeout(restorationTimeoutId);
+            restorationTimeoutId = null;
+          }
         }
       }
 
+      // 用户交互状态追踪：只有真实用户交互引起的滚动才被允许更新记忆位置！
+      let isUserInteracting = false;
+      let userInteractionTimer = null;
+      function markUserInteracting() {
+        isUserInteracting = true;
+        if (userInteractionTimer) clearTimeout(userInteractionTimer);
+        userInteractionTimer = setTimeout(() => {
+          isUserInteracting = false;
+        }, 500);
+      }
+
+      let lastPromptSubmitTime = 0;
+
       function recordConvoPosition(targetConvoId) {
+        // 恢复进行中或提交新提问 2 秒内，坚决不保存位置，防止污染
+        if (activeRestoringConvoId || Date.now() - lastPromptSubmitTime < 2000) {
+          return;
+        }
+
         const container = getChatScrollContainer();
         if (!container || container.clientHeight <= 0) return;
 
@@ -2337,26 +2384,11 @@
         const clientHeight = container.clientHeight;
         const isBottom = (scrollHeight - scrollTop - clientHeight) <= 45;
 
-        let turnIndex = 0;
-        let turnTopOffset = 0;
-        try {
-          const { pages } = getPagesInfo();
-          if (pages && pages.length > 0) {
-            const idx = getCurrentPageIndex(pages, scrollTop);
-            if (idx >= 0 && pages[idx]) {
-              turnIndex = idx;
-              turnTopOffset = Math.max(0, scrollTop - pages[idx].top);
-            }
-          }
-        } catch (e) {}
-
         convoPositionsMap.set(convoId, {
-          scrollTop,
-          scrollHeight,
-          clientHeight,
+          scrollTop: Math.round(scrollTop),
+          scrollHeight: Math.round(scrollHeight),
+          clientHeight: Math.round(clientHeight),
           isBottom,
-          turnIndex,
-          turnTopOffset,
           timestamp: Date.now()
         });
         savePositions();
@@ -2398,79 +2430,95 @@
         } catch (e) {}
       }
 
-      function getTargetScrollTop(container, targetState) {
-        if (!targetState || !container) return 0;
-        const maxScroll = Math.max(0, container.scrollHeight - container.clientHeight);
-        try {
-          const { pages } = getPagesInfo();
-          if (pages && pages.length > targetState.turnIndex && pages[targetState.turnIndex]) {
-            const page = pages[targetState.turnIndex];
-            const calculated = page.top + (targetState.turnTopOffset || 0);
-            if (calculated >= 0 && calculated <= maxScroll) {
-              return calculated;
-            }
-          }
-        } catch (e) {}
-        return Math.max(0, Math.min(targetState.scrollTop, maxScroll));
-      }
-
       function applyRestoration() {
-        if (!activeRestoringConvoId || Date.now() > restorationExpireTime) {
-          endRestoration('expired');
-          return;
-        }
-        const container = getChatScrollContainer();
-        if (!container) return;
+        if (!activeRestoringConvoId || !activeRestoringTarget) return;
 
-        // 仅当容器已成功挂载为当前目标对话时才执行定位
+        const container = getChatScrollContainer();
+        if (!container || container.clientHeight <= 0) return;
+
         const containerId = getContainerConvoId(container);
         if (containerId && containerId !== activeRestoringConvoId) {
           return;
         }
 
-        const targetTop = getTargetScrollTop(container, activeRestoringTarget);
+        ensureObserver(container);
         syncFiberAutoScrollDisabled(container);
 
-        if (Math.abs(container.scrollTop - targetTop) > 2) {
-          container.scrollTop = targetTop;
+        const desiredScrollTop = activeRestoringTarget.scrollTop;
+        if (typeof desiredScrollTop !== 'number' || isNaN(desiredScrollTop)) return;
+
+        const maxScroll = Math.max(0, container.scrollHeight - container.clientHeight);
+
+        // 如果内容高度已足够滚到目标位置
+        if (maxScroll >= desiredScrollTop - 20) {
+          const clampedTop = Math.max(0, Math.min(desiredScrollTop, maxScroll));
+          if (Math.abs(container.scrollTop - clampedTop) > 1) {
+            container.scrollTop = clampedTop;
+          }
+          syncFiberAutoScrollDisabled(container);
+        } else {
+          // 内容仍在异步加载追加中，暂时推到当前可滚动的底部，但不结束恢复
+          if (maxScroll > 0 && container.scrollTop < maxScroll) {
+            container.scrollTop = maxScroll;
+          }
         }
       }
 
       function startRestoration(convoId, saved) {
+        if (!saved || saved.isBottom || saved.scrollTop <= 5) {
+          endRestoration('not eligible');
+          return;
+        }
+
         activeRestoringConvoId = convoId;
         activeRestoringTarget = saved;
-        restorationExpireTime = Date.now() + 850;
+
+        const container = getChatScrollContainer();
+        if (container) {
+          ensureObserver(container);
+          syncFiberAutoScrollDisabled(container);
+        }
 
         applyRestoration();
-        [15, 35, 75, 130, 210, 320, 480, 680].forEach(ms => {
+
+        const checkDelays = [15, 40, 80, 140, 220, 340, 500, 750, 1100, 1600, 2300, 3200, 4500];
+        checkDelays.forEach(ms => {
           addTimeout(() => {
             if (activeRestoringConvoId === convoId) {
               applyRestoration();
             }
           }, ms);
         });
+
+        if (restorationTimeoutId) clearTimeout(restorationTimeoutId);
+        restorationTimeoutId = setTimeout(() => {
+          endRestoration('max timeout (5s)');
+        }, 5000);
       }
 
-      // 拦截原生 scrollTo
+      // 拦截原生 scrollTo：阻止在恢复期间由于 ResizeObserver 强制滑到底部
       originalElementScrollTo = Element.prototype.scrollTo;
       Element.prototype.scrollTo = function (...args) {
         const container = getChatScrollContainer();
-        if (this === container && activeRestoringConvoId && Date.now() <= restorationExpireTime) {
+        if (this === container && activeRestoringConvoId) {
           const options = typeof args[0] === 'object' ? args[0] : { top: args[0], left: args[1] };
-          if (options && typeof options.top === 'number' && options.top >= this.scrollHeight - 60) {
-            const targetTop = getTargetScrollTop(this, activeRestoringTarget);
+          if (options && typeof options.top === 'number') {
             syncFiberAutoScrollDisabled(this);
-            return originalElementScrollTo.call(this, { ...options, top: targetTop, behavior: 'instant' });
+            if (activeRestoringTarget) {
+              applyRestoration();
+            }
+            return; // 拦截阻止该次原生滚底调用
           }
         }
         return originalElementScrollTo.apply(this, args);
       };
 
-      // 监听全局滚动捕获
+      // 监听全局滚动捕获：关键守护——只有用户真实交互导致的滚动才记录！
       scrollCaptureHandler = (e) => {
         const container = getChatScrollContainer();
         if (e.target === container) {
-          if (activeRestoringConvoId && Date.now() <= restorationExpireTime) {
+          if (!isUserInteracting || activeRestoringConvoId) {
+            // 系统自动滚动、重绘布局变化或处于恢复期间，绝对不保存！
             return;
           }
           const convoId = getContainerConvoId(container) || getCurrentUrlConvoId();
@@ -2481,14 +2529,35 @@
       };
       window.addEventListener('scroll', scrollCaptureHandler, true);
 
-      // 用户交互即刻解除恢复保护
+      // 用户真实交互监听（精准判定：滚轮、容器拖动、方向按键、触控）
       userInteractionHandler = (e) => {
+        const container = getChatScrollContainer();
+        if (!container) return;
+
+        if (e.type === 'wheel') {
+          // 滚轮只有在聊天容器内滚动才算真实交互
+          if (!container.contains(e.target)) return;
+        } else if (e.type === 'mousedown' || e.type === 'pointerdown') {
+          // 点击排除输入框、按钮、链接等，防止侧边栏点击或输入触发误判
+          if (e.target.closest('textarea, input, button, a, [contenteditable="true"]')) return;
+          if (!container.contains(e.target) && e.target !== container) return;
+        } else if (e.type === 'keydown') {
+          const navKeys = ['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Home', 'End', 'Space'];
+          if (!navKeys.includes(e.key) && !navKeys.includes(e.code)) return;
+          if (e.target.closest('textarea, input, [contenteditable="true"]')) return;
+        } else if (e.type === 'touchmove') {
+          if (!container.contains(e.target)) return;
+        } else {
+          return;
+        }
+
+        markUserInteracting();
         if (activeRestoringConvoId) {
-          endRestoration('user manual interaction');
+          endRestoration('user interaction event');
         }
       };
-      ['wheel', 'pointerdown', 'mousedown', 'keydown', 'touchstart'].forEach(type => {
-        window.addEventListener(type, userInteractionHandler, true);
+      ['wheel', 'pointerdown', 'mousedown', 'keydown', 'touchmove'].forEach(type => {
+        window.addEventListener(type, userInteractionHandler, { capture: true, passive: true });
       });
 
       // 路由与对话切换监测
@@ -2499,19 +2568,19 @@
         const containerConvoId = getContainerConvoId(container);
         const urlConvoId = getCurrentUrlConvoId();
 
-        // 判定有效对话 ID：当容器已挂载该对话时即生效
         const effectiveConvoId = containerConvoId || urlConvoId;
         if (!effectiveConvoId) return;
 
         if (effectiveConvoId !== currentActiveConvoId) {
-          if (currentActiveConvoId) {
+          // 仅在当前确实是用户在阅读该对话时才保存
+          if (currentActiveConvoId && isUserInteracting) {
             recordConvoPosition(currentActiveConvoId);
           }
           currentActiveConvoId = effectiveConvoId;
 
           const saved = convoPositionsMap.get(effectiveConvoId);
           if (saved && !saved.isBottom && saved.scrollTop > 5) {
-            console.log(`[agy-read] 恢复对话 [${effectiveConvoId}] 阅读位置 (scrollTop: ${saved.scrollTop}px)`);
+            console.log(`[agy-read] 检测到切入对话 [${effectiveConvoId}]，准备恢复阅读位置 (scrollTop: ${saved.scrollTop}px)`);
             startRestoration(effectiveConvoId, saved);
           } else {
             endRestoration('new convo or at bottom');
@@ -2524,7 +2593,7 @@
 
       originalPushState = history.pushState;
       history.pushState = function (...args) {
-        if (currentActiveConvoId) {
+        if (currentActiveConvoId && isUserInteracting) {
           recordConvoPosition(currentActiveConvoId);
         }
         const res = originalPushState.apply(this, args);
@@ -2534,7 +2603,7 @@
 
       originalReplaceState = history.replaceState;
       history.replaceState = function (...args) {
-        if (currentActiveConvoId) {
+        if (currentActiveConvoId && isUserInteracting) {
           recordConvoPosition(currentActiveConvoId);
         }
         const res = originalReplaceState.apply(this, args);
@@ -2547,6 +2616,7 @@
 
       // 新提问提交通知钩子
       notifyNewPromptSubmitted = () => {
+        lastPromptSubmitTime = Date.now();
         const container = getChatScrollContainer();
         const convoId = getContainerConvoId(container) || getCurrentUrlConvoId();
         if (convoId) {
