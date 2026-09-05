@@ -11,8 +11,6 @@
 // @run-at       document-idle
 // ==/UserScript==
 
-window.__AGY_BRANCH_TAG__ = " (branch)";
-window.__AGY_BRANCH_NAME__ = "translate_plugin_ui_english";
 /**
  * Antigravity 阅读增强器 (agy-read enhancer)
  * 
