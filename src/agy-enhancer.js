@@ -86,6 +86,8 @@
   let contextMenuHandler = null;
   let lastContextMenuPos = null;
   let activeNativeConvoId = null;
+  let activeNativeProjectObj = null;
+  let activeNativeProjectId = null;
   let nativeMenuPointerDownHandler = null;
   let nativeMenuObserver = null;
   let originalElementScrollTo = null;
@@ -126,6 +128,9 @@
       contextMenuHandler = null;
     }
     lastContextMenuPos = null;
+    activeNativeConvoId = null;
+    activeNativeProjectObj = null;
+    activeNativeProjectId = null;
     if (nativeMenuPointerDownHandler) {
       document.removeEventListener('pointerdown', nativeMenuPointerDownHandler, true);
       nativeMenuPointerDownHandler = null;
@@ -1184,6 +1189,120 @@
         return false;
       }
 
+      function getProjectFolderUri(projectOrId) {
+        if (!projectOrId) return null;
+        let project = null;
+        const pm = getPM();
+        const projects = pm?.projectsStateProvider?.getState?.() || [];
+
+        if (typeof projectOrId === 'string') {
+          const pItem = projects.find(p => p.project?.id === projectOrId || p.project?.name === projectOrId);
+          project = pItem?.project || null;
+        } else if (typeof projectOrId === 'object') {
+          project = projectOrId.project || projectOrId;
+        }
+
+        if (!project) return null;
+
+        // 1. 从 projectResources 提取标准 folderUri
+        if (project.projectResources?.resources) {
+          for (const res of project.projectResources.resources) {
+            if (res.type?.value?.folderUri) return res.type.value.folderUri;
+            if (res.type?.case === 'folderUri' && typeof res.type.value === 'string') return res.type.value;
+            if (typeof res.folderUri === 'string') return res.folderUri;
+            if (typeof res.uri === 'string' && (res.uri.startsWith('file:') || /^[a-zA-Z]:[\\/]/.test(res.uri))) return res.uri;
+          }
+        }
+
+        // 2. 检查常见直接字段
+        if (typeof project.rootUri === 'string') return project.rootUri;
+        if (typeof project.folderUri === 'string') return project.folderUri;
+        if (typeof project.projectUri === 'string') return project.projectUri;
+        if (typeof project.workspaceUri === 'string') return project.workspaceUri;
+
+        // 3. 从该项目关联的对话记录中提取非 worktree 的工作区路径作为兜底
+        const pId = project.id;
+        if (pId) {
+          const tsp = getTSP();
+          const summaries = tsp?.getState?.()?.summaries || {};
+          for (const cid in summaries) {
+            const s = summaries[cid];
+            const spId = s?.projectId || s?.trajectoryMetadata?.projectId;
+            if (spId === pId) {
+              const workspaces = s?.trajectoryMetadata?.workspaces || [];
+              for (const w of workspaces) {
+                if (w.workspaceFolderAbsoluteUri && !w.workspaceFolderAbsoluteUri.includes('/worktrees/')) {
+                  return w.workspaceFolderAbsoluteUri;
+                }
+              }
+              if (s?.trajectoryMetadata?.workspaceUris) {
+                for (const u of s.trajectoryMetadata.workspaceUris) {
+                  if (!u.includes('/worktrees/')) return u;
+                }
+              }
+            }
+          }
+        }
+
+        return null;
+      }
+
+      function resolveProjectFromElement(el) {
+        if (!el) return null;
+        const pm = getPM();
+        const projects = pm?.projectsStateProvider?.getState?.() || [];
+
+        // 1. 尝试从 React Fiber 获取精确的 project 或 projectId
+        let curr = el;
+        while (curr && curr !== document.body) {
+          const k = Object.keys(curr).find(key => key.startsWith('__reactFiber$'));
+          if (k && curr[k]) {
+            let fiber = curr[k];
+            let depth = 0;
+            while (fiber && depth < 25) {
+              const props = fiber.memoizedProps;
+              if (props?.project?.id) return props.project;
+              if (props?.projectItem?.project?.id) return props.projectItem.project;
+              if (props?.projectId) {
+                const found = projects.find(p => p.project?.id === props.projectId);
+                if (found?.project) return found.project;
+              }
+              fiber = fiber.return;
+              depth++;
+            }
+          }
+          curr = curr.parentElement;
+        }
+
+        // 2. 尝试从 DOM 项目名称匹配
+        const card = el.closest('button[data-project-card="true"]') ||
+                     el.closest('.group\\/header')?.querySelector('button[data-project-card="true"]') ||
+                     el.parentElement?.querySelector?.('button[data-project-card="true"]');
+        if (card) {
+          const nameEl = card.querySelector('.truncate') || card.querySelector('span');
+          const name = nameEl?.innerText?.trim();
+          if (name) {
+            const found = projects.find(p => p.project?.name === name && !p.project?.archived) ||
+                          projects.find(p => p.project?.name === name);
+            if (found?.project) return found.project;
+          }
+        }
+
+        // 3. 尝试从整个项目的容器或祖先中找任何带名字的文本
+        const header = el.closest('.group\\/header') || el.closest('[data-testid="section-header"]');
+        if (header) {
+          const nameEl = header.querySelector('.truncate');
+          const name = nameEl?.innerText?.trim();
+          if (name) {
+            const found = projects.find(p => p.project?.name === name && !p.project?.archived) ||
+                          projects.find(p => p.project?.name === name);
+            if (found?.project) return found.project;
+          }
+        }
+
+        return null;
+      }
+
       function getConvoFolderPaths(convoId, explicitProjectId) {
         const tsp = getTSP();
         const summaries = tsp?.getState()?.summaries || {};
@@ -1220,19 +1339,7 @@
           }
         }
 
-        let projectRootUri = null;
-        if (projItem?.project?.projectResources?.resources) {
-          for (const res of projItem.project.projectResources.resources) {
-            if (res.type?.value?.folderUri) {
-              projectRootUri = res.type.value.folderUri;
-              break;
-            }
-            if (res.type?.case === 'folderUri' && typeof res.type.value === 'string') {
-              projectRootUri = res.type.value;
-              break;
-            }
-          }
-        }
+        let projectRootUri = getProjectFolderUri(projItem?.project || pId);
         if (!projectRootUri && !isBranch && workspaces.length > 0) {
           projectRootUri = workspaces[0].workspaceFolderAbsoluteUri;
         }
@@ -1515,7 +1622,7 @@
             dd.setAttribute('data-project-id', id);
 
             const menuWidth = 160;
-            const menuHeight = 190;
+            const menuHeight = 225;
             let leftPos, topPos;
 
             if (lastContextMenuPos && (Date.now() - lastContextMenuPos.time < 1200)) {
@@ -1545,6 +1652,11 @@
               <div class="agy-dd-item settings">
                 <svg width="16" height="16" viewBox="0 -960 960 960" fill="currentColor"><path d="m370-80-16-128q-13-5-24.5-12T307-235l-119 50L78-375l103-78q-1-7-1-13.5v-27q0-6.5 1-13.5L78-585l110-190 119 50q11-8 23-15t24-12l16-128h220l16 128q13 5 24.5 12t22.5 15l119-50 110 190-103 78q1 7 1 13.5v27q0 6.5-1 13.5l103 78-110 190-119-50q-11 8-23 15t-24 12L590-80H370Zm70-80h79l14-106q31-8 57.5-23.5T639-327l99 41 39-68-86-65q5-14 7-29.5t2-31.5q0-16-2-31.5t-7-29.5l86-65-39-68-99 42q-22-23-48.5-38.5T533-694l-13-106h-79l-14 106q-31 8-57.5 23.5T321-633l-99-41-39 68 86 64q-5 15-7 30t-2 32q0 16 2 31t7 30l-86 65 39 68 99-42q22 23 48.5 38.5T427-266l13 106Zm40-220q42 0 71-29t29-71q0-42-29-71t-71-29q-42 0-71 29t-29 71q0 42 29 71t71 29Z"/></svg>
                 <span>Project Settings</span>
+              </div>
+              <div class="agy-dd-divider"></div>
+              <div class="agy-dd-item open-project-folder">
+                <svg width="16" height="16" viewBox="0 -960 960 960" fill="currentColor"><path d="M160-160q-33 0-56.5-23.5T80-240v-480q0-33 23.5-56.5T160-800h240l80 80h320q33 0 56.5 23.5T880-640v400q0 33-23.5 56.5T800-160H160Zm0-80h640v-400H447l-80-80H160v480Zm0 0v-480 480Z"/></svg>
+                <span>Open Project Folder</span>
               </div>
               <div class="agy-dd-divider"></div>
               <div class="agy-dd-item restore">
@@ -1583,6 +1695,17 @@
               isPanelOpen = false;
               renderArchivePanel(pm);
               openProjectSettings(p.project.id);
+            });
+
+            dd.querySelector('.agy-dd-item.open-project-folder')?.addEventListener('click', () => {
+              dd.remove();
+              const uri = getProjectFolderUri(p);
+              if (uri) {
+                openLocalFolder(uri, 'project');
+                showNotification('Opened project folder');
+              } else {
+                showNotification('Failed to resolve project folder');
+              }
             });
 
             dd.querySelector('.agy-dd-item.restore')?.addEventListener('click', async () => {
@@ -2126,7 +2249,15 @@
             const row = btn.closest('[data-testid="conversation-row-sidebar"]');
             if (row) {
               activeNativeConvoId = row.getAttribute('data-cascade-id');
+              activeNativeProjectObj = null;
+              activeNativeProjectId = null;
             }
+          }
+          const projBtn = e.target?.closest?.('button[aria-label="Project options"]');
+          if (projBtn) {
+            activeNativeProjectObj = resolveProjectFromElement(projBtn);
+            activeNativeProjectId = activeNativeProjectObj?.id || null;
+            activeNativeConvoId = null;
           }
         };
         document.addEventListener('pointerdown', nativeMenuPointerDownHandler, true);
@@ -2135,101 +2266,156 @@
           const menu = document.querySelector('[role="menu"]:not([data-agy-enhanced="true"])');
           if (!menu) return;
 
-          // 确认是否是对话操作菜单（具有原生重命名或删除项）
+          // 1. 确认是否是对话操作菜单（具有原生重命名或删除项）
           const hasConvoActions = menu.querySelector('[data-testid="conversation-delete-menu-item"]') ||
                                   menu.querySelector('[data-testid="conversation-rename-menu-item"]');
-          if (!hasConvoActions) return;
+          if (hasConvoActions) {
+            menu.setAttribute('data-agy-enhanced', 'true');
 
-          menu.setAttribute('data-agy-enhanced', 'true');
-
-          // 获取目标对话 ID
-          let convoId = activeNativeConvoId;
-          if (!convoId) {
-            const m = window.location.pathname.match(/\/c\/([a-f0-9-]+)/i);
-            if (m) convoId = m[1];
-          }
-          if (!convoId) {
-            const selectedRow = document.querySelector('[data-testid="conversation-row-sidebar"][data-selected="true"]');
-            if (selectedRow) convoId = selectedRow.getAttribute('data-cascade-id');
-          }
-
-          const paths = getConvoFolderPaths(convoId);
-
-          const divider = document.createElement('div');
-          divider.setAttribute('role', 'separator');
-          divider.className = 'h-px bg-border my-1 -mx-1 agy-native-enhanced';
-
-          const itemConvo = document.createElement('div');
-          itemConvo.setAttribute('role', 'menuitem');
-          itemConvo.className = 'w-full px-2 py-1 text-left text-[13px] cursor-pointer outline-none transition-colors select-none flex items-center gap-1.5 rounded-md hover:bg-secondary hover:text-foreground text-secondary-foreground agy-native-enhanced';
-          itemConvo.innerHTML = `
-            <svg width="16" height="16" viewBox="0 -960 960 960" fill="currentColor" class="text-secondary-foreground shrink-0"><path d="M160-160q-33 0-56.5-23.5T80-240v-480q0-33 23.5-56.5T160-800h240l80 80h320q33 0 56.5 23.5T880-640v400q0 33-23.5 56.5T800-160H160Zm0-80h640v-400H447l-80-80H160v480Zm0 0v-480 480Z"/></svg>
-            <span>Open Conversation Folder</span>
-          `;
-          itemConvo.addEventListener('click', (ev) => {
-            ev.stopPropagation();
-            ev.preventDefault();
-            document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
-            if (paths?.convoBrainUri) {
-              openLocalFolder(paths.convoBrainUri, 'convo');
-              showNotification('Opened conversation folder');
-            } else {
-              showNotification('Failed to resolve conversation folder');
+            // 获取目标对话 ID
+            let convoId = activeNativeConvoId;
+            if (!convoId) {
+              const m = window.location.pathname.match(/\/c\/([a-f0-9-]+)/i);
+              if (m) convoId = m[1];
             }
-          });
+            if (!convoId) {
+              const selectedRow = document.querySelector('[data-testid="conversation-row-sidebar"][data-selected="true"]');
+              if (selectedRow) convoId = selectedRow.getAttribute('data-cascade-id');
+            }
 
-          menu.appendChild(divider);
-          menu.appendChild(itemConvo);
+            const paths = getConvoFolderPaths(convoId);
 
-          // 仅当属于项目内部的对话时才添加“打开项目文件夹”；普通对话不展示该项
-          if (paths?.isInsideProject) {
-            const itemProject = document.createElement('div');
-            itemProject.setAttribute('role', 'menuitem');
-            itemProject.className = 'w-full px-2 py-1 text-left text-[13px] cursor-pointer outline-none transition-colors select-none flex items-center gap-1.5 rounded-md hover:bg-secondary hover:text-foreground text-secondary-foreground agy-native-enhanced';
-            itemProject.innerHTML = `
+            const divider = document.createElement('div');
+            divider.setAttribute('role', 'separator');
+            divider.className = 'h-px bg-border my-1 -mx-1 agy-native-enhanced';
+
+            const itemConvo = document.createElement('div');
+            itemConvo.setAttribute('role', 'menuitem');
+            itemConvo.className = 'w-full px-2 py-1 text-left text-[13px] cursor-pointer outline-none transition-colors select-none flex items-center gap-1.5 rounded-md hover:bg-secondary hover:text-foreground text-secondary-foreground agy-native-enhanced';
+            itemConvo.innerHTML = `
               <svg width="16" height="16" viewBox="0 -960 960 960" fill="currentColor" class="text-secondary-foreground shrink-0"><path d="M160-160q-33 0-56.5-23.5T80-240v-480q0-33 23.5-56.5T160-800h240l80 80h320q33 0 56.5 23.5T880-640v400q0 33-23.5 56.5T800-160H160Zm0-80h640v-400H447l-80-80H160v480Zm0 0v-480 480Z"/></svg>
-              <span>Open Project Folder</span>
+              <span>Open Conversation Folder</span>
             `;
-            itemProject.addEventListener('click', (ev) => {
+            itemConvo.addEventListener('click', (ev) => {
               ev.stopPropagation();
               ev.preventDefault();
               document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
-              if (paths?.targetProjectUri) {
-                openLocalFolder(paths.targetProjectUri, 'project');
-                showNotification(paths.isBranch ? 'Opened branch folder' : 'Opened project folder');
+              if (paths?.convoBrainUri) {
+                openLocalFolder(paths.convoBrainUri, 'convo');
+                showNotification('Opened conversation folder');
+              } else {
+                showNotification('Failed to resolve conversation folder');
+              }
+            });
+
+            menu.appendChild(divider);
+            menu.appendChild(itemConvo);
+
+            // 仅当属于项目内部的对话时才添加“打开项目文件夹”；普通对话不展示该项
+            if (paths?.isInsideProject) {
+              const itemProject = document.createElement('div');
+              itemProject.setAttribute('role', 'menuitem');
+              itemProject.className = 'w-full px-2 py-1 text-left text-[13px] cursor-pointer outline-none transition-colors select-none flex items-center gap-1.5 rounded-md hover:bg-secondary hover:text-foreground text-secondary-foreground agy-native-enhanced';
+              itemProject.innerHTML = `
+                <svg width="16" height="16" viewBox="0 -960 960 960" fill="currentColor" class="text-secondary-foreground shrink-0"><path d="M160-160q-33 0-56.5-23.5T80-240v-480q0-33 23.5-56.5T160-800h240l80 80h320q33 0 56.5 23.5T880-640v400q0 33-23.5 56.5T800-160H160Zm0-80h640v-400H447l-80-80H160v480Zm0 0v-480 480Z"/></svg>
+                <span>Open Project Folder</span>
+              `;
+              itemProject.addEventListener('click', (ev) => {
+                ev.stopPropagation();
+                ev.preventDefault();
+                document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+                if (paths?.targetProjectUri) {
+                  openLocalFolder(paths.targetProjectUri, 'project');
+                  showNotification(paths.isBranch ? 'Opened branch folder' : 'Opened project folder');
+                } else {
+                  showNotification('Failed to resolve project folder');
+                }
+              });
+
+              menu.appendChild(itemProject);
+            }
+
+            // 标记已读/未读切换项
+            if (convoId && typeof window.__AGY_IS_UNREAD__ === 'function') {
+              const isUnread = window.__AGY_IS_UNREAD__(convoId);
+              const itemToggleRead = document.createElement('div');
+              itemToggleRead.setAttribute('role', 'menuitem');
+              itemToggleRead.className = 'w-full px-2 py-1 text-left text-[13px] cursor-pointer outline-none transition-colors select-none flex items-center gap-1.5 rounded-md hover:bg-secondary hover:text-foreground text-secondary-foreground agy-native-enhanced';
+              itemToggleRead.innerHTML = `
+                <svg width="16" height="16" viewBox="0 -960 960 960" fill="currentColor" class="text-secondary-foreground shrink-0"><path d="M480-80q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-83 31.5-156T197-763q54-54 127-85.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 83-31.5 156T763-197q-54 54-127 85.5T480-80Zm0-80q134 0 227-93t93-227q0-134-93-227t-227-93q-134 0-227 93t-93 227q0 134 93 227t227 93Zm0-320Z"/></svg>
+                <span>${isUnread ? 'Mark as Read' : 'Mark as Unread'}</span>
+              `;
+              itemToggleRead.addEventListener('click', (ev) => {
+                ev.stopPropagation();
+                ev.preventDefault();
+                document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+                if (isUnread) {
+                  if (typeof window.__AGY_MARK_READ__ === 'function') {
+                    window.__AGY_MARK_READ__(convoId);
+                  }
+                } else {
+                  if (typeof window.__AGY_MARK_UNREAD__ === 'function') {
+                    window.__AGY_MARK_UNREAD__(convoId);
+                  }
+                }
+              });
+              menu.appendChild(itemToggleRead);
+            }
+            return;
+          }
+
+          // 2. 确认是否是项目操作菜单
+          let targetProject = activeNativeProjectObj;
+          if (!targetProject && activeNativeProjectId) {
+            const pm = getPM();
+            const projects = pm?.projectsStateProvider?.getState?.() || [];
+            targetProject = projects.find(p => p.project?.id === activeNativeProjectId)?.project || null;
+          }
+
+          const isProjectMenu = !!targetProject ||
+                                !!menu.querySelector('[data-testid*="project"]') ||
+                                (menu.textContent.includes('Settings') && !menu.textContent.includes('Log out'));
+
+          if (isProjectMenu) {
+            if (!menu.children.length) return;
+
+            if (!targetProject) {
+              const currentPId = getCurrentProjectId();
+              if (currentPId) {
+                const pm = getPM();
+                const projects = pm?.projectsStateProvider?.getState?.() || [];
+                targetProject = projects.find(p => p.project?.id === currentPId)?.project || null;
+              }
+            }
+
+            menu.setAttribute('data-agy-enhanced', 'true');
+
+            const divider = document.createElement('div');
+            divider.setAttribute('role', 'separator');
+            divider.className = 'h-px bg-border my-1 -mx-1 agy-native-enhanced';
+
+            const itemProjectFolder = document.createElement('div');
+            itemProjectFolder.setAttribute('role', 'menuitem');
+            itemProjectFolder.className = 'w-full px-2 py-1 text-left text-[13px] cursor-pointer outline-none transition-colors select-none flex items-center gap-1.5 rounded-md hover:bg-secondary hover:text-foreground text-secondary-foreground agy-native-enhanced';
+            itemProjectFolder.innerHTML = `
+              <svg width="16" height="16" viewBox="0 -960 960 960" fill="currentColor" class="text-secondary-foreground shrink-0"><path d="M160-160q-33 0-56.5-23.5T80-240v-480q0-33 23.5-56.5T160-800h240l80 80h320q33 0 56.5 23.5T880-640v400q0 33-23.5 56.5T800-160H160Zm0-80h640v-400H447l-80-80H160v480Zm0 0v-480 480Z"/></svg>
+              <span>Open Project Folder</span>
+            `;
+            itemProjectFolder.addEventListener('click', (ev) => {
+              ev.stopPropagation();
+              ev.preventDefault();
+              document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+              const targetUri = getProjectFolderUri(targetProject);
+              if (targetUri) {
+                openLocalFolder(targetUri, 'project');
+                showNotification('Opened project folder');
               } else {
                 showNotification('Failed to resolve project folder');
               }
             });
 
-            menu.appendChild(itemProject);
-          }
-
-          // 标记已读/未读切换项
-          if (convoId && typeof window.__AGY_IS_UNREAD__ === 'function') {
-            const isUnread = window.__AGY_IS_UNREAD__(convoId);
-            const itemToggleRead = document.createElement('div');
-            itemToggleRead.setAttribute('role', 'menuitem');
-            itemToggleRead.className = 'w-full px-2 py-1 text-left text-[13px] cursor-pointer outline-none transition-colors select-none flex items-center gap-1.5 rounded-md hover:bg-secondary hover:text-foreground text-secondary-foreground agy-native-enhanced';
-            itemToggleRead.innerHTML = `
-              <svg width="16" height="16" viewBox="0 -960 960 960" fill="currentColor" class="text-secondary-foreground shrink-0"><path d="M480-80q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-83 31.5-156T197-763q54-54 127-85.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 83-31.5 156T763-197q-54 54-127 85.5T480-80Zm0-80q134 0 227-93t93-227q0-134-93-227t-227-93q-134 0-227 93t-93 227q0 134 93 227t227 93Zm0-320Z"/></svg>
-              <span>${isUnread ? 'Mark as Read' : 'Mark as Unread'}</span>
-            `;
-            itemToggleRead.addEventListener('click', (ev) => {
-              ev.stopPropagation();
-              ev.preventDefault();
-              document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
-              if (isUnread) {
-                if (typeof window.__AGY_MARK_READ__ === 'function') {
-                  window.__AGY_MARK_READ__(convoId);
-                }
-              } else {
-                if (typeof window.__AGY_MARK_UNREAD__ === 'function') {
-                  window.__AGY_MARK_UNREAD__(convoId);
-                }
-              }
-            });
-            menu.appendChild(itemToggleRead);
+            menu.appendChild(divider);
+            menu.appendChild(itemProjectFolder);
           }
         }
 
@@ -2298,6 +2484,8 @@
             e.stopPropagation();
             lastContextMenuPos = { x: e.clientX, y: e.clientY, time: Date.now() };
             activeNativeConvoId = convoRow.getAttribute('data-cascade-id');
+            activeNativeProjectObj = null;
+            activeNativeProjectId = null;
             btn.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true }));
             btn.click();
             return;
@@ -2313,6 +2501,9 @@
             e.preventDefault();
             e.stopPropagation();
             lastContextMenuPos = { x: e.clientX, y: e.clientY, time: Date.now() };
+            activeNativeProjectObj = resolveProjectFromElement(projectCard) || resolveProjectFromElement(btn);
+            activeNativeProjectId = activeNativeProjectObj?.id || null;
+            activeNativeConvoId = null;
             btn.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true }));
             btn.click();
             return;
