@@ -1,17 +1,17 @@
 @echo off
 chcp 65001 >nul
-title Antigravity 阅读增强器 - 一键安装与开机自启
+title Antigravity Reading Enhancer - Install & Autostart
 
 echo ====================================================
-echo    Antigravity 阅读增强器一键安装与自启配置
+echo    Antigravity Reading Enhancer Install & Autostart
 echo ====================================================
 echo.
-call "%~dp0设为开机自启 (一劳永逸).bat"
+call "%~dp0setup-autostart.bat"
 echo.
-echo 正在后台静默启动增强服务...
-wscript.exe "%~dp0启动服务 (后台静默无黑框).vbs"
+echo Starting background service silently...
+wscript.exe "%~dp0start-service-silent.vbs"
 echo.
-echo 🎉 安装与启动完成！增强器已在后台静默运行。
+echo 🎉 Installation complete! Enhancer is running in background.
 echo.
 pause
 

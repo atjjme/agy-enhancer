@@ -1,9 +1,9 @@
 @echo off
 chcp 65001 >nul
-title Antigravity 阅读增强器 - 停止后台服务
+title Antigravity Reading Enhancer - Stop Background Service
 
 echo ====================================================
-echo    正在停止 Antigravity 阅读增强器 后台守护进程...
+echo    Stopping Antigravity Reading Enhancer Daemon...
 echo ====================================================
 echo.
 
@@ -12,10 +12,10 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command ^
     "if ($procs) {" ^
     "    $procs | ForEach-Object {" ^
     "        Stop-Process -Id $_.ProcessId -Force;" ^
-    "        Write-Host ('[成功] 已终止后台服务进程 (PID: ' + $_.ProcessId + ')') -ForegroundColor Green;" ^
+    "        Write-Host ('[Success] Terminated service process (PID: ' + $_.ProcessId + ')') -ForegroundColor Green;" ^
     "    }" ^
     "} else {" ^
-    "    Write-Host '[提示] 当前未发现正在运行的阅读增强后台服务。' -ForegroundColor Yellow;" ^
+    "    Write-Host '[Info] No running background service found.' -ForegroundColor Yellow;" ^
     "}"
 
 echo.
