@@ -70,11 +70,11 @@ window.__AGY_BRANCH_NAME__ = "persist_chat_scroll_position";
     // 判定长短文的比例阈值（默认 0.8，末轮问答高度 < 视口 80% 为短文，反之为长文）
     LONG_TEXT_RATIO: 0.8,
 
-    // 底部触底判定灵敏度（对齐 Antigravity 原生 20px 触底判定标准，容纳 5px 亚像素误差）
-    BOTTOM_THRESHOLD: 25,
+    // 底部触底判定灵敏度（阈值设为 100px，在离底 100px 范围内均视作触底舒适区）
+    BOTTOM_THRESHOLD: 100,
 
-    // 离开底部判定阈值（对齐系统 50px 保留偏移标准，向上翻阅超过该距离判定离开底部）
-    LEAVE_BOTTOM_THRESHOLD: 50,
+    // 离开底部判定阈值（向上翻阅超过 160px 判定离开底部，保留 60px 防抖区间）
+    LEAVE_BOTTOM_THRESHOLD: 160,
   };
 
   // ==================== 1. 全局清理与定时器安全管理机制 ====================
