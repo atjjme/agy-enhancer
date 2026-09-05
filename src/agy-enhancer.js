@@ -3064,47 +3064,61 @@
       }
       addInterval(checkConvoSwitchForUnread, 150);
 
-      // 精准监听 AI 生成状态变化：严格绑定具体正在生成的对话 ID，绝不误标切换后的对话！
-      let lastObservedGeneratingConvoId = null;
-      function checkAiGeneratingState() {
+      // 精准监听各对话生成状态与完成事件（按对话 ID 独立追踪，彻底杜绝切换对话误标与双重未读）
+      const activelyGeneratingConvos = new Set();
+
+      function checkGeneratingAndUnreadState() {
+        const rows = document.querySelectorAll('[data-testid="conversation-row-sidebar"]');
+        const activeConvoId = getCurrentUrlConvoId();
         const stopBtn = document.querySelector('button[aria-label*="Stop execution"], button[aria-label*="Stop Task"], [data-testid="stop-button"]');
-        const container = getChatScrollContainer();
-        const currentConvoId = (container ? getContainerConvoId(container) : null) || getCurrentUrlConvoId();
 
-        if (stopBtn) {
-          if (currentConvoId) {
-            lastObservedGeneratingConvoId = currentConvoId;
+        const currentSpinningIds = new Set();
+        rows.forEach(row => {
+          const id = row.getAttribute('data-cascade-id');
+          if (!id) return;
+
+          // 1. 检查侧边栏行是否有正在生成的 spinner
+          const hasSpinner = !!row.querySelector('[data-testid="status-loading-spinner"]');
+          if (hasSpinner) {
+            currentSpinningIds.add(id);
+            activelyGeneratingConvos.add(id);
           }
-        } else {
-          if (lastObservedGeneratingConvoId) {
-            // 之前在生成的具体对话完成输出，标记该对话为未读
-            const finishedConvoId = lastObservedGeneratingConvoId;
-            lastObservedGeneratingConvoId = null;
-            console.log(`[agy-read] 对话 [${finishedConvoId}] AI 回复生成完毕，标记为未读`);
-            markConvoAsUnread(finishedConvoId, 'AI 回复生成完毕');
-          }
-        }
-      }
-      addInterval(checkAiGeneratingState, 250);
 
-      // 监听后台原生任务完成事件：仅捕获非当前正在查看的后台对话
-      function checkNativeUnreadDots() {
-        const container = getChatScrollContainer();
-        const activeConvoId = (container ? getContainerConvoId(container) : null) || getCurrentUrlConvoId();
-
-        const dots = document.querySelectorAll('[data-testid="status-unread-dot"]');
-        dots.forEach(dot => {
-          const row = dot.closest('[data-testid="conversation-row-sidebar"]');
-          if (row) {
-            const id = row.getAttribute('data-cascade-id');
-            // 切勿将用户当前正在阅读的对话误打上未读
-            if (id && id !== activeConvoId && !unreadConvosMap.has(id)) {
-              markConvoAsUnread(id, '捕获到后台原生完成未读指示点');
+          // 2. 检查侧边栏行是否有原生完成未读指示点
+          const hasNativeDot = !!row.querySelector('[data-testid="status-unread-dot"]');
+          if (hasNativeDot) {
+            activelyGeneratingConvos.delete(id);
+            if (!unreadConvosMap.has(id)) {
+              markConvoAsUnread(id, '捕获到原生完成未读指示点');
             }
           }
         });
+
+        // 3. 前台当前正在展示的活动对话如果存在 stopBtn，计入正在生成集合
+        if (activeConvoId && stopBtn) {
+          activelyGeneratingConvos.add(activeConvoId);
+        }
+
+        // 4. 逐个对话检查生成结束状态
+        for (const genId of Array.from(activelyGeneratingConvos)) {
+          if (genId === activeConvoId) {
+            // 前台对话：必须等当前停止按钮消失 且 侧边栏不再有 spinner，才判定前台生成完毕
+            if (!stopBtn && !currentSpinningIds.has(genId)) {
+              activelyGeneratingConvos.delete(genId);
+              console.log(`[agy-read] 前台对话 [${genId}] AI 回复生成完毕，标记为未读`);
+              markConvoAsUnread(genId, '前台 AI 回复生成完毕');
+            }
+          } else {
+            // 后台对话：只要侧边栏不再有 spinner，说明后台输出结束
+            if (!currentSpinningIds.has(genId)) {
+              activelyGeneratingConvos.delete(genId);
+              console.log(`[agy-read] 后台对话 [${genId}] AI 回复生成完毕，标记为未读`);
+              markConvoAsUnread(genId, '后台 AI 回复生成完毕');
+            }
+          }
+        }
       }
-      addInterval(checkNativeUnreadDots, 500);
+      addInterval(checkGeneratingAndUnreadState, 250);
 
       // 同步侧边栏指示点：与系统合二为一，共用单一点位，绝不出现双点！
       function syncSidebarIndicators() {
