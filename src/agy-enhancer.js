@@ -969,7 +969,7 @@
         return cachedGeminiBaseUri;
       }
 
-      function openLocalFolder(uriOrPath) {
+      async function openLocalFolder(uriOrPath, type = 'folder') {
         if (!uriOrPath) return false;
         let uri = uriOrPath;
         if (/^[a-zA-Z]:[\\/]/.test(uri)) {
@@ -980,21 +980,49 @@
           } catch (e) {}
         }
 
-        if (window.electronNative?.openExternal) {
+        // 确保使用标准 file:/// URI 协议格式，并去除末尾斜杠
+        if (!uri.startsWith('file:///')) {
+          uri = 'file:///' + uri.replace(/^file:\/*/, '');
+        }
+        uri = uri.replace(/\/+$/, '');
+
+        // 1. 本地文件夹在 Antigravity Electron 中必须使用 revealInFilePicker 打开
+        if (window.electronNative?.revealInFilePicker) {
+          // 为了直接进入文件夹内部（而非停留在父级目录高亮选中该文件夹）：
+          // 优先尝试定位该文件夹内部必定存在的特征子项：
+          // - 对话文件夹：.system_generated（每个 Antigravity brain 对话数据目录必有）
+          // - 项目/分支文件夹：.git（每个代码工程及 worktree 必有）
+          let directChildUri = null;
+          if (type === 'convo') {
+            directChildUri = `${uri}/.system_generated`;
+          } else if (type === 'project') {
+            directChildUri = `${uri}/.git`;
+          }
+
+          if (directChildUri) {
+            try {
+              await window.electronNative.revealInFilePicker(directChildUri);
+              return true;
+            } catch (err) {
+              console.warn('[agy-read] direct inside reveal failed, falling back to folder uri:', err);
+            }
+          }
+
+          // 降级保护：直接定位目标文件夹本身
           try {
-            window.electronNative.openExternal(uri);
+            await window.electronNative.revealInFilePicker(uri);
             return true;
           } catch (e) {
-            console.warn('[agy-read] openExternal error:', e);
+            console.warn('[agy-read] revealInFilePicker fallback error:', e);
           }
         }
 
-        if (window.electronNative?.revealInFilePicker) {
+        if (window.electronNative?.openExternal) {
           try {
-            window.electronNative.revealInFilePicker(uri);
+            await window.electronNative.openExternal(uri);
             return true;
           } catch (e) {
-            console.warn('[agy-read] revealInFilePicker error:', e);
+            console.warn('[agy-read] openExternal error:', e);
           }
         }
 
@@ -1059,6 +1087,7 @@
         }
 
         const targetProjectUri = isBranch && branchUri ? branchUri : projectRootUri;
+        const isInsideProject = !!pId && pId !== 'outside-of-project';
 
         return {
           convoId,
@@ -1067,7 +1096,7 @@
           branchUri,
           projectRootUri,
           targetProjectUri,
-          isOutsideOfProject: pId === 'outside-of-project' || (!targetProjectUri && !isBranch)
+          isInsideProject
         };
       }
 
@@ -1660,7 +1689,7 @@
               btn.classList.remove('active');
               const paths = getConvoFolderPaths(convoId, projectId);
               if (paths?.convoBrainUri) {
-                openLocalFolder(paths.convoBrainUri);
+                openLocalFolder(paths.convoBrainUri, 'convo');
                 showNotification('Opened conversation folder');
               } else {
                 showNotification('Failed to resolve conversation folder');
@@ -1673,12 +1702,8 @@
               dd.remove();
               btn.classList.remove('active');
               const paths = getConvoFolderPaths(convoId, projectId);
-              if (paths?.isOutsideOfProject) {
-                showNotification('Conversation is outside of any project');
-                return;
-              }
               if (paths?.targetProjectUri) {
-                openLocalFolder(paths.targetProjectUri);
+                openLocalFolder(paths.targetProjectUri, 'project');
                 showNotification(paths.isBranch ? 'Opened branch folder' : 'Opened project folder');
               } else {
                 showNotification('Failed to resolve project folder');
@@ -1968,39 +1993,39 @@
             ev.preventDefault();
             document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
             if (paths?.convoBrainUri) {
-              openLocalFolder(paths.convoBrainUri);
+              openLocalFolder(paths.convoBrainUri, 'convo');
               showNotification('Opened conversation folder');
             } else {
               showNotification('Failed to resolve conversation folder');
             }
           });
 
-          const itemProject = document.createElement('div');
-          itemProject.setAttribute('role', 'menuitem');
-          itemProject.className = 'w-full px-2 py-1 text-left text-[13px] cursor-pointer outline-none transition-colors select-none flex items-center gap-1.5 rounded-md hover:bg-secondary hover:text-foreground text-secondary-foreground agy-native-enhanced';
-          itemProject.innerHTML = `
-            <svg width="15" height="15" viewBox="0 -960 960 960" fill="currentColor" class="text-secondary-foreground shrink-0"><path d="M160-160q-33 0-56.5-23.5T80-240v-480q0-33 23.5-56.5T160-800h240l80 80h320q33 0 56.5 23.5T880-640v400q0 33-23.5 56.5T800-160H160Zm0-80h640v-400H447l-80-80H160v480Zm0 0v-480 480Z"/></svg>
-            <span>Open Project Folder</span>
-          `;
-          itemProject.addEventListener('click', (ev) => {
-            ev.stopPropagation();
-            ev.preventDefault();
-            document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
-            if (paths?.isOutsideOfProject) {
-              showNotification('Conversation is outside of any project');
-              return;
-            }
-            if (paths?.targetProjectUri) {
-              openLocalFolder(paths.targetProjectUri);
-              showNotification(paths.isBranch ? 'Opened branch folder' : 'Opened project folder');
-            } else {
-              showNotification('Failed to resolve project folder');
-            }
-          });
-
           menu.appendChild(divider);
           menu.appendChild(itemConvo);
-          menu.appendChild(itemProject);
+
+          // 仅当属于项目内部的对话时才添加“打开项目文件夹”；普通对话不展示该项
+          if (paths?.isInsideProject) {
+            const itemProject = document.createElement('div');
+            itemProject.setAttribute('role', 'menuitem');
+            itemProject.className = 'w-full px-2 py-1 text-left text-[13px] cursor-pointer outline-none transition-colors select-none flex items-center gap-1.5 rounded-md hover:bg-secondary hover:text-foreground text-secondary-foreground agy-native-enhanced';
+            itemProject.innerHTML = `
+              <svg width="15" height="15" viewBox="0 -960 960 960" fill="currentColor" class="text-secondary-foreground shrink-0"><path d="M160-160q-33 0-56.5-23.5T80-240v-480q0-33 23.5-56.5T160-800h240l80 80h320q33 0 56.5 23.5T880-640v400q0 33-23.5 56.5T800-160H160Zm0-80h640v-400H447l-80-80H160v480Zm0 0v-480 480Z"/></svg>
+              <span>Open Project Folder</span>
+            `;
+            itemProject.addEventListener('click', (ev) => {
+              ev.stopPropagation();
+              ev.preventDefault();
+              document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+              if (paths?.targetProjectUri) {
+                openLocalFolder(paths.targetProjectUri, 'project');
+                showNotification(paths.isBranch ? 'Opened branch folder' : 'Opened project folder');
+              } else {
+                showNotification('Failed to resolve project folder');
+              }
+            });
+
+            menu.appendChild(itemProject);
+          }
         }
 
         nativeMenuObserver = new MutationObserver(() => {
