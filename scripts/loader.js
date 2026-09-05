@@ -29,7 +29,9 @@ const enhancerFile = path.resolve(__dirname, '../src/agy-enhancer.js');
 
 let currentWs = null;
 let lastPort = null;
+let currentPageId = null;
 let isConnecting = false;
+let lastHeartbeatInjectTime = 0;
 
 function getStoredScrollPositions() {
   try {
@@ -63,10 +65,6 @@ async function connectAndAttach() {
   const port = getActivePortInfo();
   if (!port) return;
 
-  if (port === lastPort && currentWs && currentWs.readyState === WebSocket.OPEN) {
-    return;
-  }
-
   isConnecting = true;
   try {
     const pages = await new Promise((resolve, reject) => {
@@ -78,16 +76,25 @@ async function connectAndAttach() {
         });
       });
       req.on('error', reject);
-      req.setTimeout(800, () => { req.destroy(); reject(new Error('timeout')); });
+      req.setTimeout(600, () => { req.destroy(); reject(new Error('timeout')); });
     });
 
-    const page = pages.find(p => p.type === 'page' && p.webSocketDebuggerUrl);
+    // 优先选择主聊天页（包含 /c/ 或 section=），跳过临时验证或登录窗口
+    const chatPage = pages.find(p => p.type === 'page' && p.webSocketDebuggerUrl && (p.url.includes('/c/') || p.url.includes('section=')));
+    const page = chatPage || pages.find(p => p.type === 'page' && p.webSocketDebuggerUrl);
     if (!page) {
       isConnecting = false;
       return;
     }
 
+    // 若端口和当前页面目标均未变化且连接正常，则保持现有连接
+    if (port === lastPort && page.id === currentPageId && currentWs && currentWs.readyState === WebSocket.OPEN) {
+      isConnecting = false;
+      return;
+    }
+
     lastPort = port;
+    currentPageId = page.id;
     if (currentWs) {
       try { currentWs.close(); } catch (e) {}
     }
@@ -99,20 +106,27 @@ async function connectAndAttach() {
       isConnecting = false;
       ws.send(JSON.stringify({ id: 1, method: 'Page.enable' }));
       ws.send(JSON.stringify({ id: 2, method: 'Runtime.enable' }));
-      // 连上后立即注入
-      setTimeout(() => injectEnhancer(ws), 100);
+      // 连上后立即无缝注入
+      injectEnhancer(ws);
     };
 
     ws.onmessage = (msg) => {
       try {
         const data = JSON.parse(msg.data);
         if (data.method === 'Page.loadEventFired' || data.method === 'Page.frameNavigated') {
-          setTimeout(() => injectEnhancer(ws), 150);
+          setTimeout(() => injectEnhancer(ws), 60);
         } else if (data.method === 'Runtime.consoleAPICalled') {
           const text = data.params?.args?.[0]?.value;
           if (typeof text === 'string' && text.startsWith('[AGY_PERSIST_SCROLL]')) {
             const jsonStr = text.slice('[AGY_PERSIST_SCROLL]'.length);
             saveStoredScrollPositions(jsonStr);
+          }
+        } else if (data.id === 77777) {
+          // 心跳探测返回：如果页面当前未就绪（如用户刚登录跳转、DOM 重新挂载）
+          const isLoaded = data.result?.result?.value === true;
+          if (!isLoaded) {
+            lastHeartbeatInjectTime = Date.now();
+            injectEnhancer(ws);
           }
         }
       } catch (e) {}
@@ -120,9 +134,9 @@ async function connectAndAttach() {
 
     ws.onclose = () => {
       currentWs = null;
+      currentPageId = null;
       isConnecting = false;
-      // 页面刷新断开时，立即在 200ms 后尝试重连新页面
-      setTimeout(connectAndAttach, 200);
+      setTimeout(connectAndAttach, 100);
     };
 
     ws.onerror = () => {
@@ -131,6 +145,23 @@ async function connectAndAttach() {
   } catch (err) {
     isConnecting = false;
   }
+}
+
+// 主动巡检心跳：每 300ms 探测一次页面上增强器是否在正常运行，毫秒级响应登录跳转
+function checkPageReadiness() {
+  if (!currentWs || currentWs.readyState !== WebSocket.OPEN) return;
+  if (Date.now() - lastHeartbeatInjectTime < 800) return;
+
+  try {
+    currentWs.send(JSON.stringify({
+      id: 77777,
+      method: 'Runtime.evaluate',
+      params: {
+        expression: `Boolean(window.__AGY_ENHANCER_LOADED__ && document.getElementById('agy-read-toast'))`,
+        returnByValue: true
+      }
+    }));
+  } catch (e) {}
 }
 
 function getCurrentBranchInfo() {
@@ -184,8 +215,9 @@ function injectEnhancer(ws) {
   } catch (e) {}
 }
 
-// 快速轮询：每 400ms 检查一次客户端与页面连接状态
-setInterval(connectAndAttach, 400);
+// 快速轮询：每 250ms 检查一次客户端与页面连接状态，每 350ms 主动探测页面就绪状态
+setInterval(connectAndAttach, 250);
+setInterval(checkPageReadiness, 350);
 connectAndAttach();
 
 // 监听源码变动：修改保存时瞬间同步到窗口

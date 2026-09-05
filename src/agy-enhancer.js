@@ -148,19 +148,16 @@
     document.getElementById('agy-convo-options-dropdown')?.remove();
     document.querySelectorAll('.agy-quick-archive-btn').forEach(el => el.remove());
     document.querySelectorAll('.agy-native-enhanced').forEach(el => el.remove());
+    window.__AGY_ENHANCER_LOADED__ = false;
   };
 
   // 执行一次初始状态与残留清理
   window.__AGY_ENHANCER_CLEANUP__();
 
-  // ==================== 核心自启动守护程序 ====================
+  // ==================== 核心自启动守护程序（极速就绪） ====================
   function bootstrap() {
     if (!document || !document.head || !document.body) {
-      if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', bootstrap, { once: true });
-      } else {
-        setTimeout(bootstrap, 30);
-      }
+      setTimeout(bootstrap, 20);
       return;
     }
 
@@ -169,6 +166,8 @@
   }
 
   function initEnhancer() {
+    window.__AGY_ENHANCER_LOADED__ = true;
+
     // ==================== 1. 注入专用样式 ====================
     const styleEl = document.createElement('style');
     styleEl.id = 'agy-read-styles';
