@@ -19,6 +19,44 @@ const header = `// ==UserScript==
 
 `;
 
+const { execSync } = require('child_process');
+
+function getCurrentBranchInfo() {
+  let branch = '';
+  try {
+    branch = execSync('git rev-parse --abbrev-ref HEAD', {
+      cwd: __dirname,
+      encoding: 'utf8',
+      stdio: ['pipe', 'pipe', 'ignore'],
+      timeout: 1000
+    }).trim();
+  } catch (e) {}
+
+  if (!branch) {
+    try {
+      let gitDir = path.resolve(__dirname, '../.git');
+      if (fs.existsSync(gitDir) && fs.statSync(gitDir).isFile()) {
+        const content = fs.readFileSync(gitDir, 'utf8').trim();
+        const match = content.match(/gitdir:\s*(.*)/);
+        if (match) gitDir = match[1].trim();
+      }
+      const headFile = path.join(gitDir, 'HEAD');
+      if (fs.existsSync(headFile)) {
+        const headContent = fs.readFileSync(headFile, 'utf8').trim();
+        const refMatch = headContent.match(/ref:\s*refs\/heads\/(.*)/);
+        if (refMatch) branch = refMatch[1].trim();
+      }
+    } catch (e2) {}
+  }
+
+  const isMain = branch === 'master' || branch === 'main';
+  const tag = isMain ? '' : '（分支）';
+  return { branch, isMain, tag };
+}
+
+const { branch, tag } = getCurrentBranchInfo();
+const branchInjection = tag ? `window.__AGY_BRANCH_TAG__ = ${JSON.stringify(tag)};\nwindow.__AGY_BRANCH_NAME__ = ${JSON.stringify(branch)};\n` : '';
+
 const core = fs.readFileSync(corePath, 'utf8');
-fs.writeFileSync(targetPath, header + core, 'utf8');
-console.log('User script generated successfully at: ' + targetPath);
+fs.writeFileSync(targetPath, header + branchInjection + core, 'utf8');
+console.log(`User script generated successfully [branch: ${branch || 'default'}, tag: ${tag || 'none'}] at: ${targetPath}`);

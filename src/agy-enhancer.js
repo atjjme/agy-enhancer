@@ -543,10 +543,11 @@
 
       toast = document.createElement('div');
       toast.id = 'agy-read-toast';
-      toast.title = 'Antigravity 阅读增强器已就绪';
+      const branchTag = window.__AGY_BRANCH_TAG__ || '';
+      toast.title = `Antigravity 阅读增强器已就绪${branchTag}`;
       toast.innerHTML = `
         <div class="dot"></div>
-        <span class="toast-text">Antigravity 增强器生效中</span>
+        <span class="toast-text">Antigravity 增强器生效中${branchTag}</span>
       `;
 
       document.body.appendChild(toast);
