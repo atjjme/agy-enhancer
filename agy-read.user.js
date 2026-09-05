@@ -159,6 +159,9 @@
         top: 14px;
         right: 140px;
         z-index: 999999;
+        -webkit-app-region: no-drag !important;
+        app-region: no-drag !important;
+        pointer-events: auto !important;
         display: flex;
         align-items: center;
         gap: 8px;
@@ -177,6 +180,12 @@
         user-select: none;
         opacity: 0;
         transform: translateY(-8px) scale(0.95);
+      }
+      #agy-read-toast,
+      #agy-read-toast * {
+        -webkit-app-region: no-drag !important;
+        app-region: no-drag !important;
+        pointer-events: auto !important;
       }
       #agy-read-toast.show {
         opacity: 1;
@@ -698,6 +707,15 @@
       let collapseTimer = setTimeout(() => {
         toast.classList.add('collapsed');
       }, USER_CONFIG.TOAST_EXPAND_DURATION_MS);
+
+      toast.addEventListener('mouseenter', () => {
+        clearTimeout(collapseTimer);
+        toast.classList.remove('collapsed');
+      });
+
+      toast.addEventListener('mouseleave', () => {
+        toast.classList.add('collapsed');
+      });
 
       toast.addEventListener('click', () => {
         clearTimeout(collapseTimer);
