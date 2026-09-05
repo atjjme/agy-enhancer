@@ -5,10 +5,10 @@ const corePath = path.join(__dirname, '../src/agy-enhancer.js');
 const targetPath = path.join(__dirname, '../agy-read.user.js');
 
 const header = `// ==UserScript==
-// @name         Antigravity 阅读增强器 (agy-read)
+// @name         Antigravity Reading Enhancer (agy-read)
 // @namespace    https://antigravity.google/
 // @version      1.0.0
-// @description  优化 Antigravity 对话滚动体验：思考时正常滚动，思考完成输出内容时自动回滚到问题顶端，输入框上方提供向下直达底部按钮，右上角提供生效提示。
+// @description  Optimize scrolling experience for Antigravity: turn-based navigation, scroll memory, and unread tracking.
 // @match        https://127.0.0.1:*/*
 // @match        http://127.0.0.1:*/*
 // @match        https://localhost:*/*
@@ -50,7 +50,7 @@ function getCurrentBranchInfo() {
   }
 
   const isMain = branch === 'master' || branch === 'main';
-  const tag = isMain ? '' : '（分支）';
+  const tag = isMain ? '' : ' (branch)';
   return { branch, isMain, tag };
 }
 

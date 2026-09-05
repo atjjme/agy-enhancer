@@ -4,7 +4,7 @@
  * 核心特性：
  * 1. 【纸张式翻页导航】右侧滚动条旁常驻「向上 / 向下」双按钮：
  *    - 点向上：如果在纸内，回到当前问答的【页头】（提问顶部）；如果在页头附近，翻到【上一页】（上一轮问答）；
- *    - 点向下：如果在纸内，直达当前问答的【页脚】（回答末尾）；如果在页脚附近，翻到【下一页】（下一轮问答或最新底部）；
+ *    - 点向下：如果在纸内，直达当前问答的【页脚】（回答末尾）；如果在页脚附近，翻到【下一页】（下一轮问答或最新底部）；双击直接直达整个页面最底部；
  * 2. 【右上角状态提示】提示增强器正在守护阅读。
  */
 
@@ -198,7 +198,7 @@
       return;
     }
 
-    console.log('[agy-read] 初始化纸张式阅读翻页器...');
+    console.log('[agy-read] Initializing page navigator...');
     initEnhancer();
   }
 
@@ -313,6 +313,8 @@
         justify-content: center;
         cursor: pointer;
         outline: none;
+        user-select: none;
+        -webkit-user-select: none;
         transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1),
                     background-color 0.2s ease,
                     box-shadow 0.2s ease,
@@ -791,10 +793,10 @@
       if (!toast) {
         toast = document.createElement('div');
         toast.id = 'agy-read-toast';
-        toast.title = `Antigravity 阅读增强器已就绪${branchTag}`;
+        toast.title = `Antigravity Enhancer ready${branchTag}`;
         toast.innerHTML = `
           <div class="dot"></div>
-          <span class="toast-text">Antigravity 增强器生效中${branchTag}</span>
+          <span class="toast-text">Antigravity Enhancer active${branchTag}</span>
         `;
 
         document.body.appendChild(toast);
@@ -822,7 +824,7 @@
         });
       } else {
         // 已存在单例 Toast，仅更新标题，绝对不重置收折状态，绝不重新展开！
-        toast.title = `Antigravity 阅读增强器已就绪${branchTag}`;
+        toast.title = `Antigravity Enhancer ready${branchTag}`;
         if (!toast.classList.contains('collapsed')) {
           toast.classList.add('collapsed');
         }
@@ -942,17 +944,17 @@
 
       // 如果当前视口距离本页页头较远（说明在纸张内向下读了一段），点一下回到本页页头
       if (currentScroll > curPage.headScrollTop + threshold) {
-        console.log(`[agy-read] 回到第 ${curIdx + 1} 页页头`);
+        console.log(`[agy-read] Back to turn ${curIdx + 1} top`);
         container.scrollTo({ top: curPage.headScrollTop, behavior: 'smooth' });
       } else {
         // 已经在当前页头附近，点一下向上翻到上一页
         if (curIdx > 0) {
           const prevPage = pages[curIdx - 1];
-          console.log(`[agy-read] 向上翻到第 ${curIdx} 页页头`);
+          console.log(`[agy-read] Up to turn ${curIdx} top`);
           container.scrollTo({ top: prevPage.headScrollTop, behavior: 'smooth' });
         } else {
           // 已经是第 1 页，直达整个页面最顶端
-          console.log('[agy-read] 直达最顶端');
+          console.log('[agy-read] Reached top');
           container.scrollTo({ top: 0, behavior: 'smooth' });
         }
       }
@@ -975,20 +977,31 @@
 
       // 如果当前还没到底部页脚，点一下到本页页脚
       if (currentScroll < curPage.footScrollTop - threshold) {
-        console.log(`[agy-read] 直达第 ${curIdx + 1} 页页脚`);
+        console.log(`[agy-read] Down to turn ${curIdx + 1} bottom`);
         container.scrollTo({ top: curPage.footScrollTop, behavior: 'smooth' });
       } else {
         // 已经在页脚附近，翻到下一页的页头
         if (curIdx < pages.length - 1) {
           const nextPage = pages[curIdx + 1];
-          console.log(`[agy-read] 向下翻到第 ${curIdx + 2} 页页头`);
+          console.log(`[agy-read] Down to turn ${curIdx + 2} top`);
           container.scrollTo({ top: nextPage.headScrollTop, behavior: 'smooth' });
         } else {
           // 已经是最后一页，直达最新底部
-          console.log('[agy-read] 直达最新底部');
+          console.log('[agy-read] Reached bottom');
           container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' });
         }
       }
+    }
+
+    /**
+     * 【直达最底部】逻辑：
+     * 双击向下按钮时，无视当前问答位置，直接平滑滚动到整个页面的最底端
+     */
+    function navigateToBottom() {
+      const container = getChatScrollContainer();
+      if (!container) return;
+      console.log('[agy-read] Double click: Scrolled to bottom');
+      container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' });
     }
 
     // ==================== 5. 创建右侧常驻双按钮 ====================
@@ -1004,7 +1017,7 @@
       const upBtn = document.createElement('button');
       upBtn.className = 'agy-nav-btn up';
       upBtn.type = 'button';
-      upBtn.title = '向上：回到本问答页头 / 翻到上一页';
+      upBtn.title = 'Up: Question top / Previous turn';
       upBtn.innerHTML = `
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
           <polyline points="18 15 12 9 6 15"></polyline>
@@ -1020,7 +1033,7 @@
       const downBtn = document.createElement('button');
       downBtn.className = 'agy-nav-btn down';
       downBtn.type = 'button';
-      downBtn.title = '向下：直达本问答页脚 / 翻到下一页';
+      downBtn.title = 'Down: Answer bottom / Next turn (Double click: Bottom)';
       downBtn.innerHTML = `
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
           <polyline points="6 9 12 15 18 9"></polyline>
@@ -1030,6 +1043,11 @@
         e.preventDefault();
         e.stopPropagation();
         navigatePageDown();
+      });
+      downBtn.addEventListener('dblclick', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        navigateToBottom();
       });
 
       group.appendChild(upBtn);
@@ -2926,7 +2944,7 @@
 
           const saved = convoPositionsMap.get(effectiveConvoId);
           if (saved && !saved.isBottom && saved.scrollTop > 5) {
-            console.log(`[agy-read] 检测到切入对话 [${effectiveConvoId}]，准备恢复阅读位置 (scrollTop: ${saved.scrollTop}px)`);
+            console.log(`[agy-read] Switched to convo [${effectiveConvoId}], restoring position (scrollTop: ${saved.scrollTop}px)`);
             startRestoration(effectiveConvoId, saved);
           } else {
             endRestoration('new convo or at bottom');
@@ -3121,7 +3139,7 @@
         if (!unreadConvosMap.has(convoId)) {
           unreadConvosMap.set(convoId, { unread: true, timestamp: Date.now() });
           saveUnreadStates();
-          console.log(`[agy-read] 对话 [${convoId}] 标记为未读 (${reason})`);
+          console.log(`[agy-read] Convo [${convoId}] marked as unread (${reason})`);
           syncSidebarIndicators();
         }
         const container = getChatScrollContainer();
@@ -3136,7 +3154,7 @@
         if (unreadConvosMap.has(convoId)) {
           unreadConvosMap.delete(convoId);
           saveUnreadStates();
-          console.log(`[agy-read] 对话 [${convoId}] 满足已读判定条件，已标记为已读 (${reason})`);
+          console.log(`[agy-read] Convo [${convoId}] marked as read (${reason})`);
           cleanupReadingSession();
           syncSidebarIndicators();
         }
@@ -3181,7 +3199,7 @@
 
         const isLong = checkIsLongText();
         readingSessionType = isLong ? 'long' : 'short';
-        console.log(`[agy-read] 对话 [${convoId}] 处于未读状态，启动阅读状态追踪 (类型: ${isLong ? '长文' : '短文'})`);
+        console.log(`[agy-read] Convo [${convoId}] is unread, tracking reading (type: ${isLong ? 'long' : 'short'})`);
 
         const maxScroll = Math.max(0, container.scrollHeight - container.clientHeight);
         const distFromBottom = maxScroll - container.scrollTop;
@@ -3193,7 +3211,7 @@
           // 短文条件二：停留满 10s 即已读
           shortTextStayTimer = setTimeout(() => {
             if (currentReadingConvoId === convoId && unreadConvosMap.has(convoId)) {
-              markConvoAsRead(convoId, '短文停留满 10 秒');
+              markConvoAsRead(convoId, 'Short text stayed for 10s');
             }
           }, USER_CONFIG.SHORT_TEXT_READ_DURATION_MS);
         }
@@ -3223,7 +3241,7 @@
           // 用户向上大幅翻阅离开底部
           if (!hasLeftBottom) {
             hasLeftBottom = true;
-            console.log(`[agy-read] 对话 [${effectiveConvoId}] 检测到离开底部 (距底 ${Math.round(distFromBottom)}px)，等待二次触底`);
+            console.log(`[agy-read] Convo [${effectiveConvoId}] left bottom (${Math.round(distFromBottom)}px), waiting for re-bottoming`);
           }
           // 用户大幅往上翻阅时才清除 5s 底部倒计时
           if (distFromBottom > leaveThreshold + 120) {
@@ -3237,16 +3255,16 @@
           const isLong = readingSessionType ? (readingSessionType === 'long') : checkIsLongText();
           if (!isLong) {
             // 短文：二次触底立即满足已读条件，即刻标记为已读！
-            console.log(`[agy-read] 对话 [${effectiveConvoId}] 短文二次触底达成，立即标记为已读`);
-            markConvoAsRead(effectiveConvoId, '短文二次触底');
+            console.log(`[agy-read] Convo [${effectiveConvoId}] short text re-bottomed, marking as read`);
+            markConvoAsRead(effectiveConvoId, 'Short text re-bottomed');
           } else {
             // 长文：二次触底 + 底部平稳停留 5 秒同时满足
             if (!longTextBottomTimer) {
-              console.log(`[agy-read] 对话 [${effectiveConvoId}] 长文二次触底达成，启动底部 5 秒倒计时`);
+              console.log(`[agy-read] Convo [${effectiveConvoId}] long text re-bottomed, starting 5s countdown`);
               longTextBottomTimer = setTimeout(() => {
                 if (currentReadingConvoId === effectiveConvoId && unreadConvosMap.has(effectiveConvoId)) {
-                  console.log(`[agy-read] 对话 [${effectiveConvoId}] 长文底部停留满 5 秒，标记为已读`);
-                  markConvoAsRead(effectiveConvoId, '长文二次触底并在底部平稳停留满 5 秒');
+                  console.log(`[agy-read] Convo [${effectiveConvoId}] long text stayed for 5s, marking as read`);
+                  markConvoAsRead(effectiveConvoId, 'Long text re-bottomed and stayed for 5s');
                 }
               }, USER_CONFIG.LONG_TEXT_BOTTOM_DURATION_MS);
             }
@@ -3355,7 +3373,7 @@
             activelyGeneratingConvos.delete(id);
             promptSubmittedConvos.delete(id);
             if (!unreadConvosMap.has(id)) {
-              markConvoAsUnread(id, '捕获到原生完成未读指示点');
+              markConvoAsUnread(id, 'Captured native completion dot');
             }
           }
         });
@@ -3424,8 +3442,8 @@
               activelyGeneratingConvos.delete(genId);
               promptSubmittedConvos.delete(genId);
               if (record.confirmedGenerated) {
-                console.log(`[agy-read] 前台对话 [${genId}] AI 回复生成完毕，标记为未读`);
-                markConvoAsUnread(genId, '前台 AI 回复生成完毕');
+                console.log(`[agy-read] Foreground convo [${genId}] AI response completed, marking unread`);
+                markConvoAsUnread(genId, 'Foreground AI response completed');
               }
             }
           } else {
@@ -3435,8 +3453,8 @@
               activelyGeneratingConvos.delete(genId);
               promptSubmittedConvos.delete(genId);
               if (record.confirmedGenerated) {
-                console.log(`[agy-read] 后台对话 [${genId}] AI 回复生成完毕，标记为未读`);
-                markConvoAsUnread(genId, '后台 AI 回复生成完毕');
+                console.log(`[agy-read] Background convo [${genId}] AI response completed, marking unread`);
+                markConvoAsUnread(genId, 'Background AI response completed');
               }
             }
           }
@@ -3468,7 +3486,7 @@
                 if (!badge) {
                   badge = document.createElement('div');
                   badge.className = 'agy-unread-dot-badge';
-                  badge.title = '未读内容（满足阅读条件后自动消除）';
+                  badge.title = 'Unread (auto-clears after reading)';
                   badge.innerHTML = `
                     <div class="agy-unread-dot-pulse"></div>
                     <div class="agy-unread-dot-core"></div>
@@ -3504,7 +3522,7 @@
     initConversationScrollPersistence();
     initSmartUnreadTracker();
 
-    console.log('[agy-read] 纸张翻页器、项目折叠归档、右键菜单、阅读位置记忆与智能已读提醒已就绪！');
+    console.log('[agy-read] Page navigator, project archiver, context menu, scroll memory, and unread tracker ready!');
   }
 
   bootstrap();

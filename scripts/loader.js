@@ -47,7 +47,7 @@ function log(...args) {
   } catch (e) {}
 }
 
-log('=== Antigravity 阅读增强器后台守护服务启动 ===');
+log('=== Antigravity Reading Enhancer daemon started ===');
 
 const enhancerFile = path.resolve(__dirname, '../src/agy-enhancer.js');
 
@@ -133,9 +133,9 @@ async function connectAndAttach() {
       return;
     }
 
-    log(`检测到可用客户端页面 [${page.id}] ${page.title || 'Untitled'} (${page.url})`);
+    log(`Detected client page [${page.id}] ${page.title || 'Untitled'} (${page.url})`);
     if (page === chatPage) {
-      log(`优先命中主聊天窗口，立即建立连接并接管！`);
+      log(`Matched main chat window, attaching now.`);
     }
 
     lastPort = port;
@@ -149,7 +149,7 @@ async function connectAndAttach() {
 
     ws.onopen = () => {
       isConnecting = false;
-      log(`CDP WebSocket 连接建立成功 [端口: ${port}]，发送 Page & Runtime 开启指令`);
+      log(`CDP connected [port: ${port}], enabling Page & Runtime`);
       ws.send(JSON.stringify({ id: 1, method: 'Page.enable' }));
       ws.send(JSON.stringify({ id: 2, method: 'Runtime.enable' }));
       // 连上后立即无缝注入
@@ -160,17 +160,17 @@ async function connectAndAttach() {
       try {
         const data = JSON.parse(msg.data);
         if (data.method === 'Page.loadEventFired') {
-          log(`收到页面整页加载事件 (${data.method})，执行即时重注`);
+          log(`Page loaded (${data.method}), reinjecting...`);
           setTimeout(() => injectEnhancer(ws), 60);
         } else if (data.method === 'Runtime.consoleAPICalled') {
           const text = data.params?.args?.[0]?.value;
           if (typeof text === 'string' && text.startsWith('[AGY_PERSIST_SCROLL]')) {
             const jsonStr = text.slice('[AGY_PERSIST_SCROLL]'.length);
-            log(`保存滚动记忆落地到磁盘: ` + jsonStr);
+            log(`Persisting scroll positions to disk: ` + jsonStr);
             saveStoredScrollPositions(jsonStr);
           } else if (typeof text === 'string' && text.startsWith('[AGY_PERSIST_UNREAD]')) {
             const jsonStr = text.slice('[AGY_PERSIST_UNREAD]'.length);
-            log(`保存未读状态落地到磁盘: ` + jsonStr);
+            log(`Persisting unread states to disk: ` + jsonStr);
             saveStoredUnreadStates(jsonStr);
           }
         } else if (data.id === 77777) {
@@ -178,7 +178,7 @@ async function connectAndAttach() {
           if (data.error || data.result?.exceptionDetails) return;
           const isLoaded = data.result?.result?.value === true;
           if (!isLoaded) {
-            log(`[主动巡检] 发现当前页面插件尚未渲染就绪，触发主动注入！`);
+            log(`[Health Check] Enhancer not ready, injecting now`);
             lastHeartbeatInjectTime = Date.now();
             injectEnhancer(ws);
           }
@@ -187,7 +187,7 @@ async function connectAndAttach() {
     };
 
     ws.onclose = () => {
-      log(`CDP 连接已断开，准备自动重连...`);
+      log(`CDP disconnected, reconnecting...`);
       currentWs = null;
       currentPageId = null;
       isConnecting = false;
@@ -195,7 +195,7 @@ async function connectAndAttach() {
     };
 
     ws.onerror = (err) => {
-      log(`CDP 连接发生错误:`, err?.message || err);
+      log(`CDP connection error:`, err?.message || err);
       isConnecting = false;
     };
   } catch (err) {
@@ -250,7 +250,7 @@ function getCurrentBranchInfo() {
 
   // 只要不是主干（master 或 main），一律视为分支并添加（分支）标签
   const isMain = branch === 'master' || branch === 'main';
-  const tag = isMain ? '' : '（分支）';
+  const tag = isMain ? '' : ' (branch)';
   return { branch, isMain, tag };
 }
 
@@ -259,7 +259,7 @@ function injectEnhancer(ws) {
   if (!targetWs || targetWs.readyState !== WebSocket.OPEN) return;
   try {
     if (!fs.existsSync(enhancerFile)) {
-      log('[错误] 增强器源码文件不存在:', enhancerFile);
+      log('[Error] Enhancer source file not found:', enhancerFile);
       return;
     }
     const { branch, tag } = getCurrentBranchInfo();
@@ -267,7 +267,7 @@ function injectEnhancer(ws) {
     const storedUnreadStates = getStoredUnreadStates();
     const positionCount = Object.keys(storedPositions).length;
     const unreadCount = Object.keys(storedUnreadStates).length;
-    log(`>>> 正在向客户端窗口注入阅读增强脚本 (分支: ${branch || 'master'}, 历史记忆数: ${positionCount}, 未读数: ${unreadCount})`);
+    log(`>>> Injecting enhancer script (branch: ${branch || 'master'}, scroll memory: ${positionCount}, unread: ${unreadCount})`);
     const prefix = `window.__AGY_BRANCH_TAG__ = ${JSON.stringify(tag)};\nwindow.__AGY_BRANCH_NAME__ = ${JSON.stringify(branch)};\nwindow.__AGY_STORED_SCROLL_POSITIONS__ = ${JSON.stringify(storedPositions)};\nwindow.__AGY_STORED_UNREAD_STATES__ = ${JSON.stringify(storedUnreadStates)};\n`;
     const code = prefix + fs.readFileSync(enhancerFile, 'utf8');
     targetWs.send(JSON.stringify({
@@ -275,9 +275,9 @@ function injectEnhancer(ws) {
       method: 'Runtime.evaluate',
       params: { expression: code, returnByValue: true }
     }));
-    log(`<<< 脚本注入指令已成功发送给客户端页面！`);
+    log(`<<< Enhancer script injected successfully!`);
   } catch (e) {
-    log('[异常] injectEnhancer 发生错误:', e?.message || e);
+    log('[Exception] injectEnhancer error:', e?.message || e);
   }
 }
 
