@@ -19,11 +19,33 @@ const activePortFile = path.join(
   'DevToolsActivePort'
 );
 
+const scrollPositionsFile = path.join(
+  process.env.APPDATA || 'C:\\Users\\Juste\\AppData\\Roaming',
+  'antigravity',
+  'agy-scroll-positions.json'
+);
+
 const enhancerFile = path.resolve(__dirname, '../src/agy-enhancer.js');
 
 let currentWs = null;
 let lastPort = null;
 let isConnecting = false;
+
+function getStoredScrollPositions() {
+  try {
+    if (fs.existsSync(scrollPositionsFile)) {
+      const raw = fs.readFileSync(scrollPositionsFile, 'utf8');
+      return JSON.parse(raw);
+    }
+  } catch (e) {}
+  return {};
+}
+
+function saveStoredScrollPositions(jsonStr) {
+  try {
+    fs.writeFileSync(scrollPositionsFile, jsonStr, 'utf8');
+  } catch (e) {}
+}
 
 function getActivePortInfo() {
   if (!fs.existsSync(activePortFile)) return null;
@@ -76,15 +98,24 @@ async function connectAndAttach() {
     ws.onopen = () => {
       isConnecting = false;
       ws.send(JSON.stringify({ id: 1, method: 'Page.enable' }));
+      ws.send(JSON.stringify({ id: 2, method: 'Runtime.enable' }));
       // 连上后立即注入
       setTimeout(() => injectEnhancer(ws), 100);
     };
 
     ws.onmessage = (msg) => {
-      const data = JSON.parse(msg.data);
-      if (data.method === 'Page.loadEventFired' || data.method === 'Page.frameNavigated') {
-        setTimeout(() => injectEnhancer(ws), 150);
-      }
+      try {
+        const data = JSON.parse(msg.data);
+        if (data.method === 'Page.loadEventFired' || data.method === 'Page.frameNavigated') {
+          setTimeout(() => injectEnhancer(ws), 150);
+        } else if (data.method === 'Runtime.consoleAPICalled') {
+          const text = data.params?.args?.[0]?.value;
+          if (typeof text === 'string' && text.startsWith('[AGY_PERSIST_SCROLL]')) {
+            const jsonStr = text.slice('[AGY_PERSIST_SCROLL]'.length);
+            saveStoredScrollPositions(jsonStr);
+          }
+        }
+      } catch (e) {}
     };
 
     ws.onclose = () => {
@@ -142,7 +173,8 @@ function injectEnhancer(ws) {
   try {
     if (!fs.existsSync(enhancerFile)) return;
     const { branch, tag } = getCurrentBranchInfo();
-    const prefix = `window.__AGY_BRANCH_TAG__ = ${JSON.stringify(tag)};\nwindow.__AGY_BRANCH_NAME__ = ${JSON.stringify(branch)};\n`;
+    const storedPositions = getStoredScrollPositions();
+    const prefix = `window.__AGY_BRANCH_TAG__ = ${JSON.stringify(tag)};\nwindow.__AGY_BRANCH_NAME__ = ${JSON.stringify(branch)};\nwindow.__AGY_STORED_SCROLL_POSITIONS__ = ${JSON.stringify(storedPositions)};\n`;
     const code = prefix + fs.readFileSync(enhancerFile, 'utf8');
     targetWs.send(JSON.stringify({
       id: Math.floor(Math.random() * 100000),

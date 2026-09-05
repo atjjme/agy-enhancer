@@ -2239,15 +2239,51 @@
       if (!USER_CONFIG.ENABLE_SCROLL_POSITION_PERSISTENCE) return;
 
       const STORAGE_KEY = 'agy_convo_scroll_positions';
+      const MAX_STORED_CONVERSATIONS = 50;
       const convoPositionsMap = new Map();
+
+      function pruneAndLimitPositions() {
+        // 1. 清除所有在底部的记录
+        for (const [id, val] of convoPositionsMap.entries()) {
+          if (!val || val.isBottom || typeof val.scrollTop !== 'number' || val.scrollTop <= 5) {
+            convoPositionsMap.delete(id);
+          }
+        }
+        // 2. 超出最大容量时，按时间戳从旧到新淘汰
+        if (convoPositionsMap.size > MAX_STORED_CONVERSATIONS) {
+          const sorted = Array.from(convoPositionsMap.entries()).sort((a, b) => (a[1].timestamp || 0) - (b[1].timestamp || 0));
+          const removeCount = sorted.length - MAX_STORED_CONVERSATIONS;
+          for (let i = 0; i < removeCount; i++) {
+            convoPositionsMap.delete(sorted[i][0]);
+          }
+        }
+      }
 
       function loadPositions() {
         try {
-          const raw = localStorage.getItem(STORAGE_KEY) || sessionStorage.getItem(STORAGE_KEY);
-          if (raw) {
-            const data = JSON.parse(raw);
-            if (data && typeof data === 'object') {
-              for (const [id, val] of Object.entries(data)) {
+          let data = null;
+          // 1. 优先读取跨端口注入的持久化全局数据（抵御软件重启随机端口）
+          if (window.__AGY_STORED_SCROLL_POSITIONS__ && typeof window.__AGY_STORED_SCROLL_POSITIONS__ === 'object') {
+            data = window.__AGY_STORED_SCROLL_POSITIONS__;
+          }
+          // 2. 油猴脚本环境 GM_getValue
+          if (!data && typeof GM_getValue === 'function') {
+            const gmRaw = GM_getValue(STORAGE_KEY, null);
+            if (gmRaw) {
+              try { data = typeof gmRaw === 'string' ? JSON.parse(gmRaw) : gmRaw; } catch (e) {}
+            }
+          }
+          // 3. 当前端口 localStorage / sessionStorage 兜底
+          if (!data) {
+            const raw = localStorage.getItem(STORAGE_KEY) || sessionStorage.getItem(STORAGE_KEY);
+            if (raw) {
+              try { data = JSON.parse(raw); } catch (e) {}
+            }
+          }
+
+          if (data && typeof data === 'object') {
+            for (const [id, val] of Object.entries(data)) {
+              if (val && !val.isBottom && typeof val.scrollTop === 'number' && val.scrollTop > 5) {
                 convoPositionsMap.set(id, val);
               }
             }
@@ -2257,13 +2293,23 @@
 
       function savePositions() {
         try {
+          pruneAndLimitPositions();
+
           const obj = {};
           for (const [id, val] of convoPositionsMap.entries()) {
             obj[id] = val;
           }
           const str = JSON.stringify(obj);
+
           try { localStorage.setItem(STORAGE_KEY, str); } catch (e) {}
           try { sessionStorage.setItem(STORAGE_KEY, str); } catch (e) {}
+
+          if (typeof GM_setValue === 'function') {
+            try { GM_setValue(STORAGE_KEY, str); } catch (e) {}
+          }
+
+          // 通过 CDP 控制台信号通知后台 Node.js 守护进程持久化到本地固定 JSON 文件
+          console.log('[AGY_PERSIST_SCROLL]' + str);
         } catch (e) {}
       }
 
@@ -2369,11 +2415,20 @@
         const clientHeight = container.clientHeight;
         const isBottom = (scrollHeight - scrollTop - clientHeight) <= 45;
 
+        // 关键逻辑：如果用户当前处于底部或顶部空白，直接从存储中删除该记录！
+        if (isBottom || scrollTop <= 5) {
+          if (convoPositionsMap.has(convoId)) {
+            convoPositionsMap.delete(convoId);
+            savePositions();
+          }
+          return;
+        }
+
         convoPositionsMap.set(convoId, {
           scrollTop: Math.round(scrollTop),
           scrollHeight: Math.round(scrollHeight),
           clientHeight: Math.round(clientHeight),
-          isBottom,
+          isBottom: false,
           timestamp: Date.now()
         });
         savePositions();
@@ -2599,23 +2654,28 @@
       window.addEventListener('popstate', handleConvoSwitch);
       addInterval(handleConvoSwitch, 80);
 
-      // 新提问提交通知钩子
+      // 新提问提交通知钩子：提交新提问代表用户在底部追问，直接删除记录
       notifyNewPromptSubmitted = () => {
         lastPromptSubmitTime = Date.now();
         const container = getChatScrollContainer();
         const convoId = getContainerConvoId(container) || getCurrentUrlConvoId();
         if (convoId) {
-          convoPositionsMap.set(convoId, {
-            scrollTop: 9999999,
-            scrollHeight: 9999999,
-            clientHeight: 0,
-            isBottom: true,
-            timestamp: Date.now()
-          });
-          savePositions();
+          if (convoPositionsMap.has(convoId)) {
+            convoPositionsMap.delete(convoId);
+            savePositions();
+          }
           endRestoration('new prompt submitted');
         }
       };
+
+      // 软件窗口关闭/刷新时，确保当前正在阅读的对话位置立即落盘
+      const handleWindowUnload = () => {
+        if (currentActiveConvoId && !activeRestoringConvoId) {
+          recordConvoPosition(currentActiveConvoId);
+        }
+      };
+      window.addEventListener('beforeunload', handleWindowUnload);
+      window.addEventListener('pagehide', handleWindowUnload);
     }
 
     initProjectArchiver();
