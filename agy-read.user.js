@@ -2258,7 +2258,7 @@ window.__AGY_BRANCH_NAME__ = "persist_chat_scroll_position";
 
       function loadPositions() {
         try {
-          const raw = sessionStorage.getItem(STORAGE_KEY);
+          const raw = localStorage.getItem(STORAGE_KEY) || sessionStorage.getItem(STORAGE_KEY);
           if (raw) {
             const data = JSON.parse(raw);
             if (data && typeof data === 'object') {
@@ -2276,7 +2276,9 @@ window.__AGY_BRANCH_NAME__ = "persist_chat_scroll_position";
           for (const [id, val] of convoPositionsMap.entries()) {
             obj[id] = val;
           }
-          sessionStorage.setItem(STORAGE_KEY, JSON.stringify(obj));
+          const str = JSON.stringify(obj);
+          try { localStorage.setItem(STORAGE_KEY, str); } catch (e) {}
+          try { sessionStorage.setItem(STORAGE_KEY, str); } catch (e) {}
         } catch (e) {}
       }
 
