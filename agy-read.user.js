@@ -109,6 +109,7 @@ window.__AGY_BRANCH_NAME__ = "persist_chat_scroll_position";
   let scrollCaptureHandler = null;
   let userInteractionHandler = null;
   let notifyNewPromptSubmitted = null;
+  let notifyPromptSubmittedForUnread = null;
   let unreadScrollHandler = null;
   let unreadWheelHandler = null;
 
@@ -180,6 +181,7 @@ window.__AGY_BRANCH_NAME__ = "persist_chat_scroll_position";
       userInteractionHandler = null;
     }
     notifyNewPromptSubmitted = null;
+    notifyPromptSubmittedForUnread = null;
 
     document.getElementById('agy-read-styles')?.remove();
     document.getElementById('agy-page-nav-group')?.remove();
@@ -2788,6 +2790,7 @@ window.__AGY_BRANCH_NAME__ = "persist_chat_scroll_position";
             savePositions();
           }
           endRestoration('new prompt submitted');
+          notifyPromptSubmittedForUnread?.(convoId);
         }
       };
 
@@ -3080,60 +3083,156 @@ window.__AGY_BRANCH_NAME__ = "persist_chat_scroll_position";
       addInterval(checkConvoSwitchForUnread, 150);
 
       // 精准监听各对话生成状态与完成事件（按对话 ID 独立追踪，彻底杜绝切换对话误标与双重未读）
-      const activelyGeneratingConvos = new Set();
+      const activelyGeneratingConvos = new Map(); // convoId -> { startTime, lastSpinningTime, confirmedGenerated, isForeground }
+      const promptSubmittedConvos = new Map(); // convoId -> timestamp
+
+      // 接收主输入框发送事件（Enter 键或点击 Send 按钮）
+      notifyPromptSubmittedForUnread = (convoId) => {
+        if (!convoId) return;
+        const now = Date.now();
+        promptSubmittedConvos.set(convoId, now);
+        if (!activelyGeneratingConvos.has(convoId)) {
+          activelyGeneratingConvos.set(convoId, {
+            startTime: now,
+            lastSpinningTime: now,
+            confirmedGenerated: false,
+            isForeground: true
+          });
+        }
+      };
+
+      // 仅获取主聊天区/输入框内的停止按钮，绝不匹配侧边栏行内的按钮！
+      function getActiveChatStopButton() {
+        const btns = document.querySelectorAll('button[data-testid="stop-button"], button[aria-label*="Stop execution"], button[aria-label*="Stop Task"]');
+        for (const btn of btns) {
+          if (!btn.closest('[data-testid="conversation-row-sidebar"]')) {
+            return btn;
+          }
+        }
+        return null;
+      }
 
       function checkGeneratingAndUnreadState() {
         const rows = document.querySelectorAll('[data-testid="conversation-row-sidebar"]');
-        const activeConvoId = getCurrentUrlConvoId();
-        const stopBtn = document.querySelector('button[aria-label*="Stop execution"], button[aria-label*="Stop Task"], [data-testid="stop-button"]');
+        const container = getChatScrollContainer();
+        const activeConvoId = (container ? getContainerConvoId(container) : null) || getCurrentUrlConvoId();
+        const activeChatStopBtn = getActiveChatStopButton();
+        const now = Date.now();
 
-        const currentSpinningIds = new Set();
+        // 收集本轮侧边栏中各对话的专属状态
+        const rowGeneratingIds = new Set();
+        const rowNativeDotIds = new Set();
+
         rows.forEach(row => {
           const id = row.getAttribute('data-cascade-id');
           if (!id) return;
 
-          // 1. 检查侧边栏行是否有正在生成的 spinner
           const hasSpinner = !!row.querySelector('[data-testid="status-loading-spinner"]');
-          if (hasSpinner) {
-            currentSpinningIds.add(id);
-            activelyGeneratingConvos.add(id);
+          const hasStopBtn = !!row.querySelector('button[aria-label*="Stop execution"], button[aria-label*="Stop Task"]');
+          if (hasSpinner || hasStopBtn) {
+            rowGeneratingIds.add(id);
           }
 
-          // 2. 检查侧边栏行是否有原生完成未读指示点
           const hasNativeDot = !!row.querySelector('[data-testid="status-unread-dot"]');
           if (hasNativeDot) {
+            rowNativeDotIds.add(id);
+          }
+        });
+
+        // 1. 处理后台原生完成未读点：直接同步为未读（仅针对非当前正在阅读的后台对话）
+        rowNativeDotIds.forEach(id => {
+          if (id !== activeConvoId) {
             activelyGeneratingConvos.delete(id);
+            promptSubmittedConvos.delete(id);
             if (!unreadConvosMap.has(id)) {
               markConvoAsUnread(id, '捕获到原生完成未读指示点');
             }
           }
         });
 
-        // 3. 前台当前正在展示的活动对话如果存在 stopBtn，计入正在生成集合
-        if (activeConvoId && stopBtn) {
-          activelyGeneratingConvos.add(activeConvoId);
+        // 2. 检查前台活动对话的生成状态
+        if (activeConvoId) {
+          const isActiveGenerating = rowGeneratingIds.has(activeConvoId) || !!activeChatStopBtn;
+          if (isActiveGenerating) {
+            promptSubmittedConvos.delete(activeConvoId);
+            let record = activelyGeneratingConvos.get(activeConvoId);
+            if (!record) {
+              activelyGeneratingConvos.set(activeConvoId, {
+                startTime: now,
+                lastSpinningTime: now,
+                confirmedGenerated: true,
+                isForeground: true
+              });
+            } else {
+              record.lastSpinningTime = now;
+              record.confirmedGenerated = true;
+              record.isForeground = true;
+            }
+          }
         }
 
-        // 4. 逐个对话检查生成结束状态
-        for (const genId of Array.from(activelyGeneratingConvos)) {
+        // 3. 检查侧边栏中所有处于生成中的对话（包含前台与后台）
+        rowGeneratingIds.forEach(id => {
+          promptSubmittedConvos.delete(id);
+          let record = activelyGeneratingConvos.get(id);
+          if (!record) {
+            activelyGeneratingConvos.set(id, {
+              startTime: now,
+              lastSpinningTime: now,
+              confirmedGenerated: true,
+              isForeground: (id === activeConvoId)
+            });
+          } else {
+            record.lastSpinningTime = now;
+            record.confirmedGenerated = true;
+          }
+        });
+
+        // 4. 清理超时的待确认提交状态（超过 5 秒无响应放弃追踪，避免死锁）
+        for (const [id, submitTime] of promptSubmittedConvos.entries()) {
+          if (now - submitTime > 5000) {
+            promptSubmittedConvos.delete(id);
+            const rec = activelyGeneratingConvos.get(id);
+            if (rec && !rec.confirmedGenerated) {
+              activelyGeneratingConvos.delete(id);
+            }
+          }
+        }
+
+        // 5. 遍历生成追踪集合，判定生成完成事件
+        for (const [genId, record] of Array.from(activelyGeneratingConvos.entries())) {
+          // 如果该对话处于刚提交的等待期内（未满 2.5 秒且尚未渲染出 spinner），保持等待
+          const isPending = promptSubmittedConvos.has(genId) && (now - promptSubmittedConvos.get(genId) < 2500);
+          if (isPending) {
+            continue;
+          }
+
           if (genId === activeConvoId) {
-            // 前台对话：必须等当前停止按钮消失 且 侧边栏不再有 spinner，才判定前台生成完毕
-            if (!stopBtn && !currentSpinningIds.has(genId)) {
+            // 当前在前台的对话：必须在主界面 stopBtn 消失 且 侧边栏不再有 spinner 时判定前台完成
+            const isStillGenerating = !!activeChatStopBtn || rowGeneratingIds.has(genId);
+            if (!isStillGenerating) {
               activelyGeneratingConvos.delete(genId);
-              console.log(`[agy-read] 前台对话 [${genId}] AI 回复生成完毕，标记为未读`);
-              markConvoAsUnread(genId, '前台 AI 回复生成完毕');
+              promptSubmittedConvos.delete(genId);
+              if (record.confirmedGenerated) {
+                console.log(`[agy-read] 前台对话 [${genId}] AI 回复生成完毕，标记为未读`);
+                markConvoAsUnread(genId, '前台 AI 回复生成完毕');
+              }
             }
           } else {
-            // 后台对话：只要侧边栏不再有 spinner，说明后台输出结束
-            if (!currentSpinningIds.has(genId)) {
+            // 当前处于后台的对话：只要侧边栏无 spinner 且无 stop 按钮，即判定后台完成
+            const isStillGenerating = rowGeneratingIds.has(genId);
+            if (!isStillGenerating) {
               activelyGeneratingConvos.delete(genId);
-              console.log(`[agy-read] 后台对话 [${genId}] AI 回复生成完毕，标记为未读`);
-              markConvoAsUnread(genId, '后台 AI 回复生成完毕');
+              promptSubmittedConvos.delete(genId);
+              if (record.confirmedGenerated) {
+                console.log(`[agy-read] 后台对话 [${genId}] AI 回复生成完毕，标记为未读`);
+                markConvoAsUnread(genId, '后台 AI 回复生成完毕');
+              }
             }
           }
         }
       }
-      addInterval(checkGeneratingAndUnreadState, 250);
+      addInterval(checkGeneratingAndUnreadState, 200);
 
       // 同步侧边栏指示点：与系统合二为一，共用单一点位，绝不出现双点！
       function syncSidebarIndicators() {
@@ -3181,10 +3280,13 @@ window.__AGY_BRANCH_NAME__ = "persist_chat_scroll_position";
       }
       addInterval(syncSidebarIndicators, 200);
 
-      // 对外暴露辅助方法供右键菜单等模块协同调用
+      // 对外暴露辅助方法供右键菜单等模块协同调用与测试
       window.__AGY_MARK_READ__ = (id) => markConvoAsRead(id || getCurrentUrlConvoId(), 'manual API');
       window.__AGY_MARK_UNREAD__ = (id) => markConvoAsUnread(id || getCurrentUrlConvoId(), 'manual API');
       window.__AGY_IS_UNREAD__ = (id) => unreadConvosMap.has(id || getCurrentUrlConvoId());
+      window.__AGY_UNREAD_MAP__ = unreadConvosMap;
+      window.__AGY_GENERATING_MAP__ = activelyGeneratingConvos;
+      window.__AGY_PROMPT_SUBMITTED_MAP__ = promptSubmittedConvos;
     }
 
     initProjectArchiver();
