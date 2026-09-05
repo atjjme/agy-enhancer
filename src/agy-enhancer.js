@@ -100,6 +100,7 @@
   let notifyPromptSubmittedForUnread = null;
   let unreadScrollHandler = null;
   let unreadWheelHandler = null;
+  let windowUnloadHandler = null;
 
   window.__AGY_ENHANCER_CLEANUP__ = function () {
     activeTimers.forEach(id => {
@@ -167,10 +168,15 @@
       unreadWheelHandler = null;
     }
     if (userInteractionHandler) {
-      ['wheel', 'pointerdown', 'mousedown', 'keydown', 'touchstart'].forEach(type => {
+      ['wheel', 'pointerdown', 'mousedown', 'keydown', 'touchmove'].forEach(type => {
         window.removeEventListener(type, userInteractionHandler, true);
       });
       userInteractionHandler = null;
+    }
+    if (windowUnloadHandler) {
+      window.removeEventListener('beforeunload', windowUnloadHandler);
+      window.removeEventListener('pagehide', windowUnloadHandler);
+      windowUnloadHandler = null;
     }
     notifyNewPromptSubmitted = null;
     notifyPromptSubmittedForUnread = null;
@@ -900,8 +906,13 @@
       const pages = Array.from(turnContainer.children).map((el, idx) => {
         const top = el.offsetTop;
         const isLast = (idx === turnContainer.children.length - 1);
-        const inner = el.firstElementChild;
-        const realContentHeight = (inner && inner.offsetHeight > 0) ? inner.offsetHeight : el.offsetHeight;
+        let sumChildHeight = 0;
+        if (el.children.length > 0) {
+          for (let i = 0; i < el.children.length; i++) {
+            sumChildHeight += el.children[i].offsetHeight;
+          }
+        }
+        const realContentHeight = Math.max(sumChildHeight, el.scrollHeight, el.offsetHeight);
         // 如果是最后一页且带有 min-height 撑开样式，使用真实内容高度，避免滚动与长短文测量失真
         const height = (isLast && el.style.minHeight) ? realContentHeight : el.offsetHeight;
         // 页头：该问答开始提问的位置（预留 8px 视口呼吸边距）
@@ -2505,7 +2516,29 @@
           }
         }
 
-        nativeMenuObserver = new MutationObserver(() => {
+        nativeMenuObserver = new MutationObserver((mutations) => {
+          let hasMenuRelevantNode = false;
+          for (let m = 0; m < mutations.length; m++) {
+            const mut = mutations[m];
+            if (mut.addedNodes && mut.addedNodes.length > 0) {
+              for (let n = 0; n < mut.addedNodes.length; n++) {
+                const node = mut.addedNodes[n];
+                if (node.nodeType === 1) {
+                  if (node.getAttribute?.('role') === 'menu' ||
+                      node.hasAttribute?.('data-radix-popper-content-wrapper') ||
+                      node.classList?.contains?.('agy-options-dropdown') ||
+                      node.querySelector?.('[role="menu"]') ||
+                      node.querySelector?.('[data-radix-popper-content-wrapper]')) {
+                    hasMenuRelevantNode = true;
+                    break;
+                  }
+                }
+              }
+            }
+            if (hasMenuRelevantNode) break;
+          }
+          if (!hasMenuRelevantNode) return;
+
           checkAndPositionNativeMenu();
           checkAndEnhanceNativeMenu();
         });
@@ -3007,7 +3040,7 @@
       };
 
       window.addEventListener('popstate', handleConvoSwitch);
-      addInterval(handleConvoSwitch, 80);
+      addInterval(handleConvoSwitch, 350);
 
       // 新提问提交通知钩子：提交新提问代表用户在底部追问，直接删除记录
       notifyNewPromptSubmitted = () => {
@@ -3025,13 +3058,13 @@
       };
 
       // 软件窗口关闭/刷新时，确保当前正在阅读的对话位置立即落盘
-      const handleWindowUnload = () => {
+      windowUnloadHandler = () => {
         if (currentActiveConvoId && !activeRestoringConvoId) {
           recordConvoPosition(currentActiveConvoId);
         }
       };
-      window.addEventListener('beforeunload', handleWindowUnload);
-      window.addEventListener('pagehide', handleWindowUnload);
+      window.addEventListener('beforeunload', windowUnloadHandler);
+      window.addEventListener('pagehide', windowUnloadHandler);
     }
 
     // ==================== 10. 智能已读/未读状态追踪与提醒 (Smart Unread Tracker) ====================
@@ -3122,8 +3155,13 @@
 
       function getTurnRealHeight(el) {
         if (!el) return { contentHeight: 0, agentHeight: 0 };
-        const inner = el.firstElementChild;
-        const contentHeight = (inner && inner.offsetHeight > 0) ? inner.offsetHeight : el.offsetHeight;
+        let sumChildHeight = 0;
+        if (el.children.length > 0) {
+          for (let i = 0; i < el.children.length; i++) {
+            sumChildHeight += el.children[i].offsetHeight;
+          }
+        }
+        const contentHeight = Math.max(sumChildHeight, el.scrollHeight, el.offsetHeight);
         const agentArticle = el.querySelector('[role="article"][aria-label*="response"], [role="article"][aria-label*="Agent"], [role="article"]:not([aria-label*="User message"])');
         const agentHeight = agentArticle ? agentArticle.offsetHeight : contentHeight;
         return { contentHeight, agentHeight };
@@ -3323,7 +3361,7 @@
       window.addEventListener('wheel', unreadWheelHandler, { capture: true, passive: true });
 
       // 周期性检测触底与停留状态（弥补平滑滚动与动态内容渲染）
-      addInterval(handleReadingScroll, 200);
+      addInterval(handleReadingScroll, 400);
 
       // 对话切换监测
       let trackedConvoId = null;
@@ -3339,7 +3377,7 @@
           }
         }
       }
-      addInterval(checkConvoSwitchForUnread, 150);
+      addInterval(checkConvoSwitchForUnread, 400);
 
       // 精准监听各对话生成状态与完成事件（按对话 ID 独立追踪，彻底杜绝切换对话误标与双重未读）
       const activelyGeneratingConvos = new Map(); // convoId -> { startTime, lastSpinningTime, confirmedGenerated, isForeground }
@@ -3491,7 +3529,7 @@
           }
         }
       }
-      addInterval(checkGeneratingAndUnreadState, 200);
+      addInterval(checkGeneratingAndUnreadState, 400);
 
       // 同步侧边栏指示点：与系统合二为一，共用单一点位，绝不出现双点！
       function syncSidebarIndicators() {
@@ -3537,7 +3575,7 @@
           }
         });
       }
-      addInterval(syncSidebarIndicators, 200);
+      addInterval(syncSidebarIndicators, 400);
 
       // 对外暴露辅助方法供右键菜单等模块协同调用与测试
       window.__AGY_MARK_READ__ = (id) => markConvoAsRead(id || getCurrentUrlConvoId(), 'manual API');

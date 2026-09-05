@@ -13,26 +13,28 @@ const path = require('path');
 const http = require('http');
 const { execSync } = require('child_process');
 
+const defaultAppData = process.env.APPDATA || (process.env.USERPROFILE ? path.join(process.env.USERPROFILE, 'AppData', 'Roaming') : 'C:\\ProgramData');
+
 const activePortFile = path.join(
-  process.env.APPDATA || 'C:\\Users\\Juste\\AppData\\Roaming',
+  defaultAppData,
   'antigravity',
   'DevToolsActivePort'
 );
 
 const scrollPositionsFile = path.join(
-  process.env.APPDATA || 'C:\\Users\\Juste\\AppData\\Roaming',
+  defaultAppData,
   'antigravity',
   'agy-scroll-positions.json'
 );
 
 const unreadStatesFile = path.join(
-  process.env.APPDATA || 'C:\\Users\\Juste\\AppData\\Roaming',
+  defaultAppData,
   'antigravity',
   'agy-unread-states.json'
 );
 
 const logFile = path.join(
-  process.env.APPDATA || 'C:\\Users\\Juste\\AppData\\Roaming',
+  defaultAppData,
   'antigravity',
   'agy-loader.log'
 );
@@ -104,6 +106,11 @@ async function connectAndAttach() {
   if (isConnecting) return;
   const port = getActivePortInfo();
   if (!port) return;
+
+  // 若端口未变且现有 WebSocket 处于打开状态，直接保持，无需重复向 CDP 端口发送 HTTP GET /json/list
+  if (port === lastPort && currentWs && currentWs.readyState === WebSocket.OPEN) {
+    return;
+  }
 
   isConnecting = true;
   try {

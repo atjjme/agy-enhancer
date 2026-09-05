@@ -7,15 +7,7 @@ echo    Antigravity Reading Enhancer Uninstall
 echo ====================================================
 echo.
 echo [1/2] Removing startup autostart shortcut...
-set "STARTUP_DIR=%APPDATA%\Microsoft\Windows\Start Menu\Programs\Startup"
-set "SHORTCUT_PATH=%STARTUP_DIR%\AntigravityReaderEnhancer.lnk"
-
-if exist "%SHORTCUT_PATH%" (
-    del /f /q "%SHORTCUT_PATH%"
-    echo Startup shortcut removed.
-) else (
-    echo No startup shortcut found.
-)
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$startupDir = [Environment]::GetFolderPath([Environment+SpecialFolder]::Startup); $shortcutPath = Join-Path $startupDir 'AntigravityReaderEnhancer.lnk'; if (Test-Path $shortcutPath) { Remove-Item -Path $shortcutPath -Force; Write-Host 'Startup shortcut removed.' } else { Write-Host 'No startup shortcut found.' }"
 
 echo.
 echo [2/2] Stopping background daemon...
