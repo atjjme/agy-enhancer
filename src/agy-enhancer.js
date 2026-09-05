@@ -878,7 +878,11 @@
       const containerHeight = container.clientHeight;
       const pages = Array.from(turnContainer.children).map((el, idx) => {
         const top = el.offsetTop;
-        const height = el.offsetHeight;
+        const isLast = (idx === turnContainer.children.length - 1);
+        const inner = el.firstElementChild;
+        const realContentHeight = (inner && inner.offsetHeight > 0) ? inner.offsetHeight : el.offsetHeight;
+        // 如果是最后一页且带有 min-height 撑开样式，使用真实内容高度，避免滚动与长短文测量失真
+        const height = (isLast && el.style.minHeight) ? realContentHeight : el.offsetHeight;
         // 页头：该问答开始提问的位置（预留 8px 视口呼吸边距）
         const headScrollTop = Math.max(0, top - 8);
         // 页脚：该问答回复末尾的最佳舒适视口位置
@@ -889,6 +893,7 @@
           element: el,
           top,
           height,
+          contentHeight: realContentHeight,
           bottom: top + height,
           headScrollTop,
           footScrollTop
@@ -2875,13 +2880,40 @@
         return null;
       }
 
+      function getTurnRealHeight(el) {
+        if (!el) return { contentHeight: 0, agentHeight: 0 };
+        const inner = el.firstElementChild;
+        const contentHeight = (inner && inner.offsetHeight > 0) ? inner.offsetHeight : el.offsetHeight;
+        const agentArticle = el.querySelector('[role="article"][aria-label*="response"], [role="article"][aria-label*="Agent"], [role="article"]:not([aria-label*="User message"])');
+        const agentHeight = agentArticle ? agentArticle.offsetHeight : contentHeight;
+        return { contentHeight, agentHeight };
+      }
+
       function checkIsLongText() {
         const container = getChatScrollContainer();
         if (!container) return false;
+
         const maxScroll = Math.max(0, container.scrollHeight - container.clientHeight);
-        // 如果页面总可滚动距离不足半屏（小于 450px），绝对属于短文
-        if (maxScroll < Math.min(450, container.clientHeight * 0.6)) {
+        // 1. 如果页面总可滚动距离极小（不足 100px），绝对属于短文
+        if (maxScroll <= USER_CONFIG.BOTTOM_THRESHOLD) {
           return false;
+        }
+
+        // 2. 获取最后一轮问答实际内容高度
+        const turnContainer = document.querySelector('.relative.flex.flex-col.gap-y-3') ||
+                              document.querySelector('.flex.flex-col.gap-y-3');
+        if (turnContainer && turnContainer.children.length > 0) {
+          const lastTurnEl = turnContainer.children[turnContainer.children.length - 1];
+          if (lastTurnEl) {
+            const { contentHeight, agentHeight } = getTurnRealHeight(lastTurnEl);
+            const viewHeight = container.clientHeight;
+            // 判定长文的标准：
+            // 最新一轮实际问答内容高度达到视口的 80% (USER_CONFIG.LONG_TEXT_RATIO)，
+            // 且 AI 自身回复高度也超过半屏 (50%)。
+            // 只要 AI 自身回复短于半屏（如简短应答、两句话、问候），一律视为短文！
+            return (contentHeight >= viewHeight * USER_CONFIG.LONG_TEXT_RATIO) &&
+                   (agentHeight >= viewHeight * 0.5);
+          }
         }
 
         const { pages } = getPagesInfo();
@@ -2962,8 +2994,9 @@
 
         const maxScroll = Math.max(0, container.scrollHeight - container.clientHeight);
         const distFromBottom = maxScroll - container.scrollTop;
+        const leaveThreshold = Math.min(USER_CONFIG.LEAVE_BOTTOM_THRESHOLD, Math.max(30, maxScroll * 0.5));
         // 如果一进来就已经在较上面（例如位置记忆恢复在顶部/中间），判定已离开底部
-        hasLeftBottom = distFromBottom > USER_CONFIG.LEAVE_BOTTOM_THRESHOLD;
+        hasLeftBottom = distFromBottom > leaveThreshold;
 
         if (!isLong) {
           // 短文条件二：停留满 10s 即已读
@@ -2992,7 +3025,8 @@
         const maxScroll = Math.max(0, container.scrollHeight - container.clientHeight);
         const distFromBottom = maxScroll - container.scrollTop;
         const isAtBottom = maxScroll <= 20 || distFromBottom <= USER_CONFIG.BOTTOM_THRESHOLD;
-        const hasScrolledUp = distFromBottom > USER_CONFIG.LEAVE_BOTTOM_THRESHOLD;
+        const leaveThreshold = Math.min(USER_CONFIG.LEAVE_BOTTOM_THRESHOLD, Math.max(30, maxScroll * 0.5));
+        const hasScrolledUp = distFromBottom > leaveThreshold;
 
         if (hasScrolledUp) {
           // 用户向上大幅翻阅离开底部
@@ -3001,7 +3035,7 @@
             console.log(`[agy-read] 对话 [${effectiveConvoId}] 检测到离开底部 (距底 ${Math.round(distFromBottom)}px)，等待二次触底`);
           }
           // 用户大幅往上翻阅时才清除 5s 底部倒计时
-          if (distFromBottom > USER_CONFIG.LEAVE_BOTTOM_THRESHOLD + 120) {
+          if (distFromBottom > leaveThreshold + 120) {
             if (longTextBottomTimer) {
               clearTimeout(longTextBottomTimer);
               longTextBottomTimer = null;
@@ -3009,7 +3043,7 @@
           }
         } else if (isAtBottom && hasLeftBottom) {
           // 二次触底达成！
-          const isLong = (readingSessionType === 'long') || checkIsLongText();
+          const isLong = readingSessionType ? (readingSessionType === 'long') : checkIsLongText();
           if (!isLong) {
             // 短文：二次触底立即满足已读条件，即刻标记为已读！
             console.log(`[agy-read] 对话 [${effectiveConvoId}] 短文二次触底达成，立即标记为已读`);
