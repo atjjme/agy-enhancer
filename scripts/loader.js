@@ -49,6 +49,14 @@ function log(...args) {
   } catch (e) {}
 }
 
+process.on('uncaughtException', (err) => {
+  log('[UncaughtException]', err?.stack || err?.message || err);
+});
+
+process.on('unhandledRejection', (reason) => {
+  log('[UnhandledRejection]', reason?.stack || reason?.message || reason);
+});
+
 log('=== Antigravity Enhancer daemon started ===');
 
 const enhancerFile = path.resolve(__dirname, '../src/agy-enhancer.js');
@@ -194,9 +202,9 @@ async function connectAndAttach() {
     ws.onmessage = (msg) => {
       try {
         const data = JSON.parse(msg.data);
-        if (data.method === 'Page.loadEventFired') {
-          log(`Page loaded (${data.method}), reinjecting...`);
-          setTimeout(() => injectEnhancer(ws), 60);
+        if (data.method === 'Page.loadEventFired' || data.method === 'Runtime.executionContextsCleared' || data.method === 'Page.frameNavigated') {
+          log(`Page reload / navigation detected (${data.method}), reinjecting...`);
+          setTimeout(() => injectEnhancer(ws), 80);
         } else if (data.method === 'Runtime.consoleAPICalled') {
           const text = data.params?.args?.[0]?.value;
           if (typeof text === 'string' && text.startsWith('[AGY_PERSIST_SCROLL]')) {
