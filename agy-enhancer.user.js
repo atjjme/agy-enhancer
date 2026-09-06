@@ -220,6 +220,8 @@
       el.style.removeProperty('display');
     });
 
+    document.getElementById('agy-universal-context-menu')?.remove();
+    document.getElementById('agy-context-menu-styles')?.remove();
     document.getElementById('agy-enhancer-styles')?.remove();
     document.getElementById('agy-page-nav-group')?.remove();
     document.getElementById('agy-scroll-bottom-btn')?.remove();
@@ -2804,20 +2806,419 @@
       initNativeConvoMenuEnhancer();
     }
 
-    // ==================== 8. 全局右键上下文菜单支持 (对话与项目) ====================
+    // ==================== 8. 全局右键上下文菜单系统 (Universal Context Menu) ====================
     function initContextMenuSupport() {
       if (contextMenuHandler) {
         document.removeEventListener('contextmenu', contextMenuHandler, true);
       }
 
+      // 1. 单色极简矢量轮廓图标库 (14x14 Monochrome Outline SVG)
+      const MENU_ICONS = {
+        comment: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>',
+        copy: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>',
+        quote: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21c3 0 7-1 7-8V5c0-1.1-.9-2-2-2H4c-1.1 0-2 .9-2 2v6c0 1.1.9 2 2 2 0 4-1 6-1 8zm14 0c3 0 7-1 7-8V5c0-1.1-.9-2-2-2h-4c-1.1 0-2 .9-2 2v6c0 1.1.9 2 2 2 0 4-1 6-1 8z"></path></svg>',
+        explain: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>',
+        code: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>',
+        save: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>',
+        folder: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>',
+        image: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>',
+        external: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>',
+        link: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>',
+        search: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>',
+        file: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path><polyline points="13 2 13 9 20 9"></polyline></svg>',
+        regenerate: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>',
+        fork: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="18" r="3"></circle><circle cx="6" cy="6" r="3"></circle><circle cx="18" cy="6" r="3"></circle><path d="M18 9v1a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V9"></path><path d="M12 12v3"></path></svg>',
+        edit: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>'
+      };
+
+      // 2. 注入菜单专属沉浸样式 (自适应深浅色，毛玻璃与微边框)
+      function ensureContextMenuStyles() {
+        const styleId = 'agy-context-menu-styles';
+        if (document.getElementById(styleId)) return;
+        const style = document.createElement('style');
+        style.id = styleId;
+        style.textContent = `
+          #agy-universal-context-menu {
+            position: fixed;
+            z-index: 999999;
+            min-width: 175px;
+            max-width: 280px;
+            background: rgba(30, 30, 30, 0.88);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 8px;
+            box-shadow: 0 12px 32px -4px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.05);
+            padding: 4px;
+            color: #ececec;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            font-size: 13px;
+            line-height: 1.4;
+            user-select: none;
+            animation: agy-menu-fade-in 0.1s ease-out;
+          }
+          @media (prefers-color-scheme: light) {
+            #agy-universal-context-menu {
+              background: rgba(255, 255, 255, 0.94);
+              border: 1px solid rgba(0, 0, 0, 0.1);
+              box-shadow: 0 12px 32px -4px rgba(0, 0, 0, 0.18), 0 0 0 1px rgba(0, 0, 0, 0.05);
+              color: #1a1a1a;
+            }
+            .agy-context-menu-item:hover {
+              background: rgba(0, 0, 0, 0.06) !important;
+            }
+            .agy-context-menu-sep {
+              background: rgba(0, 0, 0, 0.08) !important;
+            }
+          }
+          .dark #agy-universal-context-menu, [data-theme="dark"] #agy-universal-context-menu {
+            background: rgba(30, 30, 30, 0.88);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            color: #ececec;
+          }
+          @keyframes agy-menu-fade-in {
+            from { opacity: 0; transform: scale(0.97); }
+            to { opacity: 1; transform: scale(1); }
+          }
+          .agy-context-menu-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background 0.12s ease;
+            white-space: nowrap;
+          }
+          .agy-context-menu-item:hover {
+            background: rgba(255, 255, 255, 0.1);
+          }
+          .agy-context-menu-icon {
+            width: 14px;
+            height: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            opacity: 0.82;
+          }
+          .agy-context-menu-item:hover .agy-context-menu-icon {
+            opacity: 1;
+          }
+          .agy-context-menu-icon svg {
+            width: 14px;
+            height: 14px;
+            stroke: currentColor;
+          }
+          .agy-context-menu-label {
+            flex: 1;
+            font-weight: 450;
+            overflow: hidden;
+            text-overflow: ellipsis;
+          }
+          .agy-context-menu-sep {
+            height: 1px;
+            margin: 3px 6px;
+            background: rgba(255, 255, 255, 0.08);
+          }
+        `;
+        document.head.appendChild(style);
+      }
+
+      // 3. 关闭现有菜单
+      function dismissUniversalContextMenu() {
+        const menu = document.getElementById('agy-universal-context-menu');
+        if (menu) menu.remove();
+      }
+
+      // 4. 底层动作执行辅助函数
+      function copyText(text) {
+        if (!text) return;
+        navigator.clipboard.writeText(text).catch(() => {});
+      }
+
+      function revealPath(pathStr) {
+        if (!pathStr) return;
+        console.log('[AGY_REVEAL_PATH]' + pathStr);
+      }
+
+      function openExternalUrl(url) {
+        if (!url) return;
+        console.log('[AGY_OPEN_EXTERNAL]' + url);
+        try { window.open(url, '_blank'); } catch (e) {}
+      }
+
+      function saveFileLocally(content, filename = 'code_snippet.txt') {
+        const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(() => {
+          a.remove();
+          URL.revokeObjectURL(url);
+        }, 100);
+      }
+
+      async function copyImageBlob(imgEl) {
+        if (!imgEl) return;
+        try {
+          const canvas = document.createElement('canvas');
+          canvas.width = imgEl.naturalWidth || imgEl.width || 300;
+          canvas.height = imgEl.naturalHeight || imgEl.height || 300;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(imgEl, 0, 0);
+          canvas.toBlob(async (blob) => {
+            if (blob) {
+              try {
+                await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+                return;
+              } catch (e) {}
+            }
+            copyText(imgEl.src);
+          }, 'image/png');
+        } catch (e) {
+          copyText(imgEl.src);
+        }
+      }
+
+      function appendQuoteToPrompt(text) {
+        if (!text) return;
+        const input = document.querySelector('textarea, [contenteditable="true"]');
+        if (!input) return;
+        const formatted = `> ${text.trim().split('\n').join('\n> ')}\n\n`;
+        if (input.tagName === 'TEXTAREA') {
+          const start = input.selectionStart || input.value.length;
+          input.value = input.value.slice(0, start) + formatted + input.value.slice(start);
+          input.selectionStart = input.selectionEnd = start + formatted.length;
+          input.dispatchEvent(new Event('input', { bubbles: true }));
+        } else {
+          input.focus();
+          document.execCommand('insertText', false, formatted);
+        }
+        input.focus();
+      }
+
+      function appendExplainToPrompt(text) {
+        if (!text) return;
+        const input = document.querySelector('textarea, [contenteditable="true"]');
+        if (!input) return;
+        const promptText = `Please explain this code snippet:\n\`\`\`\n${text.trim()}\n\`\`\`\n`;
+        if (input.tagName === 'TEXTAREA') {
+          input.value = promptText;
+          input.dispatchEvent(new Event('input', { bubbles: true }));
+        } else {
+          input.focus();
+          document.execCommand('selectAll', false, null);
+          document.execCommand('insertText', false, promptText);
+        }
+        input.focus();
+      }
+
+      function triggerRightSidebarComment(selectedText) {
+        // 尝试寻找右侧栏中原生的评论触发器
+        const commentBtn = document.querySelector('[aria-label*="Comment" i], button[title*="Comment" i], .comment-button');
+        if (commentBtn) {
+          commentBtn.click();
+        } else {
+          // 优雅降级：作为批注直接填入提问框
+          appendQuoteToPrompt(selectedText);
+        }
+      }
+
+      // 5. 区域判定与上下文嗅探
+      function isRightSidebar(target) {
+        if (!target) return false;
+        if (target.closest('.monaco-editor, #artifact-container, [data-panel-id*="artifact" i], [data-panel-id*="right" i], [data-testid*="artifact" i], .artifact-view')) {
+          return true;
+        }
+        const chatContainer = getChatScrollContainer();
+        if (chatContainer && chatContainer.contains(target)) return false;
+        try {
+          const rect = target.getBoundingClientRect();
+          if (rect.left >= window.innerWidth * 0.45) return true;
+        } catch (e) {}
+        return false;
+      }
+
+      function resolveLocalPathString(target, selectedText) {
+        const a = target.closest('a[href]');
+        if (a && a.href && a.href.startsWith('file:///')) {
+          return decodeURIComponent(a.href.replace(/^file:\/\/\/?/i, '')).replace(/\//g, '\\');
+        }
+        const pathAttrEl = target.closest('[data-path], [data-file-path], [data-filepath]');
+        if (pathAttrEl) {
+          const p = pathAttrEl.getAttribute('data-path') || pathAttrEl.getAttribute('data-file-path') || pathAttrEl.getAttribute('data-filepath');
+          if (p) return p;
+        }
+        const candidate = selectedText || (target.textContent || '').trim();
+        if (/^[a-zA-Z]:[/\\](?:[^/:*?"<>|\r\n]+[/\\])*[^/:*?"<>|\r\n]*$/.test(candidate) || /^\/(?:[^\/\0]+\/)*[^\/\0]*$/.test(candidate)) {
+          if (candidate.length >= 4 && (candidate.includes('\\') || candidate.includes('/'))) {
+            return candidate;
+          }
+        }
+        return null;
+      }
+
+      function resolveFileCard(target) {
+        const card = target.closest('[data-testid*="file" i], [data-filename], .artifact-file, [data-artifact-id]');
+        if (card) {
+          const filename = card.getAttribute('data-filename') || card.getAttribute('title') || card.innerText?.split('\n')[0] || 'file';
+          const filePath = card.getAttribute('data-path') || card.getAttribute('data-file-path') || filename;
+          return { card, filename, filePath };
+        }
+        return null;
+      }
+
+      function resolveCodeInfo(target) {
+        const pre = target.closest('pre, code, .monaco-editor, .code-block');
+        if (pre) {
+          let codeText = '';
+          if (pre.classList.contains('monaco-editor')) {
+            const lines = pre.querySelectorAll('.view-line');
+            if (lines.length > 0) {
+              codeText = Array.from(lines).map(l => l.textContent).join('\n');
+            } else {
+              codeText = pre.textContent;
+            }
+          } else {
+            const codeEl = pre.tagName === 'CODE' ? pre : (pre.querySelector('code') || pre);
+            codeText = codeEl.innerText || codeEl.textContent;
+          }
+          let ext = 'txt';
+          const classStr = (pre.className || '') + ' ' + (pre.parentElement?.className || '');
+          const m = classStr.match(/(?:lang|language)-([a-zA-Z0-9_-]+)/);
+          if (m) {
+            const lang = m[1].toLowerCase();
+            const extMap = { javascript: 'js', typescript: 'ts', python: 'py', html: 'html', css: 'css', json: 'json', markdown: 'md' };
+            ext = extMap[lang] || lang;
+          }
+          return { codeText: codeText.trim(), filename: `snippet.${ext}` };
+        }
+        return null;
+      }
+
+      function resolveTurnElements(target) {
+        const chatContainer = getChatScrollContainer();
+        if (!chatContainer || !chatContainer.contains(target)) return null;
+
+        const turnContainer = document.querySelector('.relative.flex.flex-col.gap-y-3') ||
+                              document.querySelector('.flex.flex-col.gap-y-3');
+        let turnEl = null;
+        if (turnContainer) {
+          let curr = target;
+          while (curr && curr !== turnContainer) {
+            if (curr.parentElement === turnContainer) {
+              turnEl = curr;
+              break;
+            }
+            curr = curr.parentElement;
+          }
+        }
+        if (!turnEl) {
+          turnEl = target.closest('[data-testid*="turn" i], .turn-container') || target;
+        }
+
+        const editBtn = turnEl.querySelector?.('button[aria-label*="Edit" i], button[title*="Edit" i]');
+        const isUserTurn = !!editBtn || !!target.closest('[data-testid*="user" i], .user-turn');
+        const regenBtn = turnEl.querySelector?.('button[aria-label*="Regenerate" i], button[title*="Regenerate" i]');
+        const forkBtn = turnEl.querySelector?.('button[aria-label*="Fork" i], button[title*="Fork" i]');
+
+        let responseMarkdown = '';
+        if (!isUserTurn) {
+          responseMarkdown = turnEl.innerText || turnEl.textContent || '';
+        }
+        let promptText = '';
+        if (isUserTurn) {
+          promptText = turnEl.innerText || turnEl.textContent || '';
+        }
+
+        return { turnEl, isUserTurn, editBtn, regenBtn, forkBtn, responseMarkdown, promptText };
+      }
+
+      // 6. 渲染菜单 DOM
+      function renderMenu(items, clientX, clientY) {
+        dismissUniversalContextMenu();
+        if (!items || items.length === 0) return;
+
+        ensureContextMenuStyles();
+        const menu = document.createElement('div');
+        menu.id = 'agy-universal-context-menu';
+
+        items.forEach(item => {
+          if (item.separator) {
+            const sep = document.createElement('div');
+            sep.className = 'agy-context-menu-sep';
+            menu.appendChild(sep);
+            return;
+          }
+          const row = document.createElement('div');
+          row.className = 'agy-context-menu-item';
+          row.innerHTML = `
+            <div class="agy-context-menu-icon">${MENU_ICONS[item.icon] || ''}</div>
+            <div class="agy-context-menu-label">${item.label}</div>
+          `;
+          row.addEventListener('click', (ev) => {
+            ev.stopPropagation();
+            dismissUniversalContextMenu();
+            try { item.action(); } catch (err) {}
+          });
+          menu.appendChild(row);
+        });
+
+        // 视口定位与自适应防溢出
+        menu.style.visibility = 'hidden';
+        menu.style.top = `${clientY}px`;
+        menu.style.left = `${clientX}px`;
+        document.body.appendChild(menu);
+
+        const rect = menu.getBoundingClientRect();
+        let finalLeft = clientX;
+        let finalTop = clientY;
+
+        if (finalLeft + rect.width > window.innerWidth - 10) {
+          finalLeft = Math.max(10, finalLeft - rect.width);
+        }
+        if (finalTop + rect.height > window.innerHeight - 10) {
+          finalTop = Math.max(10, finalTop - rect.height);
+        }
+
+        menu.style.left = `${finalLeft}px`;
+        menu.style.top = `${finalTop}px`;
+        menu.style.visibility = 'visible';
+      }
+
+      // 7. 全局点击与失焦自动关闭监听
+      document.addEventListener('click', (e) => {
+        if (!e.target.closest('#agy-universal-context-menu')) {
+          dismissUniversalContextMenu();
+        }
+      }, true);
+
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+          dismissUniversalContextMenu();
+        }
+      }, true);
+
+      // 8. 核心 contextmenu 事件总线
       contextMenuHandler = (e) => {
-        // 1. 原生侧边栏对话行
+        // 放行机制：按住 Shift 键时放行 Chromium 原生右键菜单
+        if (e.shiftKey) {
+          dismissUniversalContextMenu();
+          return;
+        }
+
+        // ------------------ 原有侧边栏会话与项目右键（高优先级保留） ------------------
         const convoRow = e.target?.closest?.('[data-testid="conversation-row-sidebar"]');
         if (convoRow) {
           const btn = convoRow.querySelector('button[aria-label="More options"]');
           if (btn) {
             e.preventDefault();
             e.stopPropagation();
+            dismissUniversalContextMenu();
             lastContextMenuPos = { x: e.clientX, y: e.clientY, time: Date.now() };
             activeNativeConvoId = convoRow.getAttribute('data-cascade-id');
             activeNativeProjectObj = null;
@@ -2829,7 +3230,6 @@
           }
         }
 
-        // 2. 原生侧边栏项目卡片
         const projectCard = e.target?.closest?.('button[data-project-card="true"], .group\\/header');
         if (projectCard) {
           const container = projectCard.closest('.group\\/header') || projectCard.parentElement?.parentElement;
@@ -2837,6 +3237,7 @@
           if (btn) {
             e.preventDefault();
             e.stopPropagation();
+            dismissUniversalContextMenu();
             lastContextMenuPos = { x: e.clientX, y: e.clientY, time: Date.now() };
             activeNativeProjectObj = resolveProjectFromElement(projectCard) || resolveProjectFromElement(btn);
             activeNativeProjectId = activeNativeProjectObj?.id || null;
@@ -2848,30 +3249,176 @@
           }
         }
 
-        // 3. 归档面板内的项目头部
         const archiveProject = e.target?.closest?.('.agy-archive-item-header');
         if (archiveProject) {
           const btn = archiveProject.querySelector('.agy-quick-options-btn');
           if (btn) {
             e.preventDefault();
             e.stopPropagation();
+            dismissUniversalContextMenu();
             lastContextMenuPos = { x: e.clientX, y: e.clientY, time: Date.now() };
             btn.click();
             return;
           }
         }
 
-        // 4. 归档面板内的对话项
         const archiveConvo = e.target?.closest?.('.agy-convo-item');
         if (archiveConvo) {
           const btn = archiveConvo.querySelector('.agy-convo-options-btn');
           if (btn) {
             e.preventDefault();
             e.stopPropagation();
+            dismissUniversalContextMenu();
             lastContextMenuPos = { x: e.clientX, y: e.clientY, time: Date.now() };
             btn.click();
             return;
           }
+        }
+
+        // ------------------ 通用上下文菜单实体嗅探 (Universal Context Sniffer) ------------------
+        const target = e.target;
+        if (!target) return;
+
+        const selection = window.getSelection();
+        const selectedText = selection ? selection.toString().trim() : '';
+        const inSidebar = isRightSidebar(target);
+
+        // 目标 1: 图片 (Image)
+        const imgEl = target.closest('img');
+        if (imgEl && !selectedText) {
+          e.preventDefault();
+          e.stopPropagation();
+          const items = [
+            { label: 'Copy Image', icon: 'image', action: () => copyImageBlob(imgEl) },
+            { label: 'Copy Image Address', icon: 'link', action: () => copyText(imgEl.src) },
+            { label: 'Open Containing Folder', icon: 'folder', action: () => revealPath(imgEl.src) },
+            { label: 'Save Image As...', icon: 'save', action: () => {
+                const a = document.createElement('a');
+                a.href = imgEl.src;
+                a.download = 'image.png';
+                a.click();
+              }
+            }
+          ];
+          renderMenu(items, e.clientX, e.clientY);
+          return;
+        }
+
+        // 目标 2: 超链接 (Hyperlink / URL) - 若未划选其他文字
+        const linkEl = target.closest('a[href]');
+        if (linkEl && !selectedText) {
+          const href = linkEl.href;
+          if (!href.startsWith('file:///')) {
+            e.preventDefault();
+            e.stopPropagation();
+            const items = [
+              { label: 'Open Link in Browser', icon: 'external', action: () => openExternalUrl(href) },
+              { label: 'Copy Link Address', icon: 'link', action: () => copyText(href) }
+            ];
+            renderMenu(items, e.clientX, e.clientY);
+            return;
+          }
+        }
+
+        // 目标 3: 本地路径 (Local Path)
+        const localPath = resolveLocalPathString(target, selectedText);
+        if (localPath && !selectedText) {
+          e.preventDefault();
+          e.stopPropagation();
+          const items = [
+            { label: 'Copy Path', icon: 'copy', action: () => copyText(localPath) },
+            { label: 'Reveal in Explorer', icon: 'folder', action: () => revealPath(localPath) }
+          ];
+          renderMenu(items, e.clientX, e.clientY);
+          return;
+        }
+
+        // 目标 4: 文件实体 (Artifact File / 附件)
+        const fileEntity = resolveFileCard(target);
+        if (fileEntity && !selectedText) {
+          e.preventDefault();
+          e.stopPropagation();
+          const items = [
+            { label: 'Copy File', icon: 'file', action: () => copyText(fileEntity.filePath) },
+            { label: 'Reveal in Explorer', icon: 'folder', action: () => revealPath(fileEntity.filePath) }
+          ];
+          renderMenu(items, e.clientX, e.clientY);
+          return;
+        }
+
+        // 目标 5: 选中文本 / 代码行 (Selected Text / Code Line)
+        if (selectedText) {
+          e.preventDefault();
+          e.stopPropagation();
+          let items = [];
+          if (inSidebar) {
+            // 右侧栏选中文本: Comment, Copy, Quote, Explain
+            items = [
+              { label: 'Comment', icon: 'comment', action: () => triggerRightSidebarComment(selectedText) },
+              { label: 'Copy', icon: 'copy', action: () => copyText(selectedText) },
+              { label: 'Quote', icon: 'quote', action: () => appendQuoteToPrompt(selectedText) },
+              { label: 'Explain', icon: 'explain', action: () => appendExplainToPrompt(selectedText) }
+            ];
+          } else {
+            // 聊天区选中文本: Copy, Quote, Search
+            items = [
+              { label: 'Copy', icon: 'copy', action: () => copyText(selectedText) },
+              { label: 'Quote', icon: 'quote', action: () => appendQuoteToPrompt(selectedText) },
+              { label: 'Search', icon: 'search', action: () => {
+                  window.open('https://www.google.com/search?q=' + encodeURIComponent(selectedText), '_blank');
+                }
+              }
+            ];
+          }
+          renderMenu(items, e.clientX, e.clientY);
+          return;
+        }
+
+        // 目标 6: 代码块 / 文件空白处 (未划选文字)
+        const codeInfo = resolveCodeInfo(target);
+        if (codeInfo) {
+          e.preventDefault();
+          e.stopPropagation();
+          const items = [
+            { label: 'Copy Code', icon: 'code', action: () => copyText(codeInfo.codeText) },
+            { label: 'Save As...', icon: 'save', action: () => saveFileLocally(codeInfo.codeText, codeInfo.filename) },
+            { label: 'Reveal in Explorer', icon: 'folder', action: () => revealPath(codeInfo.filename) }
+          ];
+          renderMenu(items, e.clientX, e.clientY);
+          return;
+        }
+
+        // 目标 7: 聊天区空白处气泡 (未划选文字)
+        const turnInfo = resolveTurnElements(target);
+        if (turnInfo) {
+          e.preventDefault();
+          e.stopPropagation();
+          let items = [];
+          if (turnInfo.isUserTurn) {
+            // 用户提问气泡: Edit Prompt, Copy Prompt
+            items = [
+              { label: 'Edit Prompt', icon: 'edit', action: () => {
+                  if (turnInfo.editBtn) turnInfo.editBtn.click();
+                }
+              },
+              { label: 'Copy Prompt', icon: 'copy', action: () => copyText(turnInfo.promptText) }
+            ];
+          } else {
+            // AI 回复气泡: Copy Response (Markdown), Regenerate, Fork Conversation
+            items = [
+              { label: 'Copy Response (Markdown)', icon: 'copy', action: () => copyText(turnInfo.responseMarkdown) },
+              { label: 'Regenerate', icon: 'regenerate', action: () => {
+                  if (turnInfo.regenBtn) turnInfo.regenBtn.click();
+                }
+              },
+              { label: 'Fork Conversation', icon: 'fork', action: () => {
+                  if (turnInfo.forkBtn) turnInfo.forkBtn.click();
+                }
+              }
+            ];
+          }
+          renderMenu(items, e.clientX, e.clientY);
+          return;
         }
       };
 
