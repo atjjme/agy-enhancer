@@ -11,6 +11,8 @@
 // @run-at       document-idle
 // ==/UserScript==
 
+window.__AGY_BRANCH_TAG__ = " (branch)";
+window.__AGY_BRANCH_NAME__ = "move_copy_to_submenu";
 /**
  * Antigravity 增强器 (agy-enhancer enhancer)
  * 
@@ -2381,6 +2383,111 @@
 
             const paths = getConvoFolderPaths(convoId);
 
+            const tsp = getTSP();
+            const summaries = tsp?.getState()?.summaries || {};
+            const s = convoId ? summaries[convoId] : null;
+
+            // 获取对话名称
+            let convoTitle = s?.summary || s?.title || '';
+            if (!convoTitle && convoId) {
+              const row = document.querySelector(`[data-testid="conversation-row-sidebar"][data-cascade-id="${convoId}"]`);
+              convoTitle = row?.querySelector('.truncate')?.innerText?.trim() || '';
+            }
+
+            // 获取所属项目名称
+            const pId = s?.projectId || s?.trajectoryMetadata?.projectId;
+            let projects = [];
+            const pm = getPM();
+            if (pm?.projectsStateProvider?.getState) {
+              projects = pm.projectsStateProvider.getState();
+            }
+            const projItem = projects.find(p => p.project?.id === pId);
+            let projectName = projItem?.project?.name || '';
+            if (!projectName && convoId) {
+              const row = document.querySelector(`[data-testid="conversation-row-sidebar"][data-cascade-id="${convoId}"]`);
+              if (row) {
+                const projObj = resolveProjectFromElement(row);
+                if (projObj?.name) projectName = projObj.name;
+              }
+            }
+
+            const copyToClipboard = async (text, successMsg) => {
+              try {
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                  await navigator.clipboard.writeText(text);
+                } else {
+                  const ta = document.createElement('textarea');
+                  ta.value = text;
+                  ta.style.position = 'fixed';
+                  ta.style.opacity = '0';
+                  document.body.appendChild(ta);
+                  ta.select();
+                  document.execCommand('copy');
+                  ta.remove();
+                }
+                showNotification(successMsg);
+              } catch (err) {
+                showNotification(`Copy failed: ${err?.message || err}`);
+              }
+            };
+
+            // 1. 原生项与复制项之间的分隔线
+            const dividerCopy = document.createElement('div');
+            dividerCopy.setAttribute('role', 'separator');
+            dividerCopy.className = 'h-px bg-border my-1 -mx-1 agy-native-enhanced';
+            menu.appendChild(dividerCopy);
+
+            // 2. 复制对话名称
+            const itemCopyName = document.createElement('div');
+            itemCopyName.setAttribute('role', 'menuitem');
+            itemCopyName.className = 'w-full px-2 py-1 text-left text-[13px] cursor-pointer outline-none transition-colors select-none flex items-center gap-1.5 rounded-md hover:bg-secondary hover:text-foreground text-secondary-foreground agy-native-enhanced';
+            itemCopyName.innerHTML = `
+              <svg width="16" height="16" viewBox="0 -960 960 960" fill="currentColor" class="text-secondary-foreground shrink-0"><path d="M360-240q-33 0-56.5-23.5T280-320v-480q0-33 23.5-56.5T360-880h360q33 0 56.5 23.5T800-800v480q0 33-23.5 56.5T720-240H360Zm0-80h360v-480H360v480ZM200-80q-33 0-56.5-23.5T120-160v-560h80v560h440v80H200Zm160-240v-480 480Z"/></svg>
+              <span>Copy Conversation Name</span>
+            `;
+            itemCopyName.addEventListener('click', async (ev) => {
+              ev.stopPropagation();
+              ev.preventDefault();
+              document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+              await copyToClipboard(convoTitle, `Copied conversation name: "${convoTitle}"`);
+            });
+            menu.appendChild(itemCopyName);
+
+            // 3. 复制对话 ID
+            const itemCopyId = document.createElement('div');
+            itemCopyId.setAttribute('role', 'menuitem');
+            itemCopyId.className = 'w-full px-2 py-1 text-left text-[13px] cursor-pointer outline-none transition-colors select-none flex items-center gap-1.5 rounded-md hover:bg-secondary hover:text-foreground text-secondary-foreground agy-native-enhanced';
+            itemCopyId.innerHTML = `
+              <svg width="16" height="16" viewBox="0 -960 960 960" fill="currentColor" class="text-secondary-foreground shrink-0"><path d="M360-240q-33 0-56.5-23.5T280-320v-480q0-33 23.5-56.5T360-880h360q33 0 56.5 23.5T800-800v480q0 33-23.5 56.5T720-240H360Zm0-80h360v-480H360v480ZM200-80q-33 0-56.5-23.5T120-160v-560h80v560h440v80H200Zm160-240v-480 480Z"/></svg>
+              <span>Copy Conversation ID</span>
+            `;
+            itemCopyId.addEventListener('click', async (ev) => {
+              ev.stopPropagation();
+              ev.preventDefault();
+              document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+              await copyToClipboard(convoId, `Copied conversation ID: ${convoId}`);
+            });
+            menu.appendChild(itemCopyId);
+
+            // 4. 复制项目名称 (属于项目时展示)
+            if (paths?.isInsideProject || projectName) {
+              const itemCopyProject = document.createElement('div');
+              itemCopyProject.setAttribute('role', 'menuitem');
+              itemCopyProject.className = 'w-full px-2 py-1 text-left text-[13px] cursor-pointer outline-none transition-colors select-none flex items-center gap-1.5 rounded-md hover:bg-secondary hover:text-foreground text-secondary-foreground agy-native-enhanced';
+              itemCopyProject.innerHTML = `
+                <svg width="16" height="16" viewBox="0 -960 960 960" fill="currentColor" class="text-secondary-foreground shrink-0"><path d="M360-240q-33 0-56.5-23.5T280-320v-480q0-33 23.5-56.5T360-880h360q33 0 56.5 23.5T800-800v480q0 33-23.5 56.5T720-240H360Zm0-80h360v-480H360v480ZM200-80q-33 0-56.5-23.5T120-160v-560h80v560h440v80H200Zm160-240v-480 480Z"/></svg>
+                <span>Copy Project Name</span>
+              `;
+              itemCopyProject.addEventListener('click', async (ev) => {
+                ev.stopPropagation();
+                ev.preventDefault();
+                document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+                await copyToClipboard(projectName, `Copied project name: "${projectName}"`);
+              });
+              menu.appendChild(itemCopyProject);
+            }
+
+            // 5. 复制项与文件夹操作之间的分隔线
             const divider = document.createElement('div');
             divider.setAttribute('role', 'separator');
             divider.className = 'h-px bg-border my-1 -mx-1 agy-native-enhanced';
