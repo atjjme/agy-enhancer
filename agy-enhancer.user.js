@@ -11,8 +11,6 @@
 // @run-at       document-idle
 // ==/UserScript==
 
-window.__AGY_BRANCH_TAG__ = " (branch)";
-window.__AGY_BRANCH_NAME__ = "golden_comet_arcs_10h20";
 /**
  * Antigravity 增强器 (agy-enhancer enhancer)
  * 
