@@ -184,6 +184,14 @@ async function connectAndAttach() {
             log(`Revealing path in Explorer: ` + rawPath);
             try {
               let cleanPath = rawPath.replace(/^file:\/\/\/?/i, '').replace(/\//g, '\\');
+              if (cleanPath.startsWith('MEDIA:')) {
+                const parts = cleanPath.split(':');
+                const convoId = parts[1];
+                const filename = parts[2];
+                const homeDir = process.env.USERPROFILE || process.env.HOME || 'C:\\Users\\Juste';
+                const mediaPath = path.join(homeDir, '.gemini', 'antigravity', 'brain', convoId, '.user_uploaded', filename);
+                cleanPath = mediaPath;
+              }
               if (/^[a-zA-Z]:/.test(cleanPath)) {
                 if (fs.existsSync(cleanPath)) {
                   execSync(`explorer.exe /select,"${cleanPath}"`);

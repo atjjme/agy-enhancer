@@ -2986,6 +2986,109 @@ window.__AGY_BRANCH_NAME__ = "golden_comet_arcs_10h20";
         }
       }
 
+      function resolveImageSaveFilename(imgEl) {
+        if (!imgEl) return `media_${Date.now()}.png`;
+
+        // 1. 尝试从 alt、title、src 或父级提取已有的 media_xxxx.png 命名
+        const contextStr = (imgEl.getAttribute('alt') || '') + ' ' +
+                           (imgEl.getAttribute('title') || '') + ' ' +
+                           (imgEl.src || '');
+        const mediaMatch = contextStr.match(/(media_\d+\.[a-zA-Z0-9]+)/i);
+        if (mediaMatch) {
+          return mediaMatch[1];
+        }
+
+        // 2. 判定文件扩展名
+        let ext = 'png';
+        const src = imgEl.src || imgEl.getAttribute('src') || '';
+        if (src.includes('image/svg') || src.endsWith('.svg')) {
+          ext = 'svg';
+        } else if (src.includes('image/jpeg') || src.endsWith('.jpg') || src.endsWith('.jpeg')) {
+          ext = 'jpg';
+        } else if (src.includes('image/webp') || src.endsWith('.webp')) {
+          ext = 'webp';
+        } else if (src.includes('image/gif') || src.endsWith('.gif')) {
+          ext = 'gif';
+        }
+
+        // 3. 自动生成统一格式: media_时间戳.png
+        return `media_${Date.now()}.${ext}`;
+      }
+
+      function saveImageLocally(imgEl) {
+        if (!imgEl) return;
+        const filename = resolveImageSaveFilename(imgEl);
+        const src = imgEl.src || imgEl.getAttribute('src');
+        if (!src) return;
+
+        if (src.startsWith('data:') || src.startsWith('blob:')) {
+          const a = document.createElement('a');
+          a.href = src;
+          a.download = filename;
+          document.body.appendChild(a);
+          a.click();
+          setTimeout(() => a.remove(), 100);
+        } else {
+          fetch(src)
+            .then(res => res.blob())
+            .then(blob => {
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = filename;
+              document.body.appendChild(a);
+              a.click();
+              setTimeout(() => {
+                a.remove();
+                URL.revokeObjectURL(url);
+              }, 100);
+            })
+            .catch(() => {
+              const a = document.createElement('a');
+              a.href = src;
+              a.download = filename;
+              document.body.appendChild(a);
+              a.click();
+              setTimeout(() => a.remove(), 100);
+            });
+        }
+      }
+
+      function resolveImageDiskPath(imgEl) {
+        if (!imgEl) return null;
+        const src = imgEl.getAttribute('src') || imgEl.src || '';
+
+        // 1. 本地物理路径 file:///
+        if (src.startsWith('file:///')) {
+          return decodeURIComponent(src.replace(/^file:\/\/\/?/i, '')).replace(/\//g, '\\');
+        }
+
+        // 2. DOM 节点属性 (data-path, data-file-path)
+        const candidate = imgEl.getAttribute('data-path') ||
+                          imgEl.getAttribute('data-file-path') ||
+                          imgEl.closest('[data-path], [data-file-path]')?.getAttribute('data-path') ||
+                          imgEl.closest('[data-path], [data-file-path]')?.getAttribute('data-file-path');
+        if (candidate && /^[a-zA-Z]:[/\\]/.test(candidate)) {
+          return candidate.replace(/\//g, '\\');
+        }
+
+        // 3. 用户上传的对话图片 (形如 media_1788664594538.png)
+        const fullContext = (imgEl.getAttribute('alt') || '') + ' ' +
+                            (imgEl.getAttribute('title') || '') + ' ' +
+                            src + ' ' +
+                            (imgEl.closest('[class*="media"], [data-media-id], [class*="user-input"]')?.innerText || '');
+        const mediaMatch = fullContext.match(/(media_\d+\.[a-zA-Z0-9]+)/i) || src.match(/(media_\d+\.[a-zA-Z0-9]+)/i);
+        if (mediaMatch) {
+          const convoMatch = window.location.pathname.match(/\/c\/([a-f0-9-]+)/i);
+          const convoId = convoMatch ? convoMatch[1] : '';
+          if (convoId) {
+            return `MEDIA:${convoId}:${mediaMatch[1]}`;
+          }
+        }
+
+        return null;
+      }
+
       function appendQuoteToPrompt(text) {
         if (!text) return;
         const input = document.querySelector('textarea, [contenteditable="true"]');
@@ -3397,18 +3500,19 @@ window.__AGY_BRANCH_NAME__ = "golden_comet_arcs_10h20";
         if (imgEl && !selectedText) {
           e.preventDefault();
           e.stopPropagation();
+          const imgDiskPath = resolveImageDiskPath(imgEl);
           const items = [
-            { label: 'Copy Image', icon: 'image', action: () => copyImageBlob(imgEl) },
-            { label: 'Copy Image Address', icon: 'link', action: () => copyText(imgEl.src) },
-            { label: 'Open Containing Folder', icon: 'folder', action: () => revealPath(imgEl.src) },
-            { label: 'Save Image As...', icon: 'save', action: () => {
-                const a = document.createElement('a');
-                a.href = imgEl.src;
-                a.download = 'image.png';
-                a.click();
-              }
-            }
+            { label: 'Copy Image', icon: 'image', action: () => copyImageBlob(imgEl) }
           ];
+
+          // 仅当图片在本地磁盘上存在（已落盘/已上传/本地文件）时才提供“打开所在文件夹”
+          if (imgDiskPath) {
+            items.push({ label: 'Open Containing Folder', icon: 'folder', action: () => revealPath(imgDiskPath) });
+          }
+
+          // 另存为：自动生成或沿用 media_时间戳.png 命名，免去手动输入
+          items.push({ label: 'Save Image As...', icon: 'save', action: () => saveImageLocally(imgEl) });
+
           renderMenu(items, e.clientX, e.clientY);
           return;
         }
