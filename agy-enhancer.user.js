@@ -2989,6 +2989,18 @@ window.__AGY_BRANCH_NAME__ = "golden_comet_arcs_10h20";
       function resolveImageSaveFilename(imgEl) {
         if (!imgEl) return `media_${Date.now()}.png`;
 
+        // 0. 如果在 Artifact Viewer 中，且当前工件有明确的本地文件名，优先使用该工件真实文件名
+        const inArtifactViewer = imgEl.closest('[aria-label="Artifact Viewer"], [role="region"][aria-label="Artifact Viewer"], [aria-label="Artifact Viewer header"], #artifact-container, .artifact-view, [data-testid="artifact-view"]');
+        if (inArtifactViewer) {
+          const activePath = getActiveArtifactPath(imgEl);
+          if (activePath && !activePath.startsWith('ARTIFACT:')) {
+            const fn = activePath.split('\\').pop() || activePath.split('/').pop();
+            if (fn && /\.[a-zA-Z0-9]+$/.test(fn)) {
+              return fn;
+            }
+          }
+        }
+
         // 1. 尝试从 alt、title、src 或父级提取已有的 media_xxxx.png 命名
         const contextStr = (imgEl.getAttribute('alt') || '') + ' ' +
                            (imgEl.getAttribute('title') || '') + ' ' +
@@ -3054,6 +3066,45 @@ window.__AGY_BRANCH_NAME__ = "golden_comet_arcs_10h20";
         }
       }
 
+      function getActiveArtifactPath(target) {
+        // 0. 如果点击的是特定的 tab，优先获取该 tab 的标题
+        const clickedTab = target?.closest?.('[role="tab"], [class*="tab-"], [data-testid*="tab"]');
+        const tabTitle = clickedTab ? (clickedTab.innerText || '').split('\n')[0].trim() : null;
+
+        // 1. 尝试从当前页面 URL 查询参数中提取 tab=artifact__...
+        if (!tabTitle) {
+          try {
+            const urlParams = new URLSearchParams(window.location.search);
+            const tab = urlParams.get('tab');
+            if (tab && tab.startsWith('artifact__')) {
+              let rawPath = tab.slice('artifact__'.length);
+              let decoded = decodeURIComponent(rawPath);
+              if (decoded.includes('%')) {
+                decoded = decodeURIComponent(decoded);
+              }
+              decoded = decoded.replace(/^file:\/\/\/?/i, '');
+              decoded = decoded.replace(/^\/([a-zA-Z]:)/, '$1');
+              if (/^[a-zA-Z]:[/\\]/.test(decoded) || decoded.startsWith('/')) {
+                return decoded.replace(/\//g, '\\');
+              }
+            }
+          } catch (e) {}
+        }
+
+        // 2. 尝试从当前打开的 Artifact Viewer Header 标题中解析
+        const header = document.querySelector('[aria-label="Artifact Viewer header"], [data-testid="artifact-viewer-header"]');
+        const titleEl = header?.querySelector('.text-sm.truncate, [class*="truncate"]');
+        const title = tabTitle || (titleEl?.innerText || header?.innerText || '').split('\n')[0].trim();
+        const convoMatch = window.location.pathname.match(/\/c\/([a-f0-9-]+)/i);
+        const convoId = convoMatch ? convoMatch[1] : '';
+
+        if (title && convoId) {
+          return `ARTIFACT:${convoId}:${title}`;
+        }
+
+        return null;
+      }
+
       function resolveImageDiskPath(imgEl) {
         if (!imgEl) return null;
         const src = imgEl.getAttribute('src') || imgEl.src || '';
@@ -3072,7 +3123,16 @@ window.__AGY_BRANCH_NAME__ = "golden_comet_arcs_10h20";
           return candidate.replace(/\//g, '\\');
         }
 
-        // 3. 用户在提问气泡中上传的图片（无论是未放大的缩略图还是点开放大的图片）
+        // 3. 在工件查看器 (Artifact Viewer) 中打开的图片
+        const inArtifactViewer = imgEl.closest('[aria-label="Artifact Viewer"], [role="region"][aria-label="Artifact Viewer"], [aria-label="Artifact Viewer header"], #artifact-container, .artifact-view, [data-testid="artifact-view"]');
+        if (inArtifactViewer) {
+          const activeArtifactPath = getActiveArtifactPath(imgEl);
+          if (activeArtifactPath) {
+            return activeArtifactPath;
+          }
+        }
+
+        // 4. 用户在提问气泡中上传的图片（无论是未放大的缩略图还是点开放大的图片）
         const alt = imgEl.getAttribute('alt') || '';
         const inUserTurn = !!imgEl.closest('.group\\/user-input-step, [class*="user-input-step"]');
         const isUploadBtn = !!imgEl.closest('button[data-tooltip-id*="-img-"], button[aria-label*="image."]');
@@ -3309,6 +3369,26 @@ window.__AGY_BRANCH_NAME__ = "golden_comet_arcs_10h20";
                 filePath: convoId ? `ARTIFACT:${convoId}:${title}` : title
               };
             }
+          }
+        }
+
+        // 3. 检查是否在已打开的 Artifact Viewer 头部 (Header/Tab) 或内部空白/容器区域 (非代码块)
+        const artifactHeader = target.closest('[aria-label="Artifact Viewer header"], [data-testid="artifact-viewer-header"]');
+        const inArtifactViewer = target.closest('[aria-label="Artifact Viewer"], [role="region"][aria-label="Artifact Viewer"], #artifact-container, .artifact-view, [data-testid="artifact-view"]');
+        const isCodeElement = !!target.closest('pre, code, .monaco-editor');
+
+        if (artifactHeader || (inArtifactViewer && !isCodeElement)) {
+          const activePath = getActiveArtifactPath(target);
+          if (activePath) {
+            const header = document.querySelector('[aria-label="Artifact Viewer header"], [data-testid="artifact-viewer-header"]');
+            const titleEl = header?.querySelector('.text-sm.truncate, [class*="truncate"]');
+            const title = (titleEl?.innerText || header?.innerText || '').split('\n')[0].trim() || 'artifact';
+            return {
+              card: artifactHeader || inArtifactViewer,
+              filename: title,
+              filePath: activePath,
+              isArtifactViewer: true
+            };
           }
         }
 
@@ -3594,14 +3674,16 @@ window.__AGY_BRANCH_NAME__ = "golden_comet_arcs_10h20";
           return;
         }
 
-        // 目标 4: 文件实体 (Artifact File / 附件)
+        // 目标 4: 文件实体 (Artifact File / 附件 / Artifact Viewer)
         const fileEntity = resolveFileCard(target);
         if (fileEntity && !selectedText) {
           e.preventDefault();
           e.stopPropagation();
+          const isArtifact = fileEntity.isArtifactViewer || fileEntity.filePath.startsWith('ARTIFACT:');
+          const cleanCopyPath = fileEntity.filePath.startsWith('ARTIFACT:') ? fileEntity.filename : fileEntity.filePath;
           const items = [
-            { label: 'Copy File', icon: 'file', action: () => copyText(fileEntity.filePath) },
-            { label: 'Reveal in Explorer', icon: 'folder', action: () => revealPath(fileEntity.filePath) }
+            { label: 'Reveal in Explorer', icon: 'folder', action: () => revealPath(fileEntity.filePath) },
+            { label: isArtifact ? 'Copy Path' : 'Copy File', icon: isArtifact ? 'copy' : 'file', action: () => copyText(cleanCopyPath) }
           ];
           renderMenu(items, e.clientX, e.clientY);
           return;
@@ -3653,6 +3735,14 @@ window.__AGY_BRANCH_NAME__ = "golden_comet_arcs_10h20";
             },
             { label: 'Save As...', icon: 'save', action: () => saveFileLocally(codeInfo.codeText, codeInfo.filename) }
           ];
+          // 如果该代码块位于已落盘的 Artifact Viewer 中，补充 Reveal in Explorer (打开所在目录)
+          const inArtifactViewer = target.closest('[aria-label="Artifact Viewer"], [role="region"][aria-label="Artifact Viewer"], #artifact-container, .artifact-view');
+          if (inArtifactViewer) {
+            const activePath = getActiveArtifactPath(target);
+            if (activePath) {
+              items.push({ label: 'Reveal in Explorer', icon: 'folder', action: () => revealPath(activePath) });
+            }
+          }
           renderMenu(items, e.clientX, e.clientY);
           return;
         }

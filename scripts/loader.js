@@ -223,7 +223,7 @@ async function connectAndAttach() {
                 const brainConvoDir = path.join(homeDir, '.gemini', 'antigravity', 'brain', convoId);
                 if (fs.existsSync(brainConvoDir)) {
                   try {
-                    const files = fs.readdirSync(brainConvoDir);
+                    const files = fs.readdirSync(brainConvoDir).filter(f => !f.endsWith('.metadata.json'));
                     const norm = title.toLowerCase().replace(/[^a-z0-9]/g, '');
                     let found = files.find(f => path.parse(f).name.toLowerCase().replace(/[^a-z0-9]/g, '') === norm);
                     if (!found) {
