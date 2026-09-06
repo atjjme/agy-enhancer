@@ -60,6 +60,9 @@
 
     // 离开底部判定阈值（向上翻阅超过 160px 判定离开底部，保留 60px 防抖区间）
     LEAVE_BOTTOM_THRESHOLD: 160,
+
+    // 是否屏蔽划词选中文本时弹出的 "Quote (Ctrl+L)" 引用浮窗（放行右侧栏评论浮窗）
+    ENABLE_BLOCK_QUOTE_POPUP: true,
   };
 
   // ==================== 1. 全局清理与定时器安全管理机制 ====================
@@ -103,6 +106,8 @@
   let windowUnloadHandler = null;
   let interruptRestoration = null;
   let isInternalEnhancerScroll = false;
+  let quoteObserver = null;
+  let quoteSelectionHandler = null;
 
   window.__AGY_ENHANCER_CLEANUP__ = function () {
     activeTimers.forEach(id => {
@@ -184,6 +189,29 @@
     isInternalEnhancerScroll = false;
     notifyNewPromptSubmitted = null;
     notifyPromptSubmittedForUnread = null;
+
+    if (quoteObserver) {
+      quoteObserver.disconnect();
+      quoteObserver = null;
+    }
+    if (quoteSelectionHandler) {
+      document.removeEventListener('selectionchange', quoteSelectionHandler, { passive: true });
+      document.removeEventListener('mouseup', quoteSelectionHandler, { passive: true });
+      quoteSelectionHandler = null;
+    }
+
+    document.getElementById('agy-quote-interceptor-styles')?.remove();
+    document.querySelectorAll('[data-agy-block-quote="true"]').forEach(el => {
+      el.removeAttribute('data-agy-block-quote');
+      el.style.removeProperty('display');
+      el.style.removeProperty('opacity');
+      el.style.removeProperty('pointer-events');
+      el.style.removeProperty('visibility');
+    });
+    document.querySelectorAll('.agy-hide-quote-item').forEach(el => {
+      el.classList.remove('agy-hide-quote-item');
+      el.style.removeProperty('display');
+    });
 
     document.getElementById('agy-enhancer-styles')?.remove();
     document.getElementById('agy-page-nav-group')?.remove();
@@ -3826,12 +3854,183 @@
       window.__AGY_PROMPT_SUBMITTED_MAP__ = promptSubmittedConvos;
     }
 
+    // ==================== 11. 划词引用浮窗拦截 (Block Quote Popup, Keep Comment) ====================
+    function initQuotePopupInterceptor() {
+      if (!USER_CONFIG.ENABLE_BLOCK_QUOTE_POPUP) return;
+
+      const styleId = 'agy-quote-interceptor-styles';
+      let styleEl = document.getElementById(styleId);
+      if (!styleEl) {
+        styleEl = document.createElement('style');
+        styleEl.id = styleId;
+        styleEl.textContent = `
+          /* 纯 Quote 独立弹窗容器，瞬间隐形且不阻挡指针交互 */
+          [data-agy-block-quote="true"] {
+            display: none !important;
+            opacity: 0 !important;
+            pointer-events: none !important;
+            visibility: hidden !important;
+          }
+          /* 复合操作栏（如右侧栏包含评论与引用时），仅隐藏 Quote 项，保留评论 */
+          .agy-hide-quote-item {
+            display: none !important;
+          }
+        `;
+        document.head.appendChild(styleEl);
+      }
+
+      function isInputElement(el) {
+        if (!el || el.nodeType !== Node.ELEMENT_NODE) return false;
+        const tag = el.tagName;
+        return tag === 'INPUT' || tag === 'TEXTAREA' || el.isContentEditable;
+      }
+
+      function isQuoteElement(el) {
+        if (!el || el.nodeType !== Node.ELEMENT_NODE) return false;
+        if (isInputElement(el) || el.closest?.('input, textarea, [contenteditable="true"]')) return false;
+
+        // 1. 检查 aria-label 或 title 属性
+        const ariaLabel = (el.getAttribute?.('aria-label') || '').trim();
+        const title = (el.getAttribute?.('title') || '').trim();
+        if (/^(Quote|引用)(\s*\(?(Ctrl|⌘|\^)\+?L\)?)?$/i.test(ariaLabel) || /^(Quote|引用)(\s*\(?(Ctrl|⌘|\^)\+?L\)?)?$/i.test(title)) {
+          return true;
+        }
+
+        // 2. 检查文本内容 (避免误伤长段落，仅匹配短按钮/提示文本)
+        const text = (el.textContent || '').trim().replace(/\s+/g, ' ');
+        if (/^(Quote|引用)(\s*(Ctrl|⌘|\^)\+?L)?$/i.test(text)) {
+          return true;
+        }
+
+        return false;
+      }
+
+      function hasCommentOrOtherActions(container) {
+        if (!container || container.nodeType !== Node.ELEMENT_NODE) return false;
+
+        // 检查容器内是否包含除了 Quote 以外的按钮/交互操作项，尤其是 "Comment / 评论"
+        const interactiveItems = container.querySelectorAll('button, [role="button"], a');
+        for (const item of interactiveItems) {
+          if (isQuoteElement(item)) continue;
+
+          const text = (item.textContent || '').trim();
+          const label = (item.getAttribute?.('aria-label') || item.getAttribute?.('title') || '').trim();
+          if (/Comment|评论/i.test(text) || /Comment|评论/i.test(label)) {
+            return true;
+          }
+        }
+        return false;
+      }
+
+      function processQuoteElement(quoteEl) {
+        if (!quoteEl || quoteEl.nodeType !== Node.ELEMENT_NODE) return;
+        if (quoteEl.closest?.('.agy-page-nav-group, #agy-archive-panel, #agy-enhancer-toast')) return;
+
+        // 寻找外层浮动卡片/浮层容器
+        let container = quoteEl.closest(
+          '[role="tooltip"], [role="toolbar"], [role="menu"], [data-radix-popper-content-wrapper], [data-floating-ui-portal] > div, [data-tippy-root]'
+        );
+
+        if (!container) {
+          let curr = quoteEl;
+          while (curr && curr !== document.body && curr !== document.documentElement) {
+            try {
+              const pos = window.getComputedStyle(curr).position;
+              if (pos === 'fixed' || pos === 'absolute') {
+                container = curr;
+                break;
+              }
+            } catch (e) {}
+            curr = curr.parentElement;
+          }
+        }
+
+        if (!container || container === document.body || container === document.documentElement) {
+          container = quoteEl.closest('button, [role="button"]') || quoteEl;
+        }
+
+        // 判断是否为同时包含评论的复合工具栏
+        if (hasCommentOrOtherActions(container)) {
+          // 仅精准隐藏 Quote 按钮本身，保留评论 (Comment) 功能正常使用
+          const targetBtn = quoteEl.closest('button, [role="button"]') || quoteEl;
+          targetBtn.classList.add('agy-hide-quote-item');
+          targetBtn.style.setProperty('display', 'none', 'important');
+        } else {
+          // 纯 Quote 浮窗：彻底隐藏整个浮动层
+          container.setAttribute('data-agy-block-quote', 'true');
+          container.style.setProperty('display', 'none', 'important');
+          container.style.setProperty('opacity', '0', 'important');
+          container.style.setProperty('pointer-events', 'none', 'important');
+          container.style.setProperty('visibility', 'hidden', 'important');
+        }
+      }
+
+      function checkSubtree(root) {
+        if (!root || root.nodeType !== Node.ELEMENT_NODE) return;
+        if (isQuoteElement(root)) {
+          processQuoteElement(root);
+          return;
+        }
+        const candidates = root.querySelectorAll?.('button, [role="button"], [role="tooltip"], [aria-label*="Quote" i], [aria-label*="引用"]');
+        if (candidates && candidates.length > 0) {
+          candidates.forEach(c => {
+            if (isQuoteElement(c)) {
+              processQuoteElement(c);
+            }
+          });
+        }
+      }
+
+      // 1. DOM 变动通知（微秒级精准截获新挂载的弹窗）
+      quoteObserver = new MutationObserver((mutations) => {
+        for (const m of mutations) {
+          for (const added of m.addedNodes) {
+            if (added.nodeType === Node.ELEMENT_NODE) {
+              checkSubtree(added);
+            }
+          }
+          if (m.type === 'attributes' && m.target.nodeType === Node.ELEMENT_NODE) {
+            checkSubtree(m.target);
+          }
+        }
+      });
+
+      quoteObserver.observe(document.body, {
+        childList: true,
+        subtree: true,
+        attributes: true,
+        attributeFilter: ['style', 'class', 'aria-hidden']
+      });
+
+      // 2. 划词状态兜底同步（确保复用旧 DOM 节点时也能瞬间响应）
+      let rafId = null;
+      quoteSelectionHandler = () => {
+        if (rafId) cancelAnimationFrame(rafId);
+        rafId = requestAnimationFrame(() => {
+          const sel = window.getSelection();
+          if (sel && !sel.isCollapsed && sel.toString().trim().length > 0) {
+            const floatingLayers = document.querySelectorAll(
+              '[role="tooltip"], [role="toolbar"], [data-radix-popper-content-wrapper], .absolute, .fixed'
+            );
+            floatingLayers.forEach(layer => checkSubtree(layer));
+          }
+        });
+      };
+
+      document.addEventListener('selectionchange', quoteSelectionHandler, { passive: true });
+      document.addEventListener('mouseup', quoteSelectionHandler, { passive: true });
+
+      // 初始扫描
+      checkSubtree(document.body);
+    }
+
     initProjectArchiver();
     initContextMenuSupport();
     initConversationScrollPersistence();
     initSmartUnreadTracker();
+    initQuotePopupInterceptor();
 
-    console.log('[agy-enhancer] Page navigator, project archiver, context menu, scroll memory, and unread tracker ready!');
+    console.log('[agy-enhancer] Page navigator, project archiver, context menu, scroll memory, unread tracker, and quote interceptor ready!');
   }
 
   bootstrap();
