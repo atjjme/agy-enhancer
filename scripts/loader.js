@@ -11,7 +11,7 @@
 const fs = require('fs');
 const path = require('path');
 const http = require('http');
-const { execSync } = require('child_process');
+const { execSync, exec } = require('child_process');
 
 const defaultAppData = process.env.APPDATA || (process.env.USERPROFILE ? path.join(process.env.USERPROFILE, 'AppData', 'Roaming') : 'C:\\ProgramData');
 
@@ -89,6 +89,34 @@ function saveStoredUnreadStates(jsonStr) {
   try {
     fs.writeFileSync(unreadStatesFile, jsonStr, 'utf8');
   } catch (e) {}
+}
+
+function resolveArtifactOnDisk(convoId, title) {
+  const homeDir = os.homedir();
+  const brainConvoDir = path.join(homeDir, '.gemini', 'antigravity', 'brain', convoId);
+  if (!fs.existsSync(brainConvoDir)) {
+    return path.join(homeDir, '.gemini', 'antigravity', 'brain');
+  }
+  try {
+    const files = fs.readdirSync(brainConvoDir).filter(f => !f.endsWith('.metadata.json'));
+    // 1. 如果 title 本身包含完整文件名 (例如 "封面 4K 超清版： thumbnail_4_4k.jpg")，优先正则提取其中的文件名直接查找
+    const fnMatch = title.match(/([a-zA-Z0-9_-]+\.[a-zA-Z0-9]+)/);
+    if (fnMatch) {
+      const direct = files.find(f => f.toLowerCase() === fnMatch[1].toLowerCase());
+      if (direct) return path.join(brainConvoDir, direct);
+    }
+    // 2. 规范化去除非字母数字字符精确匹配
+    const norm = title.toLowerCase().replace(/[^a-z0-9]/g, '');
+    let found = files.find(f => path.parse(f).name.toLowerCase().replace(/[^a-z0-9]/g, '') === norm);
+    if (!found) {
+      found = files.find(f => {
+        const b = path.parse(f).name.toLowerCase().replace(/[^a-z0-9]/g, '');
+        return (b.length >= 3 && norm.length >= 3 && (b.startsWith(norm) || norm.startsWith(b) || norm.includes(b) || b.includes(norm)));
+      });
+    }
+    if (found) return path.join(brainConvoDir, found);
+  } catch (e) {}
+  return brainConvoDir;
 }
 
 function getActivePortInfo() {
@@ -184,23 +212,93 @@ async function connectAndAttach() {
             log(`Revealing path in Explorer: ` + rawPath);
             try {
               let cleanPath = rawPath.replace(/^file:\/\/\/?/i, '').replace(/\//g, '\\');
+              const homeDir = process.env.USERPROFILE || process.env.HOME || 'C:\\Users\\Juste';
+
+              if (cleanPath.startsWith('MEDIA_DIR:')) {
+                const convoId = cleanPath.slice('MEDIA_DIR:'.length).trim();
+                const userUploadedDir = path.join(homeDir, '.gemini', 'antigravity', 'brain', convoId, '.user_uploaded');
+                if (fs.existsSync(userUploadedDir)) {
+                  try {
+                    const files = fs.readdirSync(userUploadedDir)
+                      .filter(f => f.startsWith('media_'))
+                      .map(f => ({ name: f, time: fs.statSync(path.join(userUploadedDir, f)).mtimeMs }))
+                      .sort((a, b) => b.time - a.time);
+                    if (files.length > 0) {
+                      cleanPath = path.join(userUploadedDir, files[0].name);
+                    } else {
+                      cleanPath = userUploadedDir;
+                    }
+                  } catch (e) {
+                    cleanPath = userUploadedDir;
+                  }
+                } else {
+                  cleanPath = path.join(homeDir, '.gemini', 'antigravity', 'brain', convoId);
+                }
+              } else if (cleanPath.startsWith('MEDIA:')) {
+                const parts = cleanPath.split(':');
+                const convoId = parts[1];
+                const filename = parts[2];
+                const mediaPath = path.join(homeDir, '.gemini', 'antigravity', 'brain', convoId, '.user_uploaded', filename);
+                if (fs.existsSync(mediaPath)) {
+                  cleanPath = mediaPath;
+                } else {
+                  cleanPath = path.join(homeDir, '.gemini', 'antigravity', 'brain', convoId, '.user_uploaded');
+                }
+              } else if (cleanPath.startsWith('ARTIFACT:')) {
+                const parts = cleanPath.split(':');
+                const convoId = parts[1];
+                const title = parts.slice(2).join(':').trim();
+                cleanPath = resolveArtifactOnDisk(convoId, title);
+              }
+
               if (/^[a-zA-Z]:/.test(cleanPath)) {
                 if (fs.existsSync(cleanPath)) {
-                  execSync(`explorer.exe /select,"${cleanPath}"`);
+                  if (fs.statSync(cleanPath).isDirectory()) {
+                    exec(`explorer.exe "${cleanPath}"`);
+                  } else {
+                    exec(`explorer.exe /select,"${cleanPath}"`);
+                  }
                 } else if (fs.existsSync(path.dirname(cleanPath))) {
-                  execSync(`explorer.exe "${path.dirname(cleanPath)}"`);
+                  exec(`explorer.exe "${path.dirname(cleanPath)}"`);
                 } else {
-                  execSync(`explorer.exe "${cleanPath}"`);
+                  exec(`explorer.exe "${cleanPath}"`);
                 }
               }
             } catch (e) {
               log(`Failed to reveal path: ` + e.message);
             }
+          } else if (typeof text === 'string' && text.startsWith('[AGY_COPY_IMAGE]')) {
+            const rawPath = text.slice('[AGY_COPY_IMAGE]'.length).trim();
+            log(`Requested copy image: ` + rawPath);
+            try {
+              let cleanPath = rawPath;
+              if (cleanPath.startsWith('ARTIFACT:')) {
+                const parts = cleanPath.split(':');
+                const convoId = parts[1];
+                const title = parts.slice(2).join(':').trim();
+                cleanPath = resolveArtifactOnDisk(convoId, title);
+              } else if (cleanPath.startsWith('MEDIA:')) {
+                const parts = cleanPath.split(':');
+                const convoId = parts[1];
+                const filename = parts[2];
+                cleanPath = path.join(homeDir, '.gemini', 'antigravity', 'brain', convoId, '.user_uploaded', filename);
+              }
+              if (fs.existsSync(cleanPath) && !fs.statSync(cleanPath).isDirectory()) {
+                const escaped = cleanPath.replace(/'/g, "''");
+                const psCmd = `& { Add-Type -AssemblyName System.Windows.Forms; Add-Type -AssemblyName System.Drawing; [System.Windows.Forms.Clipboard]::SetImage([System.Drawing.Image]::FromFile('${escaped}')) }`;
+                exec(`powershell -Sta -NoProfile -Command "${psCmd}"`, (err) => {
+                  if (err) log('Failed to copy image to clipboard: ' + err.message);
+                  else log('Image copied to clipboard successfully: ' + cleanPath);
+                });
+              }
+            } catch (e) {
+              log('Failed to copy image: ' + e.message);
+            }
           } else if (typeof text === 'string' && text.startsWith('[AGY_OPEN_EXTERNAL]')) {
             const url = text.slice('[AGY_OPEN_EXTERNAL]'.length).trim();
             log(`Opening external URL: ` + url);
             try {
-              execSync(`start "" "${url}"`);
+              exec(`start "" "${url}"`);
             } catch (e) {
               log(`Failed to open URL: ` + e.message);
             }

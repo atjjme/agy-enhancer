@@ -2924,6 +2924,26 @@
         navigator.clipboard.writeText(text).catch(() => {});
       }
 
+      function isImageFilePath(pathOrName) {
+        if (!pathOrName) return false;
+        return /\.(png|jpe?g|webp|gif|bmp|svg)$/i.test(pathOrName.trim());
+      }
+
+      function copyImageFile(filePath) {
+        if (!filePath) return;
+        // 1. 发送给后台守护进程直接将真实图片写入系统原生剪贴板
+        console.log('[AGY_COPY_IMAGE]' + filePath);
+
+        // 2. 如果当前页面存在该图片的 img 节点，同时尝试通过浏览器写入剪贴板
+        try {
+          const fn = filePath.split(/[\\/]/).pop();
+          if (fn) {
+            const img = document.querySelector(`img[src*="${fn}"], img[alt*="${fn}"]`);
+            if (img) copyImageBlob(img);
+          }
+        } catch (e) {}
+      }
+
       function revealPath(pathStr) {
         if (!pathStr) return;
         console.log('[AGY_REVEAL_PATH]' + pathStr);
@@ -2971,6 +2991,177 @@
         }
       }
 
+      function resolveImageSaveFilename(imgEl) {
+        if (!imgEl) return `media_${Date.now()}.png`;
+
+        // 0. 如果在 Artifact Viewer 中，且当前工件有明确的本地文件名，优先使用该工件真实文件名
+        const inArtifactViewer = imgEl.closest('[aria-label="Artifact Viewer"], [role="region"][aria-label="Artifact Viewer"], [aria-label="Artifact Viewer header"], #artifact-container, .artifact-view, [data-testid="artifact-view"]');
+        if (inArtifactViewer) {
+          const activePath = getActiveArtifactPath(imgEl);
+          if (activePath && !activePath.startsWith('ARTIFACT:')) {
+            const fn = activePath.split('\\').pop() || activePath.split('/').pop();
+            if (fn && /\.[a-zA-Z0-9]+$/.test(fn)) {
+              return fn;
+            }
+          }
+        }
+
+        // 1. 尝试从 alt、title、src 或父级提取已有的 media_xxxx.png 命名
+        const contextStr = (imgEl.getAttribute('alt') || '') + ' ' +
+                           (imgEl.getAttribute('title') || '') + ' ' +
+                           (imgEl.src || '');
+        const mediaMatch = contextStr.match(/(media_\d+\.[a-zA-Z0-9]+)/i);
+        if (mediaMatch) {
+          return mediaMatch[1];
+        }
+
+        // 2. 判定文件扩展名
+        let ext = 'png';
+        const src = imgEl.src || imgEl.getAttribute('src') || '';
+        if (src.includes('image/svg') || src.endsWith('.svg')) {
+          ext = 'svg';
+        } else if (src.includes('image/jpeg') || src.endsWith('.jpg') || src.endsWith('.jpeg')) {
+          ext = 'jpg';
+        } else if (src.includes('image/webp') || src.endsWith('.webp')) {
+          ext = 'webp';
+        } else if (src.includes('image/gif') || src.endsWith('.gif')) {
+          ext = 'gif';
+        }
+
+        // 3. 自动生成统一格式: media_时间戳.png
+        return `media_${Date.now()}.${ext}`;
+      }
+
+      function saveImageLocally(imgEl) {
+        if (!imgEl) return;
+        const filename = resolveImageSaveFilename(imgEl);
+        const src = imgEl.src || imgEl.getAttribute('src');
+        if (!src) return;
+
+        if (src.startsWith('data:') || src.startsWith('blob:')) {
+          const a = document.createElement('a');
+          a.href = src;
+          a.download = filename;
+          document.body.appendChild(a);
+          a.click();
+          setTimeout(() => a.remove(), 100);
+        } else {
+          fetch(src)
+            .then(res => res.blob())
+            .then(blob => {
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = filename;
+              document.body.appendChild(a);
+              a.click();
+              setTimeout(() => {
+                a.remove();
+                URL.revokeObjectURL(url);
+              }, 100);
+            })
+            .catch(() => {
+              const a = document.createElement('a');
+              a.href = src;
+              a.download = filename;
+              document.body.appendChild(a);
+              a.click();
+              setTimeout(() => a.remove(), 100);
+            });
+        }
+      }
+
+      function getActiveArtifactPath(target) {
+        // 0. 如果点击的是特定的 tab，优先获取该 tab 的标题
+        const clickedTab = target?.closest?.('[role="tab"], [class*="tab-"], [data-testid*="tab"]');
+        const tabTitle = clickedTab ? (clickedTab.innerText || '').split('\n')[0].trim() : null;
+
+        // 1. 尝试从当前页面 URL 查询参数中提取 tab=artifact__...
+        if (!tabTitle) {
+          try {
+            const urlParams = new URLSearchParams(window.location.search);
+            const tab = urlParams.get('tab');
+            if (tab && tab.startsWith('artifact__')) {
+              let rawPath = tab.slice('artifact__'.length);
+              let decoded = decodeURIComponent(rawPath);
+              if (decoded.includes('%')) {
+                decoded = decodeURIComponent(decoded);
+              }
+              decoded = decoded.replace(/^file:\/\/\/?/i, '');
+              decoded = decoded.replace(/^\/([a-zA-Z]:)/, '$1');
+              if (/^[a-zA-Z]:[/\\]/.test(decoded) || decoded.startsWith('/')) {
+                return decoded.replace(/\//g, '\\');
+              }
+            }
+          } catch (e) {}
+        }
+
+        // 2. 尝试从当前打开的 Artifact Viewer Header 标题中解析
+        const header = document.querySelector('[aria-label="Artifact Viewer header"], [data-testid="artifact-viewer-header"]');
+        const titleEl = header?.querySelector('.text-sm.truncate, [class*="truncate"]');
+        const title = tabTitle || (titleEl?.innerText || header?.innerText || '').split('\n')[0].trim();
+        const convoMatch = window.location.pathname.match(/\/c\/([a-f0-9-]+)/i);
+        const convoId = convoMatch ? convoMatch[1] : '';
+
+        if (title && convoId) {
+          return `ARTIFACT:${convoId}:${title}`;
+        }
+
+        return null;
+      }
+
+      function resolveImageDiskPath(imgEl) {
+        if (!imgEl) return null;
+        const src = imgEl.getAttribute('src') || imgEl.src || '';
+
+        // 1. 本地物理路径 file:///
+        if (src.startsWith('file:///')) {
+          return decodeURIComponent(src.replace(/^file:\/\/\/?/i, '')).replace(/\//g, '\\');
+        }
+
+        // 2. DOM 节点属性 (data-path, data-file-path)
+        const candidate = imgEl.getAttribute('data-path') ||
+                          imgEl.getAttribute('data-file-path') ||
+                          imgEl.closest('[data-path], [data-file-path]')?.getAttribute('data-path') ||
+                          imgEl.closest('[data-path], [data-file-path]')?.getAttribute('data-file-path');
+        if (candidate && /^[a-zA-Z]:[/\\]/.test(candidate)) {
+          return candidate.replace(/\//g, '\\');
+        }
+
+        // 3. 在工件查看器 (Artifact Viewer) 中打开的图片
+        const inArtifactViewer = imgEl.closest('[aria-label="Artifact Viewer"], [role="region"][aria-label="Artifact Viewer"], [aria-label="Artifact Viewer header"], #artifact-container, .artifact-view, [data-testid="artifact-view"]');
+        if (inArtifactViewer) {
+          const activeArtifactPath = getActiveArtifactPath(imgEl);
+          if (activeArtifactPath) {
+            return activeArtifactPath;
+          }
+        }
+
+        // 4. 用户在提问气泡中上传的图片（无论是未放大的缩略图还是点开放大的图片）
+        const alt = imgEl.getAttribute('alt') || '';
+        const inUserTurn = !!imgEl.closest('.group\\/user-input-step, [class*="user-input-step"]');
+        const isUploadBtn = !!imgEl.closest('button[data-tooltip-id*="-img-"], button[aria-label*="image."]');
+        const isUserUpload = inUserTurn || isUploadBtn || alt.includes('User uploaded media');
+
+        const convoMatch = window.location.pathname.match(/\/c\/([a-f0-9-]+)/i);
+        const convoId = convoMatch ? convoMatch[1] : '';
+
+        // 尝试匹配已有的 media_时间戳 标识
+        const fullContext = alt + ' ' + (imgEl.getAttribute('title') || '') + ' ' + src + ' ' +
+                            (imgEl.closest('[class*="media"], [data-media-id], [class*="user-input"]')?.innerText || '');
+        const mediaMatch = fullContext.match(/(media_\d+\.[a-zA-Z0-9]+)/i) || src.match(/(media_\d+\.[a-zA-Z0-9]+)/i);
+        if (mediaMatch && convoId) {
+          return `MEDIA:${convoId}:${mediaMatch[1]}`;
+        }
+
+        // 哪怕缩略图没有具体文件名，只要是用户上传图片且在会话中，直接定位该会话的 .user_uploaded 目录
+        if (isUserUpload && convoId) {
+          return `MEDIA_DIR:${convoId}`;
+        }
+
+        return null;
+      }
+
       function appendQuoteToPrompt(text) {
         if (!text) return;
         const input = document.querySelector('textarea, [contenteditable="true"]');
@@ -3004,15 +3195,105 @@
         input.focus();
       }
 
-      function triggerRightSidebarComment(selectedText) {
-        // 尝试寻找右侧栏中原生的评论触发器
-        const commentBtn = document.querySelector('[aria-label*="Comment" i], button[title*="Comment" i], .comment-button');
-        if (commentBtn) {
-          commentBtn.click();
-        } else {
-          // 优雅降级：作为批注直接填入提问框
-          appendQuoteToPrompt(selectedText);
+      function triggerNativeQuote(selectedText) {
+        // 1. 尝试寻找原生浮层中的 Quote 按钮 (虽然被样式隐藏，但在 DOM 中依然存在且可点击)
+        let quoteBtn = document.querySelector('[data-testid="selection-quote-button"], [data-testid*="quote" i], button[aria-label*="Quote" i], button[title*="Quote" i]');
+        if (!quoteBtn) {
+          const blockedNodes = document.querySelectorAll('[data-agy-block-quote="true"], .agy-hide-quote-item, .selection-popup');
+          for (const node of blockedNodes) {
+            const btn = node.matches('button, [role="button"]') ? node : node.querySelector('button, [role="button"]');
+            if (btn) {
+              const text = (btn.textContent || '').trim();
+              const aria = (btn.getAttribute('aria-label') || '').trim();
+              if (/Quote|引用/i.test(text) || /Quote|引用/i.test(aria)) {
+                quoteBtn = btn;
+                break;
+              }
+            }
+          }
         }
+
+        if (quoteBtn) {
+          quoteBtn.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true }));
+          quoteBtn.click();
+          return;
+        }
+
+        // 2. 尝试派发原生快捷键 Ctrl+L (Mac 下 Cmd+L)
+        const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+        const targetEl = document.activeElement || document.body;
+        const keyEvt = new KeyboardEvent('keydown', {
+          key: 'l',
+          code: 'KeyL',
+          keyCode: 76,
+          which: 76,
+          ctrlKey: !isMac,
+          metaKey: isMac,
+          bubbles: true,
+          cancelable: true
+        });
+        targetEl.dispatchEvent(keyEvt);
+        document.dispatchEvent(keyEvt);
+
+        // 3. 优雅降级兜底方案：直接以 Markdown 引用格式填入提问框
+        setTimeout(() => {
+          const input = document.querySelector('textarea, [contenteditable="true"]');
+          const currVal = input?.value || input?.innerText || '';
+          if (!currVal.includes(selectedText.slice(0, 15))) {
+            appendQuoteToPrompt(selectedText);
+          }
+        }, 120);
+      }
+
+      function triggerNativeComment(selectedText) {
+        // 1. 尝试寻找原生浮层或右侧栏中的 Comment 按钮 (虽然被样式隐藏，但在 DOM 中依然存在且可点击)
+        let commentBtn = document.querySelector('[data-testid*="comment" i], button[aria-label*="Comment" i], button[title*="Comment" i], .comment-button');
+        if (!commentBtn) {
+          const blockedNodes = document.querySelectorAll('[data-agy-block-quote="true"], .agy-hide-quote-item, .selection-popup');
+          for (const node of blockedNodes) {
+            const btn = node.matches('button, [role="button"]') ? node : node.querySelector('button, [role="button"]');
+            if (btn) {
+              const text = (btn.textContent || '').trim();
+              const aria = (btn.getAttribute('aria-label') || '').trim();
+              if (/Comment|评论/i.test(text) || /Comment|评论/i.test(aria)) {
+                commentBtn = btn;
+                break;
+              }
+            }
+          }
+        }
+
+        if (commentBtn) {
+          commentBtn.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true }));
+          commentBtn.click();
+          return;
+        }
+
+        // 2. 尝试派发原生评论快捷键 Ctrl+Alt+M (Mac 下 Cmd+Option+M)
+        const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+        const targetEl = document.activeElement || document.body;
+        const keyEvt = new KeyboardEvent('keydown', {
+          key: 'm',
+          code: 'KeyM',
+          keyCode: 77,
+          which: 77,
+          ctrlKey: !isMac,
+          metaKey: isMac,
+          altKey: true,
+          bubbles: true,
+          cancelable: true
+        });
+        targetEl.dispatchEvent(keyEvt);
+        document.dispatchEvent(keyEvt);
+
+        // 3. 优雅降级兜底：若系统未响应，将选中文本引用填入提问框
+        setTimeout(() => {
+          const input = document.querySelector('textarea, [contenteditable="true"]');
+          const currVal = input?.value || input?.innerText || '';
+          if (!currVal.includes(selectedText.slice(0, 15))) {
+            appendQuoteToPrompt(selectedText);
+          }
+        }, 120);
       }
 
       // 5. 区域判定与上下文嗅探
@@ -3050,12 +3331,101 @@
       }
 
       function resolveFileCard(target) {
-        const card = target.closest('[data-testid*="file" i], [data-filename], .artifact-file, [data-artifact-id]');
+        if (!target) return null;
+
+        // 0. 优先检测当前点击节点及其父级/子级是否为文件超链接 (如 markdown 中的 [thumbnail_4_4k.jpg](file://...))
+        const fileLink = target.closest('a[href^="file:"], a[href*="file:"], [data-uri^="file:"], [data-uri*="file:"]') ||
+                         target.querySelector?.('a[href^="file:"], a[href*="file:"], [data-uri^="file:"], [data-uri*="file:"]');
+        if (fileLink) {
+          const rawUri = fileLink.getAttribute('data-uri') || fileLink.getAttribute('href') || fileLink.href || '';
+          if (rawUri.startsWith('file:///')) {
+            let clean = decodeURIComponent(rawUri.replace(/^file:\/\/\/?/i, '')).replace(/\//g, '\\');
+            clean = clean.replace(/^\/([a-zA-Z]:)/, '$1');
+            const filename = fileLink.innerText?.trim() || clean.split('\\').pop() || 'file';
+            return { card: fileLink, filename, filePath: clean };
+          }
+        }
+
+        // 1. 原有的显式属性卡片选择器
+        const card = target.closest('[data-testid*="file" i], [data-filename], .artifact-file, [data-artifact-id], [data-uri*="artifact"]');
         if (card) {
+          const uri = card.getAttribute('data-uri');
+          if (uri && uri.startsWith('file:///')) {
+            let clean = decodeURIComponent(uri.replace(/^file:\/\/\/?/i, '')).replace(/\//g, '\\');
+            clean = clean.replace(/^\/([a-zA-Z]:)/, '$1');
+            const filename = card.getAttribute('data-filename') || card.getAttribute('title') || clean.split('\\').pop() || 'file';
+            return { card, filename, filePath: clean };
+          }
           const filename = card.getAttribute('data-filename') || card.getAttribute('title') || card.innerText?.split('\n')[0] || 'file';
           const filePath = card.getAttribute('data-path') || card.getAttribute('data-file-path') || filename;
           return { card, filename, filePath };
         }
+
+        // 2. 检查是否为 Artifacts 列表中的每一项（例如侧边栏/抽屉里 Artifacts 列表下的 Thumbnail 等制品）
+        const row = target.closest('a, button, li, [role="button"], div.cursor-pointer, [class*="item"], div.flex.items-center');
+        if (row) {
+          // 如果列表项内部包含文件链接，直接取该链接
+          const innerFileLink = row.querySelector('a[href^="file:"], a[href*="file:"], [data-uri^="file:"]');
+          if (innerFileLink) {
+            const rawUri = innerFileLink.getAttribute('data-uri') || innerFileLink.getAttribute('href') || innerFileLink.href || '';
+            if (rawUri.startsWith('file:///')) {
+              let clean = decodeURIComponent(rawUri.replace(/^file:\/\/\/?/i, '')).replace(/\//g, '\\');
+              clean = clean.replace(/^\/([a-zA-Z]:)/, '$1');
+              const filename = innerFileLink.innerText?.trim() || clean.split('\\').pop() || 'file';
+              return { card: row, filename, filePath: clean };
+            }
+          }
+
+          let container = row.parentElement;
+          let inArtifactsSection = false;
+          for (let i = 0; i < 6 && container; i++) {
+            const text = container.innerText || '';
+            const aria = container.getAttribute('aria-label') || '';
+            const testid = container.getAttribute('data-testid') || '';
+            if (/Artifacts?\s*\d*/i.test(text) || /Artifact/i.test(aria) || /artifact/i.test(testid)) {
+              inArtifactsSection = true;
+              break;
+            }
+            container = container.parentElement;
+          }
+
+          if (inArtifactsSection) {
+            let title = (row.innerText || target.innerText || '').split('\n')[0].trim();
+            // 如果文本中包含具体文件名（例如 "封面 4K 超清版： thumbnail_4_4k.jpg"），提取文件名
+            const fnMatch = title.match(/([a-zA-Z0-9_-]+\.[a-zA-Z0-9]+)/);
+            const cleanTitle = fnMatch ? fnMatch[1] : title;
+            if (cleanTitle && !cleanTitle.startsWith('Artifacts') && !cleanTitle.startsWith('See all') && !cleanTitle.startsWith('Uploads')) {
+              const convoMatch = window.location.pathname.match(/\/c\/([a-f0-9-]+)/i);
+              const convoId = convoMatch ? convoMatch[1] : '';
+              return {
+                card: row,
+                filename: cleanTitle,
+                filePath: convoId ? `ARTIFACT:${convoId}:${cleanTitle}` : cleanTitle
+              };
+            }
+          }
+        }
+
+        // 3. 检查是否在已打开的 Artifact Viewer 头部 (Header/Tab) 或内部空白/容器区域 (非代码块)
+        const artifactHeader = target.closest('[aria-label="Artifact Viewer header"], [data-testid="artifact-viewer-header"]');
+        const inArtifactViewer = target.closest('[aria-label="Artifact Viewer"], [role="region"][aria-label="Artifact Viewer"], #artifact-container, .artifact-view, [data-testid="artifact-view"]');
+        const isCodeElement = !!target.closest('pre, code, .monaco-editor');
+
+        if (artifactHeader || (inArtifactViewer && !isCodeElement)) {
+          const activePath = getActiveArtifactPath(target);
+          if (activePath) {
+            const header = document.querySelector('[aria-label="Artifact Viewer header"], [data-testid="artifact-viewer-header"]');
+            const titleEl = header?.querySelector('.text-sm.truncate, [class*="truncate"]');
+            const title = (titleEl?.innerText || header?.innerText || '').split('\n')[0].trim() || 'artifact';
+            return {
+              card: artifactHeader || inArtifactViewer,
+              filename: title,
+              filePath: activePath,
+              isArtifactViewer: true
+            };
+          }
+        }
+
         return null;
       }
 
@@ -3091,38 +3461,55 @@
         const chatContainer = getChatScrollContainer();
         if (!chatContainer || !chatContainer.contains(target)) return null;
 
+        // 1. 用户提问气泡判定与按钮检索
+        const userStep = target.closest('.group\\/user-input-step, [class*="user-input-step"]');
+        if (userStep) {
+          const copyBtn = userStep.querySelector('button[data-tooltip-id*="copy-user-message"], button[aria-label="Copy"], .user-input-buttons-container button:first-of-type');
+          const editBtn = userStep.querySelector('button[data-testid="revert-button"], button[aria-label*="Undo" i], button[aria-label*="Edit" i], button[title*="Edit" i], .user-input-buttons-container button:last-of-type');
+          const bubbleEl = userStep.querySelector('[class*="rounded-[calc"]') || userStep;
+          const promptText = (bubbleEl.innerText || userStep.innerText || '').replace(/\s*\d{1,2}:\d{2}\s*(?:AM|PM)?\s*$/i, '').trim();
+
+          return {
+            isUserTurn: true,
+            turnEl: userStep,
+            copyBtn,
+            editBtn,
+            promptText
+          };
+        }
+
+        // 2. AI 回复气泡判定与按钮检索
         const turnContainer = document.querySelector('.relative.flex.flex-col.gap-y-3') ||
                               document.querySelector('.flex.flex-col.gap-y-3');
-        let turnEl = null;
+        let aiTurnEl = null;
         if (turnContainer) {
           let curr = target;
           while (curr && curr !== turnContainer) {
             if (curr.parentElement === turnContainer) {
-              turnEl = curr;
+              aiTurnEl = curr;
               break;
             }
             curr = curr.parentElement;
           }
         }
-        if (!turnEl) {
-          turnEl = target.closest('[data-testid*="turn" i], .turn-container') || target;
+        if (!aiTurnEl) {
+          aiTurnEl = target.closest('[data-testid*="turn" i], .turn-container, .group.w-full') || target;
         }
 
-        const editBtn = turnEl.querySelector?.('button[aria-label*="Edit" i], button[title*="Edit" i]');
-        const isUserTurn = !!editBtn || !!target.closest('[data-testid*="user" i], .user-turn');
-        const regenBtn = turnEl.querySelector?.('button[aria-label*="Regenerate" i], button[title*="Regenerate" i]');
-        const forkBtn = turnEl.querySelector?.('button[aria-label*="Fork" i], button[title*="Fork" i]');
+        const regenBtn = aiTurnEl.querySelector?.('button[aria-label*="Regenerate" i], button[title*="Regenerate" i]');
+        const forkBtn = aiTurnEl.querySelector?.('button[aria-label*="Fork" i], button[title*="Fork" i]');
+        const aiCopyBtn = aiTurnEl.querySelector?.('button[data-tooltip-id*="copy-"]:not([data-tooltip-id*="copy-user-message"]):not([data-tooltip-id*="copy-code"]), button[aria-label="Copy"]:not(.user-input-buttons-container button)');
 
-        let responseMarkdown = '';
-        if (!isUserTurn) {
-          responseMarkdown = turnEl.innerText || turnEl.textContent || '';
-        }
-        let promptText = '';
-        if (isUserTurn) {
-          promptText = turnEl.innerText || turnEl.textContent || '';
-        }
+        const responseMarkdown = aiTurnEl.innerText || aiTurnEl.textContent || '';
 
-        return { turnEl, isUserTurn, editBtn, regenBtn, forkBtn, responseMarkdown, promptText };
+        return {
+          isUserTurn: false,
+          turnEl: aiTurnEl,
+          aiCopyBtn,
+          regenBtn,
+          forkBtn,
+          responseMarkdown
+        };
       }
 
       // 6. 渲染菜单 DOM
@@ -3149,8 +3536,8 @@
           `;
           row.addEventListener('click', (ev) => {
             ev.stopPropagation();
-            dismissUniversalContextMenu();
             try { item.action(); } catch (err) {}
+            dismissUniversalContextMenu();
           });
           menu.appendChild(row);
         });
@@ -3275,18 +3662,19 @@
         if (imgEl && !selectedText) {
           e.preventDefault();
           e.stopPropagation();
+          const imgDiskPath = resolveImageDiskPath(imgEl);
           const items = [
-            { label: 'Copy Image', icon: 'image', action: () => copyImageBlob(imgEl) },
-            { label: 'Copy Image Address', icon: 'link', action: () => copyText(imgEl.src) },
-            { label: 'Open Containing Folder', icon: 'folder', action: () => revealPath(imgEl.src) },
-            { label: 'Save Image As...', icon: 'save', action: () => {
-                const a = document.createElement('a');
-                a.href = imgEl.src;
-                a.download = 'image.png';
-                a.click();
-              }
-            }
+            { label: 'Copy Image', icon: 'image', action: () => copyImageBlob(imgEl) }
           ];
+
+          // 仅当图片在本地磁盘上存在（已落盘/已上传/本地文件）时才提供“打开所在文件夹”
+          if (imgDiskPath) {
+            items.push({ label: 'Open Containing Folder', icon: 'folder', action: () => revealPath(imgDiskPath) });
+          }
+
+          // 另存为：自动生成或沿用 media_时间戳.png 命名，免去手动输入
+          items.push({ label: 'Save Image As...', icon: 'save', action: () => saveImageLocally(imgEl) });
+
           renderMenu(items, e.clientX, e.clientY);
           return;
         }
@@ -3312,22 +3700,43 @@
         if (localPath && !selectedText) {
           e.preventDefault();
           e.stopPropagation();
+          const isImg = isImageFilePath(localPath);
+          if (isImg) {
+            const items = [
+              { label: 'Reveal in Explorer', icon: 'folder', action: () => revealPath(localPath) },
+              { label: 'Copy Image', icon: 'image', action: () => copyImageFile(localPath) }
+            ];
+            renderMenu(items, e.clientX, e.clientY);
+            return;
+          }
           const items = [
-            { label: 'Copy Path', icon: 'copy', action: () => copyText(localPath) },
-            { label: 'Reveal in Explorer', icon: 'folder', action: () => revealPath(localPath) }
+            { label: 'Reveal in Explorer', icon: 'folder', action: () => revealPath(localPath) },
+            { label: 'Copy Path', icon: 'copy', action: () => copyText(localPath) }
           ];
           renderMenu(items, e.clientX, e.clientY);
           return;
         }
 
-        // 目标 4: 文件实体 (Artifact File / 附件)
+        // 目标 4: 文件实体 (Artifact File / 附件 / Artifact Viewer)
         const fileEntity = resolveFileCard(target);
         if (fileEntity && !selectedText) {
           e.preventDefault();
           e.stopPropagation();
+          const isImg = isImageFilePath(fileEntity.filePath) || isImageFilePath(fileEntity.filename);
+          if (isImg) {
+            const items = [
+              { label: 'Reveal in Explorer', icon: 'folder', action: () => revealPath(fileEntity.filePath) },
+              { label: 'Copy Image', icon: 'image', action: () => copyImageFile(fileEntity.filePath) }
+            ];
+            renderMenu(items, e.clientX, e.clientY);
+            return;
+          }
+
+          const isArtifact = fileEntity.isArtifactViewer || fileEntity.filePath.startsWith('ARTIFACT:');
+          const cleanCopyPath = fileEntity.filePath.startsWith('ARTIFACT:') ? fileEntity.filename : fileEntity.filePath;
           const items = [
-            { label: 'Copy File', icon: 'file', action: () => copyText(fileEntity.filePath) },
-            { label: 'Reveal in Explorer', icon: 'folder', action: () => revealPath(fileEntity.filePath) }
+            { label: 'Reveal in Explorer', icon: 'folder', action: () => revealPath(fileEntity.filePath) },
+            { label: isArtifact ? 'Copy Path' : 'Copy File', icon: isArtifact ? 'copy' : 'file', action: () => copyText(cleanCopyPath) }
           ];
           renderMenu(items, e.clientX, e.clientY);
           return;
@@ -3341,16 +3750,16 @@
           if (inSidebar) {
             // 右侧栏选中文本: Comment, Copy, Quote, Explain
             items = [
-              { label: 'Comment', icon: 'comment', action: () => triggerRightSidebarComment(selectedText) },
+              { label: 'Comment', icon: 'comment', action: () => triggerNativeComment(selectedText) },
               { label: 'Copy', icon: 'copy', action: () => copyText(selectedText) },
-              { label: 'Quote', icon: 'quote', action: () => appendQuoteToPrompt(selectedText) },
+              { label: 'Quote', icon: 'quote', action: () => triggerNativeQuote(selectedText) },
               { label: 'Explain', icon: 'explain', action: () => appendExplainToPrompt(selectedText) }
             ];
           } else {
             // 聊天区选中文本: Copy, Quote, Search
             items = [
               { label: 'Copy', icon: 'copy', action: () => copyText(selectedText) },
-              { label: 'Quote', icon: 'quote', action: () => appendQuoteToPrompt(selectedText) },
+              { label: 'Quote', icon: 'quote', action: () => triggerNativeQuote(selectedText) },
               { label: 'Search', icon: 'search', action: () => {
                   window.open('https://www.google.com/search?q=' + encodeURIComponent(selectedText), '_blank');
                 }
@@ -3366,11 +3775,27 @@
         if (codeInfo) {
           e.preventDefault();
           e.stopPropagation();
+          const nativeCopyCodeBtn = target.closest('pre, code, .code-block, .monaco-editor')?.querySelector?.('button[aria-label="Copy code"]');
           const items = [
-            { label: 'Copy Code', icon: 'code', action: () => copyText(codeInfo.codeText) },
-            { label: 'Save As...', icon: 'save', action: () => saveFileLocally(codeInfo.codeText, codeInfo.filename) },
-            { label: 'Reveal in Explorer', icon: 'folder', action: () => revealPath(codeInfo.filename) }
+            { label: 'Copy Code', icon: 'code', action: () => {
+                if (nativeCopyCodeBtn) {
+                  nativeCopyCodeBtn.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true }));
+                  nativeCopyCodeBtn.click();
+                } else {
+                  copyText(codeInfo.codeText);
+                }
+              }
+            },
+            { label: 'Save As...', icon: 'save', action: () => saveFileLocally(codeInfo.codeText, codeInfo.filename) }
           ];
+          // 如果该代码块位于已落盘的 Artifact Viewer 中，补充 Reveal in Explorer (打开所在目录)
+          const inArtifactViewer = target.closest('[aria-label="Artifact Viewer"], [role="region"][aria-label="Artifact Viewer"], #artifact-container, .artifact-view');
+          if (inArtifactViewer) {
+            const activePath = getActiveArtifactPath(target);
+            if (activePath) {
+              items.push({ label: 'Reveal in Explorer', icon: 'folder', action: () => revealPath(activePath) });
+            }
+          }
           renderMenu(items, e.clientX, e.clientY);
           return;
         }
@@ -3385,21 +3810,53 @@
             // 用户提问气泡: Edit Prompt, Copy Prompt
             items = [
               { label: 'Edit Prompt', icon: 'edit', action: () => {
-                  if (turnInfo.editBtn) turnInfo.editBtn.click();
+                  if (turnInfo.editBtn) {
+                    turnInfo.editBtn.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true }));
+                    turnInfo.editBtn.click();
+                  } else {
+                    const input = document.querySelector('textarea, [contenteditable="true"]');
+                    if (input && turnInfo.promptText) {
+                      input.value = turnInfo.promptText;
+                      input.dispatchEvent(new Event('input', { bubbles: true }));
+                      input.focus();
+                    }
+                  }
                 }
               },
-              { label: 'Copy Prompt', icon: 'copy', action: () => copyText(turnInfo.promptText) }
+              { label: 'Copy Prompt', icon: 'copy', action: () => {
+                  if (turnInfo.copyBtn) {
+                    turnInfo.copyBtn.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true }));
+                    turnInfo.copyBtn.click();
+                  } else {
+                    copyText(turnInfo.promptText);
+                  }
+                }
+              }
             ];
           } else {
             // AI 回复气泡: Copy Response (Markdown), Regenerate, Fork Conversation
             items = [
-              { label: 'Copy Response (Markdown)', icon: 'copy', action: () => copyText(turnInfo.responseMarkdown) },
+              { label: 'Copy Response (Markdown)', icon: 'copy', action: () => {
+                  if (turnInfo.aiCopyBtn) {
+                    turnInfo.aiCopyBtn.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true }));
+                    turnInfo.aiCopyBtn.click();
+                  } else {
+                    copyText(turnInfo.responseMarkdown);
+                  }
+                }
+              },
               { label: 'Regenerate', icon: 'regenerate', action: () => {
-                  if (turnInfo.regenBtn) turnInfo.regenBtn.click();
+                  if (turnInfo.regenBtn) {
+                    turnInfo.regenBtn.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true }));
+                    turnInfo.regenBtn.click();
+                  }
                 }
               },
               { label: 'Fork Conversation', icon: 'fork', action: () => {
-                  if (turnInfo.forkBtn) turnInfo.forkBtn.click();
+                  if (turnInfo.forkBtn) {
+                    turnInfo.forkBtn.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true }));
+                    turnInfo.forkBtn.click();
+                  }
                 }
               }
             ];
