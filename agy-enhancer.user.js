@@ -3099,40 +3099,133 @@ window.__AGY_BRANCH_NAME__ = "golden_comet_arcs_10h20";
         }
       }
 
-      function getActiveArtifactPath(target) {
-        // 0. 如果点击的是特定的 tab，优先获取该 tab 的标题
-        const clickedTab = target?.closest?.('[role="tab"], [class*="tab-"], [data-testid*="tab"]');
-        const tabTitle = clickedTab ? (clickedTab.innerText || '').split('\n')[0].trim() : null;
+      function parseArtifactUri(rawUri) {
+        if (!rawUri) return null;
+        let decoded = decodeURIComponent(rawUri);
+        if (decoded.includes('%')) {
+          decoded = decodeURIComponent(decoded);
+        }
+        decoded = decoded.replace(/^file:\/\/\/?/i, '');
+        decoded = decoded.replace(/^\/([a-zA-Z]:)/, '$1');
+        if (/^[a-zA-Z]:[/\\]/.test(decoded) || decoded.startsWith('/')) {
+          return decoded.replace(/\//g, '\\');
+        }
+        return decoded;
+      }
 
-        // 1. 尝试从当前页面 URL 查询参数中提取 tab=artifact__...
-        if (!tabTitle) {
-          try {
-            const urlParams = new URLSearchParams(window.location.search);
-            const tab = urlParams.get('tab');
-            if (tab && tab.startsWith('artifact__')) {
-              let rawPath = tab.slice('artifact__'.length);
-              let decoded = decodeURIComponent(rawPath);
-              if (decoded.includes('%')) {
-                decoded = decodeURIComponent(decoded);
-              }
-              decoded = decoded.replace(/^file:\/\/\/?/i, '');
-              decoded = decoded.replace(/^\/([a-zA-Z]:)/, '$1');
-              if (/^[a-zA-Z]:[/\\]/.test(decoded) || decoded.startsWith('/')) {
-                return decoded.replace(/\//g, '\\');
-              }
-            }
-          } catch (e) {}
+      function getDirectoryPath(rawPath) {
+        if (!rawPath) return '';
+        let p = rawPath.trim();
+        const homeDir = 'C:\\Users\\Juste';
+
+        if (p.startsWith('MEDIA_DIR:')) {
+          const convoId = p.slice('MEDIA_DIR:'.length).trim();
+          return `${homeDir}\\.gemini\\antigravity\\brain\\${convoId}\\.user_uploaded`;
+        }
+        if (p.startsWith('MEDIA:')) {
+          const parts = p.split(':');
+          const convoId = parts[1];
+          return `${homeDir}\\.gemini\\antigravity\\brain\\${convoId}\\.user_uploaded`;
+        }
+        if (p.startsWith('ARTIFACT:')) {
+          const parts = p.split(':');
+          const convoId = parts[1];
+          return `${homeDir}\\.gemini\\antigravity\\brain\\${convoId}`;
         }
 
-        // 2. 尝试从当前打开的 Artifact Viewer Header 标题中解析
-        const header = document.querySelector('[aria-label="Artifact Viewer header"], [data-testid="artifact-viewer-header"]');
-        const titleEl = header?.querySelector('.text-sm.truncate, [class*="truncate"]');
-        const title = tabTitle || (titleEl?.innerText || header?.innerText || '').split('\n')[0].trim();
-        const convoMatch = window.location.pathname.match(/\/c\/([a-f0-9-]+)/i);
-        const convoId = convoMatch ? convoMatch[1] : '';
+        p = p.replace(/^file:\/\/\/?/i, '').replace(/\//g, '\\');
+        p = p.replace(/^\/([a-zA-Z]:)/, '$1');
+        p = p.replace(/\\+$/, '');
 
-        if (title && convoId) {
-          return `ARTIFACT:${convoId}:${title}`;
+        const lastSlash = p.lastIndexOf('\\');
+        if (lastSlash > 0) {
+          const lastSegment = p.slice(lastSlash + 1);
+          // 如果末尾带有文件扩展名（如 .md, .png, .js, .json, .py 等），去除文件名保留纯目录
+          if (/\.[a-zA-Z0-9_-]+$/i.test(lastSegment)) {
+            return p.slice(0, lastSlash);
+          }
+        }
+        return p;
+      }
+
+      function getActiveArtifactPath(target) {
+        // 0. 如果点击的是特定的 tab 按钮，优先从该 tab 按钮提取
+        const tabBtn = target?.closest?.('button[data-tab-id], [role="tab"], [class*="tab-"]');
+        if (tabBtn) {
+          const tabId = tabBtn.getAttribute('data-tab-id');
+          if (tabId && tabId.startsWith('artifact__')) {
+            return parseArtifactUri(tabId.slice('artifact__'.length));
+          }
+          const tabTitle = tabBtn.getAttribute('title') || tabBtn.innerText?.trim();
+          if (tabTitle) {
+            const convoMatch = window.location.pathname.match(/\/c\/([a-f0-9-]+)/i);
+            const convoId = convoMatch ? convoMatch[1] : '';
+            if (tabTitle.startsWith('Media')) {
+              return convoId ? `MEDIA_DIR:${convoId}` : null;
+            }
+            return convoId ? `ARTIFACT:${convoId}:${tabTitle}` : tabTitle;
+          }
+        }
+
+        // 1. 从辅助面板 (Auxiliary Pane) 的当前活跃 Tab 状态中嗅探（纯 DOM 解析，彻底规避 SPA 遗留 URL 参数污染）
+        const auxPane = document.querySelector('[data-aux-pane-open="true"], [role="region"][aria-label*="Artifact" i], .artifact-view, #artifact-container');
+        if (auxPane) {
+          // 1a. 检查当前活跃 Tab 容器的 data-active-tab-id 属性
+          const activeTabContainer = auxPane.querySelector('[data-active-tab-id]');
+          const activeTabId = activeTabContainer?.getAttribute('data-active-tab-id');
+          if (activeTabId && activeTabId.startsWith('artifact__')) {
+            return parseArtifactUri(activeTabId.slice('artifact__'.length));
+          }
+
+          // 1b. 检查具有高亮状态的 Tab 按钮 (bg-secondary 且 text-foreground)
+          const activeTabBtn = Array.from(auxPane.querySelectorAll('button')).find(b => {
+            return b.classList.contains('bg-secondary') && (b.classList.contains('text-foreground') || !b.classList.contains('bg-transparent'));
+          });
+          if (activeTabBtn) {
+            const tabId = activeTabBtn.getAttribute('data-tab-id');
+            if (tabId && tabId.startsWith('artifact__')) {
+              return parseArtifactUri(tabId.slice('artifact__'.length));
+            }
+            const title = activeTabBtn.getAttribute('title') || activeTabBtn.innerText?.trim();
+            if (title) {
+              const convoMatch = window.location.pathname.match(/\/c\/([a-f0-9-]+)/i);
+              const convoId = convoMatch ? convoMatch[1] : '';
+              if (title.startsWith('Media')) {
+                return convoId ? `MEDIA_DIR:${convoId}` : null;
+              }
+              return convoId ? `ARTIFACT:${convoId}:${title}` : title;
+            }
+          }
+
+          // 1c. 检查右侧栏中的图片元素
+          const rightImg = auxPane.querySelector('img');
+          if (rightImg) {
+            const imgSrc = rightImg.getAttribute('src') || rightImg.src || '';
+            if (imgSrc.startsWith('file:///')) {
+              return parseArtifactUri(imgSrc);
+            }
+            const mediaMatch = (imgSrc + ' ' + (rightImg.getAttribute('alt') || '')).match(/(media_\d+\.[a-zA-Z0-9]+)/i);
+            const convoMatch = window.location.pathname.match(/\/c\/([a-f0-9-]+)/i);
+            const convoId = convoMatch ? convoMatch[1] : '';
+            if (mediaMatch && convoId) {
+              return `MEDIA:${convoId}:${mediaMatch[1]}`;
+            }
+            if (convoId) {
+              return `MEDIA_DIR:${convoId}`;
+            }
+          }
+
+          // 1d. 检查 Artifact Viewer Header 中的标题
+          const header = auxPane.querySelector('[aria-label="Artifact Viewer header"], [data-testid="artifact-viewer-header"]');
+          const titleEl = header?.querySelector('.text-sm.truncate, [class*="truncate"]');
+          const headerTitle = (titleEl?.innerText || header?.innerText || '').split('\n')[0].trim();
+          if (headerTitle && !headerTitle.startsWith('Artifacts') && !headerTitle.startsWith('Terminal') && !headerTitle.startsWith('Overview')) {
+            const convoMatch = window.location.pathname.match(/\/c\/([a-f0-9-]+)/i);
+            const convoId = convoMatch ? convoMatch[1] : '';
+            if (convoId) {
+              return `ARTIFACT:${convoId}:${headerTitle}`;
+            }
+          }
         }
 
         return null;
@@ -3157,7 +3250,7 @@ window.__AGY_BRANCH_NAME__ = "golden_comet_arcs_10h20";
         }
 
         // 3. 在工件查看器 (Artifact Viewer) 中打开的图片
-        const inArtifactViewer = imgEl.closest('[aria-label="Artifact Viewer"], [role="region"][aria-label="Artifact Viewer"], [aria-label="Artifact Viewer header"], #artifact-container, .artifact-view, [data-testid="artifact-view"]');
+        const inArtifactViewer = imgEl.closest('[aria-label="Artifact Viewer"], [role="region"][aria-label="Artifact Viewer"], [aria-label="Artifact Viewer header"], #artifact-container, .artifact-view, [data-testid="artifact-view"], [data-aux-pane-open="true"]');
         if (inArtifactViewer) {
           const activeArtifactPath = getActiveArtifactPath(imgEl);
           if (activeArtifactPath) {
@@ -3686,7 +3779,7 @@ window.__AGY_BRANCH_NAME__ = "golden_comet_arcs_10h20";
 
         const selection = window.getSelection();
         const selectedText = selection ? selection.toString().trim() : '';
-        const inSidebar = isRightSidebar(target);
+        const inSidebar = isRightSidebar(target) || !!target.closest('[data-aux-pane-open="true"]');
 
         // 目标 1: 图片 (Image)
         const imgEl = target.closest('img');
@@ -3698,9 +3791,13 @@ window.__AGY_BRANCH_NAME__ = "golden_comet_arcs_10h20";
             { label: 'Copy Image', icon: 'image', action: () => copyImageBlob(imgEl) }
           ];
 
-          // 仅当图片在本地磁盘上存在（已落盘/已上传/本地文件）时才提供“打开所在文件夹”
+          // 仅当图片在本地磁盘上存在（已落盘/已上传/本地文件）时才提供“打开所在目录”与“复制路径”
           if (imgDiskPath) {
-            items.push({ label: 'Open Containing Folder', icon: 'folder', action: () => revealPath(imgDiskPath) });
+            items.push({ label: 'Reveal in Explorer', icon: 'folder', action: () => revealPath(imgDiskPath) });
+            items.push({ label: 'Copy Path', icon: 'copy', action: () => {
+              copyText(getDirectoryPath(imgDiskPath));
+              showNotification?.('已复制所在目录');
+            }});
           }
 
           // 另存为：自动生成或沿用 media_时间戳.png 命名，免去手动输入
@@ -3732,43 +3829,36 @@ window.__AGY_BRANCH_NAME__ = "golden_comet_arcs_10h20";
           e.preventDefault();
           e.stopPropagation();
           const isImg = isImageFilePath(localPath);
-          if (isImg) {
-            const items = [
-              { label: 'Reveal in Explorer', icon: 'folder', action: () => revealPath(localPath) },
-              { label: 'Copy Image', icon: 'image', action: () => copyImageFile(localPath) }
-            ];
-            renderMenu(items, e.clientX, e.clientY);
-            return;
-          }
           const items = [
             { label: 'Reveal in Explorer', icon: 'folder', action: () => revealPath(localPath) },
-            { label: 'Copy Path', icon: 'copy', action: () => copyText(localPath) }
+            { label: 'Copy Path', icon: 'copy', action: () => {
+              copyText(getDirectoryPath(localPath));
+              showNotification?.('已复制所在目录');
+            }}
           ];
+          if (isImg) {
+            items.push({ label: 'Copy Image', icon: 'image', action: () => copyImageFile(localPath) });
+          }
           renderMenu(items, e.clientX, e.clientY);
           return;
         }
 
-        // 目标 4: 文件实体 (Artifact File / 附件 / Artifact Viewer)
+        // 目标 4: 文件实体 (AI 回复中的 Artifact 链接卡片 / 附件 / 标签项)
         const fileEntity = resolveFileCard(target);
         if (fileEntity && !selectedText) {
           e.preventDefault();
           e.stopPropagation();
           const isImg = isImageFilePath(fileEntity.filePath) || isImageFilePath(fileEntity.filename);
-          if (isImg) {
-            const items = [
-              { label: 'Reveal in Explorer', icon: 'folder', action: () => revealPath(fileEntity.filePath) },
-              { label: 'Copy Image', icon: 'image', action: () => copyImageFile(fileEntity.filePath) }
-            ];
-            renderMenu(items, e.clientX, e.clientY);
-            return;
-          }
-
-          const isArtifact = fileEntity.isArtifactViewer || fileEntity.filePath.startsWith('ARTIFACT:');
-          const cleanCopyPath = fileEntity.filePath.startsWith('ARTIFACT:') ? fileEntity.filename : fileEntity.filePath;
           const items = [
             { label: 'Reveal in Explorer', icon: 'folder', action: () => revealPath(fileEntity.filePath) },
-            { label: isArtifact ? 'Copy Path' : 'Copy File', icon: isArtifact ? 'copy' : 'file', action: () => copyText(cleanCopyPath) }
+            { label: 'Copy Path', icon: 'copy', action: () => {
+              copyText(getDirectoryPath(fileEntity.filePath));
+              showNotification?.('已复制所在目录');
+            }}
           ];
+          if (isImg) {
+            items.push({ label: 'Copy Image', icon: 'image', action: () => copyImageFile(fileEntity.filePath) });
+          }
           renderMenu(items, e.clientX, e.clientY);
           return;
         }
@@ -3801,7 +3891,7 @@ window.__AGY_BRANCH_NAME__ = "golden_comet_arcs_10h20";
           return;
         }
 
-        // 目标 6: 代码块 / 文件空白处 (未划选文字)
+        // 目标 6: 代码块 (未划选文字)
         const codeInfo = resolveCodeInfo(target);
         if (codeInfo) {
           e.preventDefault();
@@ -3816,82 +3906,47 @@ window.__AGY_BRANCH_NAME__ = "golden_comet_arcs_10h20";
                   copyText(codeInfo.codeText);
                 }
               }
-            },
-            { label: 'Save As...', icon: 'save', action: () => saveFileLocally(codeInfo.codeText, codeInfo.filename) }
+            }
           ];
-          // 如果该代码块位于已落盘的 Artifact Viewer 中，补充 Reveal in Explorer (打开所在目录)
-          const inArtifactViewer = target.closest('[aria-label="Artifact Viewer"], [role="region"][aria-label="Artifact Viewer"], #artifact-container, .artifact-view');
+          // 如果该代码块位于已打开的 Artifact Viewer 或右侧栏中，补充 Reveal in Explorer 与纯所在目录 Copy Path
+          const inArtifactViewer = target.closest('[aria-label="Artifact Viewer"], [role="region"][aria-label="Artifact Viewer"], #artifact-container, .artifact-view, [data-aux-pane-open="true"]') || isRightSidebar(target);
           if (inArtifactViewer) {
             const activePath = getActiveArtifactPath(target);
             if (activePath) {
               items.push({ label: 'Reveal in Explorer', icon: 'folder', action: () => revealPath(activePath) });
+              items.push({ label: 'Copy Path', icon: 'copy', action: () => {
+                copyText(getDirectoryPath(activePath));
+                showNotification?.('已复制所在目录');
+              }});
             }
           }
+          items.push({ label: 'Save As...', icon: 'save', action: () => saveFileLocally(codeInfo.codeText, codeInfo.filename) });
           renderMenu(items, e.clientX, e.clientY);
           return;
         }
 
-        // 目标 7: 聊天区空白处气泡 (未划选文字)
-        const turnInfo = resolveTurnElements(target);
-        if (turnInfo) {
-          e.preventDefault();
-          e.stopPropagation();
-          let items = [];
-          if (turnInfo.isUserTurn) {
-            // 用户提问气泡: Edit Prompt, Copy Prompt
-            items = [
-              { label: 'Edit Prompt', icon: 'edit', action: () => {
-                  if (turnInfo.editBtn && triggerNativeButton(turnInfo.editBtn)) {
-                    return;
-                  }
-                  const input = document.querySelector('textarea, [contenteditable="true"]');
-                  if (input && turnInfo.promptText) {
-                    input.value = turnInfo.promptText;
-                    input.dispatchEvent(new Event('input', { bubbles: true }));
-                    input.focus();
-                  }
-                }
-              },
-              { label: 'Copy Prompt', icon: 'copy', action: () => {
-                  if (turnInfo.copyBtn && triggerNativeButton(turnInfo.copyBtn)) {
-                    showNotification?.('已复制提问');
-                  } else {
-                    copyText(turnInfo.promptText);
-                    showNotification?.('已复制提问');
-                  }
-                }
-              }
+        // 目标 7: 右侧栏空白处 (Right Sidebar Blank Area - 打开所在目录 / 复制所在目录路径)
+        if (inSidebar && !selectedText) {
+          const activePath = getActiveArtifactPath(target);
+          if (activePath) {
+            e.preventDefault();
+            e.stopPropagation();
+            const isImg = isImageFilePath(activePath);
+            const items = [
+              { label: 'Reveal in Explorer', icon: 'folder', action: () => revealPath(activePath) },
+              { label: 'Copy Path', icon: 'copy', action: () => {
+                copyText(getDirectoryPath(activePath));
+                showNotification?.('已复制所在目录');
+              }}
             ];
-          } else {
-            // AI 回复气泡: 优先调用系统原生交互能力
-            items = [
-              { label: 'Copy Response (Markdown)', icon: 'copy', action: () => {
-                  if (turnInfo.aiCopyBtn && triggerNativeButton(turnInfo.aiCopyBtn)) {
-                    showNotification?.('已复制回复 (Markdown)');
-                  } else if (turnInfo.responseMarkdown) {
-                    copyText(turnInfo.responseMarkdown);
-                    showNotification?.('已复制回复 (Markdown)');
-                  }
-                }
-              },
-              { label: 'Undo & Regenerate', icon: 'regenerate', action: () => {
-                  if (turnInfo.revertBtn && triggerNativeButton(turnInfo.revertBtn)) {
-                    // 原生 revert-button 已触发系统级回退响应
-                  } else {
-                    showNotification?.('未找到可回退的提问步骤');
-                  }
-                }
-              },
-              { label: 'Copy Conversation Link', icon: 'link', action: () => {
-                  copyText(window.location.href);
-                  showNotification?.('已复制会话链接');
-                }
-              }
-            ];
+            if (isImg) {
+              items.push({ label: 'Copy Image', icon: 'image', action: () => copyImageFile(activePath) });
+            }
+            renderMenu(items, e.clientX, e.clientY);
+            return;
           }
-          renderMenu(items, e.clientX, e.clientY);
-          return;
         }
+
       };
 
       document.addEventListener('contextmenu', contextMenuHandler, true);
