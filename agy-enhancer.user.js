@@ -1865,6 +1865,29 @@
             dd.style.left = `${leftPos}px`;
             dd.style.zIndex = '9999999';
 
+            const archiveSummaries = tsp?.getState()?.summaries || {};
+            const archiveConvoSummary = archiveSummaries[c.id];
+            let archiveWorkspaceName = '';
+            const archiveWorkspaces = archiveConvoSummary?.workspaces || archiveConvoSummary?.trajectoryMetadata?.workspaces || [];
+            for (const w of archiveWorkspaces) {
+              if (w.branchName) {
+                archiveWorkspaceName = w.branchName;
+                break;
+              }
+              if (w.workspaceFolderAbsoluteUri?.includes('/worktrees/')) {
+                archiveWorkspaceName = w.workspaceFolderAbsoluteUri.split('/').filter(Boolean).pop();
+                break;
+              }
+            }
+            if (!archiveWorkspaceName && archiveConvoSummary?.trajectoryMetadata?.workspaceUris) {
+              for (const u of archiveConvoSummary.trajectoryMetadata.workspaceUris) {
+                if (u.includes('/worktrees/')) {
+                  archiveWorkspaceName = u.split('/').filter(Boolean).pop();
+                  break;
+                }
+              }
+            }
+
             dd.innerHTML = `
               <div class="agy-dd-item convo-rename">
                 <svg width="16" height="16" viewBox="0 -960 960 960" fill="currentColor"><path d="M200-200h57l391-391-57-57-391 391v57Zm-80 80v-170l528-527q12-11 26.5-17t30.5-6q16 0 31 6t26 18l55 56q12 11 17.5 26t5.5 30q0 16-5.5 30.5T817-647L290-120H120Zm640-584-56-56 56 56Zm-141 85-28-29 57 57-29-28Z"/></svg>
@@ -1887,6 +1910,11 @@
                 <svg width="16" height="16" viewBox="0 -960 960 960" fill="currentColor"><path d="M360-240q-33 0-56.5-23.5T280-320v-480q0-33 23.5-56.5T360-880h360q33 0 56.5 23.5T800-800v480q0 33-23.5 56.5T720-240H360Zm0-80h360v-480H360v480ZM200-80q-33 0-56.5-23.5T120-160v-560h80v560h440v80H200Zm160-240v-480 480Z"/></svg>
                 <span>Copy Conversation ID</span>
               </div>
+              ${archiveWorkspaceName ? `
+              <div class="agy-dd-item copy-workspace-name">
+                <svg width="16" height="16" viewBox="0 -960 960 960" fill="currentColor"><path d="M360-240q-33 0-56.5-23.5T280-320v-480q0-33 23.5-56.5T360-880h360q33 0 56.5 23.5T800-800v480q0 33-23.5 56.5T720-240H360Zm0-80h360v-480H360v480ZM200-80q-33 0-56.5-23.5T120-160v-560h80v560h440v80H200Zm160-240v-480 480Z"/></svg>
+                <span>Copy Workspace Name</span>
+              </div>` : ''}
               <div class="agy-dd-item copy-project-name">
                 <svg width="16" height="16" viewBox="0 -960 960 960" fill="currentColor"><path d="M360-240q-33 0-56.5-23.5T280-320v-480q0-33 23.5-56.5T360-880h360q33 0 56.5 23.5T800-800v480q0 33-23.5 56.5T720-240H360Zm0-80h360v-480H360v480ZM200-80q-33 0-56.5-23.5T120-160v-560h80v560h440v80H200Zm160-240v-480 480Z"/></svg>
                 <span>Copy Project Name</span>
@@ -2047,6 +2075,17 @@
               await navigator.clipboard.writeText(c.id);
               showNotification(`Copied conversation ID: ${c.id}`);
             });
+
+            // 复制: 工作区/分支名称
+            if (archiveWorkspaceName) {
+              dd.querySelector('.copy-workspace-name')?.addEventListener('click', async (ev) => {
+                ev.stopPropagation();
+                dd.remove();
+                btn.classList.remove('active');
+                await navigator.clipboard.writeText(archiveWorkspaceName);
+                showNotification(`Copied workspace name: "${archiveWorkspaceName}"`);
+              });
+            }
 
             // 复制: 项目名称
             dd.querySelector('.copy-project-name')?.addEventListener('click', async (ev) => {
@@ -2409,6 +2448,28 @@
               }
             }
 
+            // 获取工作区/分支名称 (Workspace Name)
+            let workspaceName = '';
+            const workspaces = s?.workspaces || s?.trajectoryMetadata?.workspaces || [];
+            for (const w of workspaces) {
+              if (w.branchName) {
+                workspaceName = w.branchName;
+                break;
+              }
+              if (w.workspaceFolderAbsoluteUri?.includes('/worktrees/')) {
+                workspaceName = w.workspaceFolderAbsoluteUri.split('/').filter(Boolean).pop();
+                break;
+              }
+            }
+            if (!workspaceName && s?.trajectoryMetadata?.workspaceUris) {
+              for (const u of s.trajectoryMetadata.workspaceUris) {
+                if (u.includes('/worktrees/')) {
+                  workspaceName = u.split('/').filter(Boolean).pop();
+                  break;
+                }
+              }
+            }
+
             const copyToClipboard = async (text, successMsg) => {
               try {
                 if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -2429,11 +2490,25 @@
               }
             };
 
-            // 1. 原生项与复制项之间的分隔线
-            const dividerCopy = document.createElement('div');
-            dividerCopy.setAttribute('role', 'separator');
-            dividerCopy.className = 'h-px bg-border my-1 -mx-1 agy-native-enhanced';
-            menu.appendChild(dividerCopy);
+            // 移除原生多级 Copy 菜单项
+            const nativeCopyItem = Array.from(menu.children).find(c =>
+              c.getAttribute('role') === 'menuitem' &&
+              c.innerText.trim().startsWith('Copy') &&
+              !c.classList.contains('agy-native-enhanced')
+            );
+            if (nativeCopyItem) {
+              nativeCopyItem.remove();
+            }
+
+            // 1. 原生项与复制项之间的分隔线（若原生菜单末尾已有分隔线则复用，避免出现双分隔线）
+            const lastChild = menu.lastElementChild;
+            const hasSeparatorBefore = lastChild && lastChild.getAttribute('role') === 'separator';
+            if (!hasSeparatorBefore) {
+              const dividerCopy = document.createElement('div');
+              dividerCopy.setAttribute('role', 'separator');
+              dividerCopy.className = 'h-px bg-border my-1 -mx-1 agy-native-enhanced';
+              menu.appendChild(dividerCopy);
+            }
 
             // 2. 复制对话名称
             const itemCopyName = document.createElement('div');
@@ -2467,7 +2542,25 @@
             });
             menu.appendChild(itemCopyId);
 
-            // 4. 复制项目名称 (属于项目时展示)
+            // 4. 复制工作区/分支名称 (存在工作区时展示)
+            if (workspaceName) {
+              const itemCopyWorkspace = document.createElement('div');
+              itemCopyWorkspace.setAttribute('role', 'menuitem');
+              itemCopyWorkspace.className = 'w-full px-2 py-1 text-left text-[13px] cursor-pointer outline-none transition-colors select-none flex items-center gap-1.5 rounded-md hover:bg-secondary hover:text-foreground text-secondary-foreground agy-native-enhanced';
+              itemCopyWorkspace.innerHTML = `
+                <svg width="16" height="16" viewBox="0 -960 960 960" fill="currentColor" class="text-secondary-foreground shrink-0"><path d="M360-240q-33 0-56.5-23.5T280-320v-480q0-33 23.5-56.5T360-880h360q33 0 56.5 23.5T800-800v480q0 33-23.5 56.5T720-240H360Zm0-80h360v-480H360v480ZM200-80q-33 0-56.5-23.5T120-160v-560h80v560h440v80H200Zm160-240v-480 480Z"/></svg>
+                <span>Copy Workspace Name</span>
+              `;
+              itemCopyWorkspace.addEventListener('click', async (ev) => {
+                ev.stopPropagation();
+                ev.preventDefault();
+                document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+                await copyToClipboard(workspaceName, `Copied workspace name: "${workspaceName}"`);
+              });
+              menu.appendChild(itemCopyWorkspace);
+            }
+
+            // 5. 复制项目名称 (属于项目时展示)
             if (paths?.isInsideProject || projectName) {
               const itemCopyProject = document.createElement('div');
               itemCopyProject.setAttribute('role', 'menuitem');
