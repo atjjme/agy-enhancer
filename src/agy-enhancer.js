@@ -3004,15 +3004,105 @@
         input.focus();
       }
 
-      function triggerRightSidebarComment(selectedText) {
-        // 尝试寻找右侧栏中原生的评论触发器
-        const commentBtn = document.querySelector('[aria-label*="Comment" i], button[title*="Comment" i], .comment-button');
-        if (commentBtn) {
-          commentBtn.click();
-        } else {
-          // 优雅降级：作为批注直接填入提问框
-          appendQuoteToPrompt(selectedText);
+      function triggerNativeQuote(selectedText) {
+        // 1. 尝试寻找原生浮层中的 Quote 按钮 (虽然被样式隐藏，但在 DOM 中依然存在且可点击)
+        let quoteBtn = document.querySelector('[data-testid="selection-quote-button"], [data-testid*="quote" i], button[aria-label*="Quote" i], button[title*="Quote" i]');
+        if (!quoteBtn) {
+          const blockedNodes = document.querySelectorAll('[data-agy-block-quote="true"], .agy-hide-quote-item, .selection-popup');
+          for (const node of blockedNodes) {
+            const btn = node.matches('button, [role="button"]') ? node : node.querySelector('button, [role="button"]');
+            if (btn) {
+              const text = (btn.textContent || '').trim();
+              const aria = (btn.getAttribute('aria-label') || '').trim();
+              if (/Quote|引用/i.test(text) || /Quote|引用/i.test(aria)) {
+                quoteBtn = btn;
+                break;
+              }
+            }
+          }
         }
+
+        if (quoteBtn) {
+          quoteBtn.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true }));
+          quoteBtn.click();
+          return;
+        }
+
+        // 2. 尝试派发原生快捷键 Ctrl+L (Mac 下 Cmd+L)
+        const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+        const targetEl = document.activeElement || document.body;
+        const keyEvt = new KeyboardEvent('keydown', {
+          key: 'l',
+          code: 'KeyL',
+          keyCode: 76,
+          which: 76,
+          ctrlKey: !isMac,
+          metaKey: isMac,
+          bubbles: true,
+          cancelable: true
+        });
+        targetEl.dispatchEvent(keyEvt);
+        document.dispatchEvent(keyEvt);
+
+        // 3. 优雅降级兜底方案：直接以 Markdown 引用格式填入提问框
+        setTimeout(() => {
+          const input = document.querySelector('textarea, [contenteditable="true"]');
+          const currVal = input?.value || input?.innerText || '';
+          if (!currVal.includes(selectedText.slice(0, 15))) {
+            appendQuoteToPrompt(selectedText);
+          }
+        }, 120);
+      }
+
+      function triggerNativeComment(selectedText) {
+        // 1. 尝试寻找原生浮层或右侧栏中的 Comment 按钮 (虽然被样式隐藏，但在 DOM 中依然存在且可点击)
+        let commentBtn = document.querySelector('[data-testid*="comment" i], button[aria-label*="Comment" i], button[title*="Comment" i], .comment-button');
+        if (!commentBtn) {
+          const blockedNodes = document.querySelectorAll('[data-agy-block-quote="true"], .agy-hide-quote-item, .selection-popup');
+          for (const node of blockedNodes) {
+            const btn = node.matches('button, [role="button"]') ? node : node.querySelector('button, [role="button"]');
+            if (btn) {
+              const text = (btn.textContent || '').trim();
+              const aria = (btn.getAttribute('aria-label') || '').trim();
+              if (/Comment|评论/i.test(text) || /Comment|评论/i.test(aria)) {
+                commentBtn = btn;
+                break;
+              }
+            }
+          }
+        }
+
+        if (commentBtn) {
+          commentBtn.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true }));
+          commentBtn.click();
+          return;
+        }
+
+        // 2. 尝试派发原生评论快捷键 Ctrl+Alt+M (Mac 下 Cmd+Option+M)
+        const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+        const targetEl = document.activeElement || document.body;
+        const keyEvt = new KeyboardEvent('keydown', {
+          key: 'm',
+          code: 'KeyM',
+          keyCode: 77,
+          which: 77,
+          ctrlKey: !isMac,
+          metaKey: isMac,
+          altKey: true,
+          bubbles: true,
+          cancelable: true
+        });
+        targetEl.dispatchEvent(keyEvt);
+        document.dispatchEvent(keyEvt);
+
+        // 3. 优雅降级兜底：若系统未响应，将选中文本引用填入提问框
+        setTimeout(() => {
+          const input = document.querySelector('textarea, [contenteditable="true"]');
+          const currVal = input?.value || input?.innerText || '';
+          if (!currVal.includes(selectedText.slice(0, 15))) {
+            appendQuoteToPrompt(selectedText);
+          }
+        }, 120);
       }
 
       // 5. 区域判定与上下文嗅探
@@ -3091,38 +3181,55 @@
         const chatContainer = getChatScrollContainer();
         if (!chatContainer || !chatContainer.contains(target)) return null;
 
+        // 1. 用户提问气泡判定与按钮检索
+        const userStep = target.closest('.group\\/user-input-step, [class*="user-input-step"]');
+        if (userStep) {
+          const copyBtn = userStep.querySelector('button[data-tooltip-id*="copy-user-message"], button[aria-label="Copy"], .user-input-buttons-container button:first-of-type');
+          const editBtn = userStep.querySelector('button[data-testid="revert-button"], button[aria-label*="Undo" i], button[aria-label*="Edit" i], button[title*="Edit" i], .user-input-buttons-container button:last-of-type');
+          const bubbleEl = userStep.querySelector('[class*="rounded-[calc"]') || userStep;
+          const promptText = (bubbleEl.innerText || userStep.innerText || '').replace(/\s*\d{1,2}:\d{2}\s*(?:AM|PM)?\s*$/i, '').trim();
+
+          return {
+            isUserTurn: true,
+            turnEl: userStep,
+            copyBtn,
+            editBtn,
+            promptText
+          };
+        }
+
+        // 2. AI 回复气泡判定与按钮检索
         const turnContainer = document.querySelector('.relative.flex.flex-col.gap-y-3') ||
                               document.querySelector('.flex.flex-col.gap-y-3');
-        let turnEl = null;
+        let aiTurnEl = null;
         if (turnContainer) {
           let curr = target;
           while (curr && curr !== turnContainer) {
             if (curr.parentElement === turnContainer) {
-              turnEl = curr;
+              aiTurnEl = curr;
               break;
             }
             curr = curr.parentElement;
           }
         }
-        if (!turnEl) {
-          turnEl = target.closest('[data-testid*="turn" i], .turn-container') || target;
+        if (!aiTurnEl) {
+          aiTurnEl = target.closest('[data-testid*="turn" i], .turn-container, .group.w-full') || target;
         }
 
-        const editBtn = turnEl.querySelector?.('button[aria-label*="Edit" i], button[title*="Edit" i]');
-        const isUserTurn = !!editBtn || !!target.closest('[data-testid*="user" i], .user-turn');
-        const regenBtn = turnEl.querySelector?.('button[aria-label*="Regenerate" i], button[title*="Regenerate" i]');
-        const forkBtn = turnEl.querySelector?.('button[aria-label*="Fork" i], button[title*="Fork" i]');
+        const regenBtn = aiTurnEl.querySelector?.('button[aria-label*="Regenerate" i], button[title*="Regenerate" i]');
+        const forkBtn = aiTurnEl.querySelector?.('button[aria-label*="Fork" i], button[title*="Fork" i]');
+        const aiCopyBtn = aiTurnEl.querySelector?.('button[data-tooltip-id*="copy-"]:not([data-tooltip-id*="copy-user-message"]):not([data-tooltip-id*="copy-code"]), button[aria-label="Copy"]:not(.user-input-buttons-container button)');
 
-        let responseMarkdown = '';
-        if (!isUserTurn) {
-          responseMarkdown = turnEl.innerText || turnEl.textContent || '';
-        }
-        let promptText = '';
-        if (isUserTurn) {
-          promptText = turnEl.innerText || turnEl.textContent || '';
-        }
+        const responseMarkdown = aiTurnEl.innerText || aiTurnEl.textContent || '';
 
-        return { turnEl, isUserTurn, editBtn, regenBtn, forkBtn, responseMarkdown, promptText };
+        return {
+          isUserTurn: false,
+          turnEl: aiTurnEl,
+          aiCopyBtn,
+          regenBtn,
+          forkBtn,
+          responseMarkdown
+        };
       }
 
       // 6. 渲染菜单 DOM
@@ -3149,8 +3256,8 @@
           `;
           row.addEventListener('click', (ev) => {
             ev.stopPropagation();
-            dismissUniversalContextMenu();
             try { item.action(); } catch (err) {}
+            dismissUniversalContextMenu();
           });
           menu.appendChild(row);
         });
@@ -3341,16 +3448,16 @@
           if (inSidebar) {
             // 右侧栏选中文本: Comment, Copy, Quote, Explain
             items = [
-              { label: 'Comment', icon: 'comment', action: () => triggerRightSidebarComment(selectedText) },
+              { label: 'Comment', icon: 'comment', action: () => triggerNativeComment(selectedText) },
               { label: 'Copy', icon: 'copy', action: () => copyText(selectedText) },
-              { label: 'Quote', icon: 'quote', action: () => appendQuoteToPrompt(selectedText) },
+              { label: 'Quote', icon: 'quote', action: () => triggerNativeQuote(selectedText) },
               { label: 'Explain', icon: 'explain', action: () => appendExplainToPrompt(selectedText) }
             ];
           } else {
             // 聊天区选中文本: Copy, Quote, Search
             items = [
               { label: 'Copy', icon: 'copy', action: () => copyText(selectedText) },
-              { label: 'Quote', icon: 'quote', action: () => appendQuoteToPrompt(selectedText) },
+              { label: 'Quote', icon: 'quote', action: () => triggerNativeQuote(selectedText) },
               { label: 'Search', icon: 'search', action: () => {
                   window.open('https://www.google.com/search?q=' + encodeURIComponent(selectedText), '_blank');
                 }
@@ -3366,8 +3473,17 @@
         if (codeInfo) {
           e.preventDefault();
           e.stopPropagation();
+          const nativeCopyCodeBtn = target.closest('pre, code, .code-block, .monaco-editor')?.querySelector?.('button[aria-label="Copy code"]');
           const items = [
-            { label: 'Copy Code', icon: 'code', action: () => copyText(codeInfo.codeText) },
+            { label: 'Copy Code', icon: 'code', action: () => {
+                if (nativeCopyCodeBtn) {
+                  nativeCopyCodeBtn.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true }));
+                  nativeCopyCodeBtn.click();
+                } else {
+                  copyText(codeInfo.codeText);
+                }
+              }
+            },
             { label: 'Save As...', icon: 'save', action: () => saveFileLocally(codeInfo.codeText, codeInfo.filename) },
             { label: 'Reveal in Explorer', icon: 'folder', action: () => revealPath(codeInfo.filename) }
           ];
@@ -3385,21 +3501,53 @@
             // 用户提问气泡: Edit Prompt, Copy Prompt
             items = [
               { label: 'Edit Prompt', icon: 'edit', action: () => {
-                  if (turnInfo.editBtn) turnInfo.editBtn.click();
+                  if (turnInfo.editBtn) {
+                    turnInfo.editBtn.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true }));
+                    turnInfo.editBtn.click();
+                  } else {
+                    const input = document.querySelector('textarea, [contenteditable="true"]');
+                    if (input && turnInfo.promptText) {
+                      input.value = turnInfo.promptText;
+                      input.dispatchEvent(new Event('input', { bubbles: true }));
+                      input.focus();
+                    }
+                  }
                 }
               },
-              { label: 'Copy Prompt', icon: 'copy', action: () => copyText(turnInfo.promptText) }
+              { label: 'Copy Prompt', icon: 'copy', action: () => {
+                  if (turnInfo.copyBtn) {
+                    turnInfo.copyBtn.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true }));
+                    turnInfo.copyBtn.click();
+                  } else {
+                    copyText(turnInfo.promptText);
+                  }
+                }
+              }
             ];
           } else {
             // AI 回复气泡: Copy Response (Markdown), Regenerate, Fork Conversation
             items = [
-              { label: 'Copy Response (Markdown)', icon: 'copy', action: () => copyText(turnInfo.responseMarkdown) },
+              { label: 'Copy Response (Markdown)', icon: 'copy', action: () => {
+                  if (turnInfo.aiCopyBtn) {
+                    turnInfo.aiCopyBtn.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true }));
+                    turnInfo.aiCopyBtn.click();
+                  } else {
+                    copyText(turnInfo.responseMarkdown);
+                  }
+                }
+              },
               { label: 'Regenerate', icon: 'regenerate', action: () => {
-                  if (turnInfo.regenBtn) turnInfo.regenBtn.click();
+                  if (turnInfo.regenBtn) {
+                    turnInfo.regenBtn.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true }));
+                    turnInfo.regenBtn.click();
+                  }
                 }
               },
               { label: 'Fork Conversation', icon: 'fork', action: () => {
-                  if (turnInfo.forkBtn) turnInfo.forkBtn.click();
+                  if (turnInfo.forkBtn) {
+                    turnInfo.forkBtn.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true }));
+                    turnInfo.forkBtn.click();
+                  }
                 }
               }
             ];
