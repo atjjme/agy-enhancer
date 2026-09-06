@@ -2919,6 +2919,19 @@
       }
 
       // 4. 底层动作执行辅助函数
+      function triggerNativeButton(btn) {
+        if (!btn) return false;
+        try {
+          btn.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true }));
+          btn.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }));
+          btn.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, cancelable: true }));
+          btn.click();
+          return true;
+        } catch (e) {
+          try { btn.click(); return true; } catch (e2) { return false; }
+        }
+      }
+
       function copyText(text) {
         if (!text) return;
         navigator.clipboard.writeText(text).catch(() => {});
@@ -3333,9 +3346,8 @@
       function resolveFileCard(target) {
         if (!target) return null;
 
-        // 0. 优先检测当前点击节点及其父级/子级是否为文件超链接 (如 markdown 中的 [thumbnail_4_4k.jpg](file://...))
-        const fileLink = target.closest('a[href^="file:"], a[href*="file:"], [data-uri^="file:"], [data-uri*="file:"]') ||
-                         target.querySelector?.('a[href^="file:"], a[href*="file:"], [data-uri^="file:"], [data-uri*="file:"]');
+        // 0. 优先检测当前点击节点及其父级是否为文件超链接 (如 markdown 中的 [thumbnail_4_4k.jpg](file://...))
+        const fileLink = target.closest('a[href^="file:"], a[href*="file:"], [data-uri^="file:"], [data-uri*="file:"]');
         if (fileLink) {
           const rawUri = fileLink.getAttribute('data-uri') || fileLink.getAttribute('href') || fileLink.href || '';
           if (rawUri.startsWith('file:///')) {
@@ -3346,7 +3358,7 @@
           }
         }
 
-        // 1. 原有的显式属性卡片选择器
+        // 1. 原有的显式属性卡片选择器 (带有明确文件特征属性)
         const card = target.closest('[data-testid*="file" i], [data-filename], .artifact-file, [data-artifact-id], [data-uri*="artifact"]');
         if (card) {
           const uri = card.getAttribute('data-uri');
@@ -3358,50 +3370,41 @@
           }
           const filename = card.getAttribute('data-filename') || card.getAttribute('title') || card.innerText?.split('\n')[0] || 'file';
           const filePath = card.getAttribute('data-path') || card.getAttribute('data-file-path') || filename;
-          return { card, filename, filePath };
+          if (filePath && (filePath.includes('\\') || filePath.includes('/') || filePath.includes('.'))) {
+            return { card, filename, filePath };
+          }
         }
 
-        // 2. 检查是否为 Artifacts 列表中的每一项（例如侧边栏/抽屉里 Artifacts 列表下的 Thumbnail 等制品）
-        const row = target.closest('a, button, li, [role="button"], div.cursor-pointer, [class*="item"], div.flex.items-center');
-        if (row) {
-          // 如果列表项内部包含文件链接，直接取该链接
-          const innerFileLink = row.querySelector('a[href^="file:"], a[href*="file:"], [data-uri^="file:"]');
-          if (innerFileLink) {
-            const rawUri = innerFileLink.getAttribute('data-uri') || innerFileLink.getAttribute('href') || innerFileLink.href || '';
-            if (rawUri.startsWith('file:///')) {
-              let clean = decodeURIComponent(rawUri.replace(/^file:\/\/\/?/i, '')).replace(/\//g, '\\');
-              clean = clean.replace(/^\/([a-zA-Z]:)/, '$1');
-              const filename = innerFileLink.innerText?.trim() || clean.split('\\').pop() || 'file';
-              return { card: row, filename, filePath: clean };
-            }
-          }
-
-          let container = row.parentElement;
-          let inArtifactsSection = false;
-          for (let i = 0; i < 6 && container; i++) {
-            const text = container.innerText || '';
-            const aria = container.getAttribute('aria-label') || '';
-            const testid = container.getAttribute('data-testid') || '';
-            if (/Artifacts?\s*\d*/i.test(text) || /Artifact/i.test(aria) || /artifact/i.test(testid)) {
-              inArtifactsSection = true;
-              break;
-            }
-            container = container.parentElement;
-          }
-
-          if (inArtifactsSection) {
-            let title = (row.innerText || target.innerText || '').split('\n')[0].trim();
-            // 如果文本中包含具体文件名（例如 "封面 4K 超清版： thumbnail_4_4k.jpg"），提取文件名
-            const fnMatch = title.match(/([a-zA-Z0-9_-]+\.[a-zA-Z0-9]+)/);
-            const cleanTitle = fnMatch ? fnMatch[1] : title;
-            if (cleanTitle && !cleanTitle.startsWith('Artifacts') && !cleanTitle.startsWith('See all') && !cleanTitle.startsWith('Uploads')) {
-              const convoMatch = window.location.pathname.match(/\/c\/([a-f0-9-]+)/i);
-              const convoId = convoMatch ? convoMatch[1] : '';
-              return {
-                card: row,
-                filename: cleanTitle,
-                filePath: convoId ? `ARTIFACT:${convoId}:${cleanTitle}` : cleanTitle
-              };
+        // 2. 检查是否位于侧边栏 Artifacts 抽屉列表项内部 (如果在主聊天区则跳过此项，防止将气泡或空白误判为工件)
+        const chatContainer = getChatScrollContainer();
+        const isInChat = chatContainer && chatContainer.contains(target);
+        if (!isInChat) {
+          const artifactsDrawer = target.closest('#artifacts-sidebar, .artifacts-drawer, [aria-label*="Artifacts" i], [data-testid*="artifacts-list" i]');
+          if (artifactsDrawer) {
+            const row = target.closest('a, button, li, [role="button"], div.cursor-pointer');
+            if (row && artifactsDrawer.contains(row)) {
+              const innerFileLink = row.querySelector('a[href^="file:"], a[href*="file:"], [data-uri^="file:"]');
+              if (innerFileLink) {
+                const rawUri = innerFileLink.getAttribute('data-uri') || innerFileLink.getAttribute('href') || innerFileLink.href || '';
+                if (rawUri.startsWith('file:///')) {
+                  let clean = decodeURIComponent(rawUri.replace(/^file:\/\/\/?/i, '')).replace(/\//g, '\\');
+                  clean = clean.replace(/^\/([a-zA-Z]:)/, '$1');
+                  const filename = innerFileLink.innerText?.trim() || clean.split('\\').pop() || 'file';
+                  return { card: row, filename, filePath: clean };
+                }
+              }
+              let title = (row.innerText || target.innerText || '').split('\n')[0].trim();
+              const fnMatch = title.match(/([a-zA-Z0-9_.-]+\.[a-zA-Z0-9]+)/);
+              const cleanTitle = fnMatch ? fnMatch[1] : title;
+              if (cleanTitle && !cleanTitle.startsWith('Artifacts') && !cleanTitle.startsWith('See all') && !cleanTitle.startsWith('Uploads')) {
+                const convoMatch = window.location.pathname.match(/\/c\/([a-f0-9-]+)/i);
+                const convoId = convoMatch ? convoMatch[1] : '';
+                return {
+                  card: row,
+                  filename: cleanTitle,
+                  filePath: convoId ? `ARTIFACT:${convoId}:${cleanTitle}` : cleanTitle
+                };
+              }
             }
           }
         }
@@ -3496,9 +3499,23 @@
           aiTurnEl = target.closest('[data-testid*="turn" i], .turn-container, .group.w-full') || target;
         }
 
-        const regenBtn = aiTurnEl.querySelector?.('button[aria-label*="Regenerate" i], button[title*="Regenerate" i]');
-        const forkBtn = aiTurnEl.querySelector?.('button[aria-label*="Fork" i], button[title*="Fork" i]');
-        const aiCopyBtn = aiTurnEl.querySelector?.('button[data-tooltip-id*="copy-"]:not([data-tooltip-id*="copy-user-message"]):not([data-tooltip-id*="copy-code"]), button[aria-label="Copy"]:not(.user-input-buttons-container button)');
+        const aiCopyBtn = aiTurnEl.querySelector?.('button[aria-label="Copy"]:not(.user-input-buttons-container button), button[data-tooltip-id*="copy-"]:not([data-tooltip-id*="copy-user-message"]):not([data-tooltip-id*="copy-code"])');
+
+        // 检索上一提问步骤对应的原生回退/重新提问按钮 (revert-button)
+        let prev = aiTurnEl ? aiTurnEl.previousElementSibling : null;
+        let prevUserTurn = null;
+        while (prev) {
+          if (prev.matches?.('.group\\/user-input-step, [class*="user-input-step"]')) {
+            prevUserTurn = prev;
+            break;
+          }
+          prev = prev.previousElementSibling;
+        }
+        if (!prevUserTurn && chatContainer) {
+          const userTurns = Array.from(chatContainer.querySelectorAll('.group\\/user-input-step, [class*="user-input-step"]'));
+          prevUserTurn = userTurns[userTurns.length - 1];
+        }
+        const revertBtn = prevUserTurn?.querySelector?.('button[data-testid="revert-button"], button[aria-label*="Undo" i]');
 
         const responseMarkdown = aiTurnEl.innerText || aiTurnEl.textContent || '';
 
@@ -3506,8 +3523,7 @@
           isUserTurn: false,
           turnEl: aiTurnEl,
           aiCopyBtn,
-          regenBtn,
-          forkBtn,
+          revertBtn,
           responseMarkdown
         };
       }
@@ -3810,53 +3826,50 @@
             // 用户提问气泡: Edit Prompt, Copy Prompt
             items = [
               { label: 'Edit Prompt', icon: 'edit', action: () => {
-                  if (turnInfo.editBtn) {
-                    turnInfo.editBtn.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true }));
-                    turnInfo.editBtn.click();
-                  } else {
-                    const input = document.querySelector('textarea, [contenteditable="true"]');
-                    if (input && turnInfo.promptText) {
-                      input.value = turnInfo.promptText;
-                      input.dispatchEvent(new Event('input', { bubbles: true }));
-                      input.focus();
-                    }
+                  if (turnInfo.editBtn && triggerNativeButton(turnInfo.editBtn)) {
+                    return;
+                  }
+                  const input = document.querySelector('textarea, [contenteditable="true"]');
+                  if (input && turnInfo.promptText) {
+                    input.value = turnInfo.promptText;
+                    input.dispatchEvent(new Event('input', { bubbles: true }));
+                    input.focus();
                   }
                 }
               },
               { label: 'Copy Prompt', icon: 'copy', action: () => {
-                  if (turnInfo.copyBtn) {
-                    turnInfo.copyBtn.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true }));
-                    turnInfo.copyBtn.click();
+                  if (turnInfo.copyBtn && triggerNativeButton(turnInfo.copyBtn)) {
+                    showNotification?.('已复制提问');
                   } else {
                     copyText(turnInfo.promptText);
+                    showNotification?.('已复制提问');
                   }
                 }
               }
             ];
           } else {
-            // AI 回复气泡: Copy Response (Markdown), Regenerate, Fork Conversation
+            // AI 回复气泡: 优先调用系统原生交互能力
             items = [
               { label: 'Copy Response (Markdown)', icon: 'copy', action: () => {
-                  if (turnInfo.aiCopyBtn) {
-                    turnInfo.aiCopyBtn.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true }));
-                    turnInfo.aiCopyBtn.click();
-                  } else {
+                  if (turnInfo.aiCopyBtn && triggerNativeButton(turnInfo.aiCopyBtn)) {
+                    showNotification?.('已复制回复 (Markdown)');
+                  } else if (turnInfo.responseMarkdown) {
                     copyText(turnInfo.responseMarkdown);
+                    showNotification?.('已复制回复 (Markdown)');
                   }
                 }
               },
-              { label: 'Regenerate', icon: 'regenerate', action: () => {
-                  if (turnInfo.regenBtn) {
-                    turnInfo.regenBtn.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true }));
-                    turnInfo.regenBtn.click();
+              { label: 'Undo & Regenerate', icon: 'regenerate', action: () => {
+                  if (turnInfo.revertBtn && triggerNativeButton(turnInfo.revertBtn)) {
+                    // 原生 revert-button 已触发系统级回退响应
+                  } else {
+                    showNotification?.('未找到可回退的提问步骤');
                   }
                 }
               },
-              { label: 'Fork Conversation', icon: 'fork', action: () => {
-                  if (turnInfo.forkBtn) {
-                    turnInfo.forkBtn.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true }));
-                    turnInfo.forkBtn.click();
-                  }
+              { label: 'Copy Conversation Link', icon: 'link', action: () => {
+                  copyText(window.location.href);
+                  showNotification?.('已复制会话链接');
                 }
               }
             ];
