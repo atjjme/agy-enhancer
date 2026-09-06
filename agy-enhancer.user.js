@@ -11,6 +11,8 @@
 // @run-at       document-idle
 // ==/UserScript==
 
+window.__AGY_BRANCH_TAG__ = " (branch)";
+window.__AGY_BRANCH_NAME__ = "golden_comet_arcs_10h20";
 /**
  * Antigravity 增强器 (agy-enhancer enhancer)
  * 
@@ -3138,8 +3140,8 @@
         const lastSlash = p.lastIndexOf('\\');
         if (lastSlash > 0) {
           const lastSegment = p.slice(lastSlash + 1);
-          // 如果末尾带有文件扩展名（如 .md, .png, .js, .json, .py 等），去除文件名保留纯目录
-          if (/\.[a-zA-Z0-9_-]+$/i.test(lastSegment)) {
+          // 如果末尾带有非点开头的正规文件名扩展名（如 .md, .png, .js 等，排除 .gemini 等隐藏目录），去除文件名保留纯目录
+          if (/^[^.]+\.[a-zA-Z0-9_-]+$/i.test(lastSegment)) {
             return p.slice(0, lastSlash);
           }
         }
@@ -3430,22 +3432,107 @@
         return false;
       }
 
-      function resolveLocalPathString(target, selectedText) {
-        const a = target.closest('a[href]');
-        if (a && a.href && a.href.startsWith('file:///')) {
-          return decodeURIComponent(a.href.replace(/^file:\/\/\/?/i, '')).replace(/\//g, '\\');
-        }
-        const pathAttrEl = target.closest('[data-path], [data-file-path], [data-filepath]');
-        if (pathAttrEl) {
-          const p = pathAttrEl.getAttribute('data-path') || pathAttrEl.getAttribute('data-file-path') || pathAttrEl.getAttribute('data-filepath');
-          if (p) return p;
-        }
-        const candidate = selectedText || (target.textContent || '').trim();
-        if (/^[a-zA-Z]:[/\\](?:[^/:*?"<>|\r\n]+[/\\])*[^/:*?"<>|\r\n]*$/.test(candidate) || /^\/(?:[^\/\0]+\/)*[^\/\0]*$/.test(candidate)) {
-          if (candidate.length >= 4 && (candidate.includes('\\') || candidate.includes('/'))) {
-            return candidate;
+      function extractPathFromText(text) {
+        if (!text) return null;
+        let str = text.trim();
+
+        // 匹配 Windows 盘符绝对路径: C:\foo\bar 或 C:/foo/bar
+        const winMatch = str.match(/([a-zA-Z]:[\\/][^:*?"<>|\r\n\s\t`'"]*)/);
+        if (winMatch) {
+          let p = winMatch[1].replace(/[.,;:，。；)\]>]+$/, '');
+          // 确保长度且包含至少一个有效路径分隔符
+          if (p.length >= 3 && (p.includes('\\') || p.includes('/'))) {
+            return p.replace(/\//g, '\\');
           }
         }
+
+        // 匹配 Unix 绝对路径 (如 /Users/... 或 /home/... 或 /c/Users/...)
+        const unixMatch = str.match(/(\/(?:Users|home|root|var|etc|opt|tmp|mnt|c|d|e|projects)[\\/][^:*?"<>|\r\n\s\t`'"]*)/i);
+        if (unixMatch) {
+          let p = unixMatch[1].replace(/[.,;:，。；)\]>]+$/, '');
+          if (p.length >= 4) {
+            // 如果是 /c/Users/... 形式，转为 Windows 驱动器 C:\Users\...
+            const driveMatch = p.match(/^\/([a-zA-Z])\/(.*)/);
+            if (driveMatch) {
+              return `${driveMatch[1].toUpperCase()}:\\${driveMatch[2].replace(/\//g, '\\')}`;
+            }
+            return p;
+          }
+        }
+
+        return null;
+      }
+
+      function resolveLocalPathString(target, selectedText) {
+        if (!target && !selectedText) return null;
+
+        // 1. 优先检测带有 file:/// 协议的超链接或属性节点
+        const a = target?.closest?.('a[href]');
+        if (a && a.href && a.href.startsWith('file:///')) {
+          let clean = decodeURIComponent(a.href.replace(/^file:\/\/\/?/i, '')).replace(/\//g, '\\');
+          return clean.replace(/^\/([a-zA-Z]:)/, '$1');
+        }
+        const pathAttrEl = target?.closest?.('[data-path], [data-file-path], [data-filepath]');
+        if (pathAttrEl) {
+          const p = pathAttrEl.getAttribute('data-path') || pathAttrEl.getAttribute('data-file-path') || pathAttrEl.getAttribute('data-filepath');
+          if (p) return p.replace(/\//g, '\\');
+        }
+
+        // 2. 划选文本检测
+        if (selectedText) {
+          const match = extractPathFromText(selectedText);
+          if (match) return match;
+        }
+
+        // 3. 检查当前节点或父级 code 标签（行内代码 <code>C:\...</code>）
+        const codeEl = target?.closest?.('code');
+        if (codeEl) {
+          const match = extractPathFromText(codeEl.innerText || codeEl.textContent || '');
+          if (match) return match;
+        }
+
+        // 4. 当前点击的节点文本 (短文本行内提取)
+        const text = (target?.innerText || target?.textContent || '').trim();
+        if (text && text.length < 500) {
+          const match = extractPathFromText(text);
+          if (match) return match;
+        }
+
+        return null;
+      }
+
+      function resolveHyperlinkUrl(target, selectedText) {
+        if (!target && !selectedText) return null;
+
+        // 1. 优先检测真实超链接 <a>
+        const a = target?.closest?.('a[href]');
+        if (a && a.href && !a.href.startsWith('file:///')) {
+          return a.href;
+        }
+
+        // 2. 检测划选文本中的 URL
+        const selCandidate = selectedText ? selectedText.trim() : '';
+        if (selCandidate) {
+          const m = selCandidate.match(/(https?:\/\/[^\s"'<>]+|www\.[^\s"'<>]+)/i);
+          if (m) {
+            let url = m[1].replace(/[.,;:)"'}>]+$/, '');
+            if (url.startsWith('www.')) url = 'https://' + url;
+            return url;
+          }
+        }
+
+        // 3. 检测 target 元素文本或最近的 code 标签文本 (行内代码 / 纯文本网址)
+        const codeEl = target?.closest?.('code');
+        const textToScan = codeEl ? (codeEl.innerText || codeEl.textContent || '') : (target?.textContent || '');
+        if (textToScan && textToScan.length < 500) {
+          const m = textToScan.match(/(https?:\/\/[^\s"'<>]+|www\.[^\s"'<>]+)/i);
+          if (m) {
+            let url = m[1].replace(/[.,;:)"'}>]+$/, '');
+            if (url.startsWith('www.')) url = 'https://' + url;
+            return url;
+          }
+        }
+
         return null;
       }
 
@@ -3805,20 +3892,20 @@
           return;
         }
 
-        // 目标 2: 超链接 (Hyperlink / URL) - 若未划选其他文字
-        const linkEl = target.closest('a[href]');
-        if (linkEl && !selectedText) {
-          const href = linkEl.href;
-          if (!href.startsWith('file:///')) {
-            e.preventDefault();
-            e.stopPropagation();
-            const items = [
-              { label: 'Open Link in Browser', icon: 'external', action: () => openExternalUrl(href) },
-              { label: 'Copy Link Address', icon: 'link', action: () => copyText(href) }
-            ];
-            renderMenu(items, e.clientX, e.clientY);
-            return;
-          }
+        // 目标 2: 超链接 (Hyperlink / URL - a标签、行内代码或纯文本网址)
+        const linkUrl = resolveHyperlinkUrl(target, selectedText);
+        if (linkUrl && !selectedText) {
+          e.preventDefault();
+          e.stopPropagation();
+          const items = [
+            { label: 'Open Link in Browser', icon: 'external', action: () => openExternalUrl(linkUrl) },
+            { label: 'Copy Link Address', icon: 'link', action: () => {
+              copyText(linkUrl);
+              showNotification?.('已复制链接地址');
+            }}
+          ];
+          renderMenu(items, e.clientX, e.clientY);
+          return;
         }
 
         // 目标 3: 本地路径 (Local Path)
@@ -3875,15 +3962,32 @@
               { label: 'Explain', icon: 'explain', action: () => appendExplainToPrompt(selectedText) }
             ];
           } else {
-            // 聊天区选中文本: Copy, Quote, Search
+            // 聊天区选中文本: 若选中文本包含 URL 或 本地路径，智能附加相应直达快捷动作
+            const selUrl = resolveHyperlinkUrl(null, selectedText);
+            const selPath = resolveLocalPathString(null, selectedText);
             items = [
               { label: 'Copy', icon: 'copy', action: () => copyText(selectedText) },
-              { label: 'Quote', icon: 'quote', action: () => triggerNativeQuote(selectedText) },
-              { label: 'Search', icon: 'search', action: () => {
-                  window.open('https://www.google.com/search?q=' + encodeURIComponent(selectedText), '_blank');
-                }
-              }
+              { label: 'Quote', icon: 'quote', action: () => triggerNativeQuote(selectedText) }
             ];
+            if (selUrl) {
+              items.push({ label: 'Open Link in Browser', icon: 'external', action: () => openExternalUrl(selUrl) });
+              items.push({ label: 'Copy Link Address', icon: 'link', action: () => {
+                copyText(selUrl);
+                showNotification?.('已复制链接地址');
+              }});
+            }
+            if (selPath) {
+              items.push({ label: 'Reveal in Explorer', icon: 'folder', action: () => revealPath(selPath) });
+              items.push({ label: 'Copy Path', icon: 'copy', action: () => {
+                copyText(getDirectoryPath(selPath));
+                showNotification?.('已复制所在目录');
+              }});
+            }
+            items.push({
+              label: 'Search', icon: 'search', action: () => {
+                window.open('https://www.google.com/search?q=' + encodeURIComponent(selectedText), '_blank');
+              }
+            });
           }
           renderMenu(items, e.clientX, e.clientY);
           return;
