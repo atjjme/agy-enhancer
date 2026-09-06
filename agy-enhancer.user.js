@@ -2939,6 +2939,26 @@ window.__AGY_BRANCH_NAME__ = "golden_comet_arcs_10h20";
         navigator.clipboard.writeText(text).catch(() => {});
       }
 
+      function isImageFilePath(pathOrName) {
+        if (!pathOrName) return false;
+        return /\.(png|jpe?g|webp|gif|bmp|svg)$/i.test(pathOrName.trim());
+      }
+
+      function copyImageFile(filePath) {
+        if (!filePath) return;
+        // 1. 发送给后台守护进程直接将真实图片写入系统原生剪贴板
+        console.log('[AGY_COPY_IMAGE]' + filePath);
+
+        // 2. 如果当前页面存在该图片的 img 节点，同时尝试通过浏览器写入剪贴板
+        try {
+          const fn = filePath.split(/[\\/]/).pop();
+          if (fn) {
+            const img = document.querySelector(`img[src*="${fn}"], img[alt*="${fn}"]`);
+            if (img) copyImageBlob(img);
+          }
+        } catch (e) {}
+      }
+
       function revealPath(pathStr) {
         if (!pathStr) return;
         console.log('[AGY_REVEAL_PATH]' + pathStr);
@@ -3328,12 +3348,26 @@ window.__AGY_BRANCH_NAME__ = "golden_comet_arcs_10h20";
       function resolveFileCard(target) {
         if (!target) return null;
 
+        // 0. 优先检测当前点击节点及其父级/子级是否为文件超链接 (如 markdown 中的 [thumbnail_4_4k.jpg](file://...))
+        const fileLink = target.closest('a[href^="file:"], a[href*="file:"], [data-uri^="file:"], [data-uri*="file:"]') ||
+                         target.querySelector?.('a[href^="file:"], a[href*="file:"], [data-uri^="file:"], [data-uri*="file:"]');
+        if (fileLink) {
+          const rawUri = fileLink.getAttribute('data-uri') || fileLink.getAttribute('href') || fileLink.href || '';
+          if (rawUri.startsWith('file:///')) {
+            let clean = decodeURIComponent(rawUri.replace(/^file:\/\/\/?/i, '')).replace(/\//g, '\\');
+            clean = clean.replace(/^\/([a-zA-Z]:)/, '$1');
+            const filename = fileLink.innerText?.trim() || clean.split('\\').pop() || 'file';
+            return { card: fileLink, filename, filePath: clean };
+          }
+        }
+
         // 1. 原有的显式属性卡片选择器
-        const card = target.closest('[data-testid*="file" i], [data-filename], .artifact-file, [data-artifact-id], [data-uri*="artifact"], [data-uri*="file:"]');
+        const card = target.closest('[data-testid*="file" i], [data-filename], .artifact-file, [data-artifact-id], [data-uri*="artifact"]');
         if (card) {
           const uri = card.getAttribute('data-uri');
           if (uri && uri.startsWith('file:///')) {
-            const clean = decodeURIComponent(uri.replace(/^file:\/\/\/?/i, '')).replace(/\//g, '\\');
+            let clean = decodeURIComponent(uri.replace(/^file:\/\/\/?/i, '')).replace(/\//g, '\\');
+            clean = clean.replace(/^\/([a-zA-Z]:)/, '$1');
             const filename = card.getAttribute('data-filename') || card.getAttribute('title') || clean.split('\\').pop() || 'file';
             return { card, filename, filePath: clean };
           }
@@ -3345,6 +3379,18 @@ window.__AGY_BRANCH_NAME__ = "golden_comet_arcs_10h20";
         // 2. 检查是否为 Artifacts 列表中的每一项（例如侧边栏/抽屉里 Artifacts 列表下的 Thumbnail 等制品）
         const row = target.closest('a, button, li, [role="button"], div.cursor-pointer, [class*="item"], div.flex.items-center');
         if (row) {
+          // 如果列表项内部包含文件链接，直接取该链接
+          const innerFileLink = row.querySelector('a[href^="file:"], a[href*="file:"], [data-uri^="file:"]');
+          if (innerFileLink) {
+            const rawUri = innerFileLink.getAttribute('data-uri') || innerFileLink.getAttribute('href') || innerFileLink.href || '';
+            if (rawUri.startsWith('file:///')) {
+              let clean = decodeURIComponent(rawUri.replace(/^file:\/\/\/?/i, '')).replace(/\//g, '\\');
+              clean = clean.replace(/^\/([a-zA-Z]:)/, '$1');
+              const filename = innerFileLink.innerText?.trim() || clean.split('\\').pop() || 'file';
+              return { card: row, filename, filePath: clean };
+            }
+          }
+
           let container = row.parentElement;
           let inArtifactsSection = false;
           for (let i = 0; i < 6 && container; i++) {
@@ -3359,14 +3405,17 @@ window.__AGY_BRANCH_NAME__ = "golden_comet_arcs_10h20";
           }
 
           if (inArtifactsSection) {
-            const title = (row.innerText || target.innerText || '').split('\n')[0].trim();
-            if (title && !title.startsWith('Artifacts') && !title.startsWith('See all') && !title.startsWith('Uploads')) {
+            let title = (row.innerText || target.innerText || '').split('\n')[0].trim();
+            // 如果文本中包含具体文件名（例如 "封面 4K 超清版： thumbnail_4_4k.jpg"），提取文件名
+            const fnMatch = title.match(/([a-zA-Z0-9_-]+\.[a-zA-Z0-9]+)/);
+            const cleanTitle = fnMatch ? fnMatch[1] : title;
+            if (cleanTitle && !cleanTitle.startsWith('Artifacts') && !cleanTitle.startsWith('See all') && !cleanTitle.startsWith('Uploads')) {
               const convoMatch = window.location.pathname.match(/\/c\/([a-f0-9-]+)/i);
               const convoId = convoMatch ? convoMatch[1] : '';
               return {
                 card: row,
-                filename: title,
-                filePath: convoId ? `ARTIFACT:${convoId}:${title}` : title
+                filename: cleanTitle,
+                filePath: convoId ? `ARTIFACT:${convoId}:${cleanTitle}` : cleanTitle
               };
             }
           }
@@ -3666,9 +3715,18 @@ window.__AGY_BRANCH_NAME__ = "golden_comet_arcs_10h20";
         if (localPath && !selectedText) {
           e.preventDefault();
           e.stopPropagation();
+          const isImg = isImageFilePath(localPath);
+          if (isImg) {
+            const items = [
+              { label: 'Reveal in Explorer', icon: 'folder', action: () => revealPath(localPath) },
+              { label: 'Copy Image', icon: 'image', action: () => copyImageFile(localPath) }
+            ];
+            renderMenu(items, e.clientX, e.clientY);
+            return;
+          }
           const items = [
-            { label: 'Copy Path', icon: 'copy', action: () => copyText(localPath) },
-            { label: 'Reveal in Explorer', icon: 'folder', action: () => revealPath(localPath) }
+            { label: 'Reveal in Explorer', icon: 'folder', action: () => revealPath(localPath) },
+            { label: 'Copy Path', icon: 'copy', action: () => copyText(localPath) }
           ];
           renderMenu(items, e.clientX, e.clientY);
           return;
@@ -3679,6 +3737,16 @@ window.__AGY_BRANCH_NAME__ = "golden_comet_arcs_10h20";
         if (fileEntity && !selectedText) {
           e.preventDefault();
           e.stopPropagation();
+          const isImg = isImageFilePath(fileEntity.filePath) || isImageFilePath(fileEntity.filename);
+          if (isImg) {
+            const items = [
+              { label: 'Reveal in Explorer', icon: 'folder', action: () => revealPath(fileEntity.filePath) },
+              { label: 'Copy Image', icon: 'image', action: () => copyImageFile(fileEntity.filePath) }
+            ];
+            renderMenu(items, e.clientX, e.clientY);
+            return;
+          }
+
           const isArtifact = fileEntity.isArtifactViewer || fileEntity.filePath.startsWith('ARTIFACT:');
           const cleanCopyPath = fileEntity.filePath.startsWith('ARTIFACT:') ? fileEntity.filename : fileEntity.filePath;
           const items = [
