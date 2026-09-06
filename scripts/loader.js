@@ -303,14 +303,6 @@ async function connectAndAttach() {
             } catch (e) {
               log('Failed to copy image: ' + e.message);
             }
-          } else if (typeof text === 'string' && text.startsWith('[AGY_OPEN_EXTERNAL]')) {
-            const url = text.slice('[AGY_OPEN_EXTERNAL]'.length).trim();
-            log(`Opening external URL: ` + url);
-            try {
-              exec(`start "" "${url}"`);
-            } catch (e) {
-              log(`Failed to open URL: ` + e.message);
-            }
           }
         } else if (data.id === 77777) {
           // 心跳探测返回：如果探测出错或异常，切勿当成未就绪而乱注

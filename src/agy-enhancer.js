@@ -2964,7 +2964,6 @@
 
       function openExternalUrl(url) {
         if (!url) return;
-        console.log('[AGY_OPEN_EXTERNAL]' + url);
         try { window.open(url, '_blank'); } catch (e) {}
       }
 
@@ -3421,8 +3420,15 @@
         if (!text) return null;
         let str = text.trim();
 
-        // 匹配 Windows 盘符绝对路径: C:\foo\bar 或 C:/foo/bar
-        const winMatch = str.match(/([a-zA-Z]:[\\/][^:*?"<>|\r\n\s\t`'"]*)/);
+        // 如果文本本身是网络 URL 或以协议开头，直接排除（严防网址被误识别为本地路径）
+        if (/^https?:\/\//i.test(str) || /^www\./i.test(str) || /^ftp:\/\//i.test(str)) {
+          return null;
+        }
+
+        // 匹配 Windows 盘符绝对路径:
+        // 1. 盘符前必须为字符串开始或非字母数字字符（严防 https: 中的 s: 被误判为驱动器）
+        // 2. 盘符冒号后必须为单个斜杠，不能紧随第二个斜杠（排除 scheme:// 协议语法）
+        const winMatch = str.match(/(?:^|[^a-zA-Z0-9_])([a-zA-Z]:[\\/](?![\\/])[^:*?"<>|\r\n\s\t`'"]*)/);
         if (winMatch) {
           let p = winMatch[1].replace(/[.,;:，。；)\]>]+$/, '');
           // 确保长度且包含至少一个有效路径分隔符
@@ -3432,7 +3438,7 @@
         }
 
         // 匹配 Unix 绝对路径 (如 /Users/... 或 /home/... 或 /c/Users/...)
-        const unixMatch = str.match(/(\/(?:Users|home|root|var|etc|opt|tmp|mnt|c|d|e|projects)[\\/][^:*?"<>|\r\n\s\t`'"]*)/i);
+        const unixMatch = str.match(/(?:^|[^a-zA-Z0-9_])(\/(?:Users|home|root|var|etc|opt|tmp|mnt|c|d|e|projects)[\\/][^:*?"<>|\r\n\s\t`'"]*)/i);
         if (unixMatch) {
           let p = unixMatch[1].replace(/[.,;:，。；)\]>]+$/, '');
           if (p.length >= 4) {
@@ -3949,7 +3955,7 @@
           } else {
             // 聊天区选中文本: 若选中文本包含 URL 或 本地路径，智能附加相应直达快捷动作
             const selUrl = resolveHyperlinkUrl(null, selectedText);
-            const selPath = resolveLocalPathString(null, selectedText);
+            const selPath = selUrl ? null : resolveLocalPathString(null, selectedText);
             items = [
               { label: 'Copy', icon: 'copy', action: () => copyText(selectedText) },
               { label: 'Quote', icon: 'quote', action: () => triggerNativeQuote(selectedText) }
