@@ -4408,7 +4408,7 @@
       window.__AGY_PROMPT_SUBMITTED_MAP__ = promptSubmittedConvos;
     }
 
-    // ==================== 11. 划词引用浮窗拦截 (Block Quote Popup, Keep Comment) ====================
+    // ==================== 11. 划词原生浮窗拦截 (Block Quote & Comment Popups) ====================
     function initQuotePopupInterceptor() {
       if (!USER_CONFIG.ENABLE_BLOCK_QUOTE_POPUP) return;
 
@@ -4418,12 +4418,12 @@
         styleEl = document.createElement('style');
         styleEl.id = styleId;
         styleEl.textContent = `
-          /* 纯 Quote 独立弹窗容器隐藏 */
+          /* 纯 Quote / Comment 独立悬浮气泡彻底隐藏 */
           [data-agy-block-quote="true"] {
             display: none !important;
             pointer-events: none !important;
           }
-          /* 复合操作栏中仅隐藏 Quote 项，保留评论 */
+          /* 工具栏中子项隐藏 */
           .agy-hide-quote-item {
             display: none !important;
             pointer-events: none !important;
@@ -4443,49 +4443,40 @@
         return false;
       }
 
-      // 准确判断是否为 Quote 按钮或气泡
-      function isQuoteTarget(el) {
+      // 准确判断是否为 Quote 或 Comment 浮窗按钮或气泡
+      function isBlockedPopupTarget(el) {
         if (!el || el.nodeType !== Node.ELEMENT_NODE) return false;
         if (isIgnoredContainer(el)) return false;
 
         const ariaLabel = (el.getAttribute?.('aria-label') || '').trim();
         const title = (el.getAttribute?.('title') || '').trim();
-        if (/^(Quote|引用)(\s*\(?(Ctrl|⌘|\^)\+?L\)?)?$/i.test(ariaLabel) || /^(Quote|引用)(\s*\(?(Ctrl|⌘|\^)\+?L\)?)?$/i.test(title)) {
-          return true;
-        }
 
+        // 1. 匹配 Quote / 引用 (如 Quote Ctrl+L)
+        const isQuote = /^(Quote|引用)(\s*\(?(Ctrl|⌘|\^)\+?L\)?)?$/i.test(ariaLabel) ||
+                        /^(Quote|引用)(\s*\(?(Ctrl|⌘|\^)\+?L\)?)?$/i.test(title);
+
+        // 2. 匹配 Comment / 评论 (如 Comment Ctrl+Alt+M)
+        const isComment = /^(Comment|评论)(\s*\(?(Ctrl|⌘|\^)\+?(Alt\+)?M\)?)?$/i.test(ariaLabel) ||
+                          /^(Comment|评论)(\s*\(?(Ctrl|⌘|\^)\+?(Alt\+)?M\)?)?$/i.test(title);
+
+        if (isQuote || isComment) return true;
+
+        // 3. 匹配按钮纯文本短词
         const text = (el.textContent || '').trim().replace(/\s+/g, ' ');
-        if (/^(Quote|引用)(\s*(Ctrl|⌘|\^)\+?L)?$/i.test(text)) {
-          return true;
-        }
+        if (/^(Quote|引用)(\s*(Ctrl|⌘|\^)\+?L)?$/i.test(text)) return true;
+        if (/^(Comment|评论)(\s*(Ctrl|⌘|\^)\+?(Alt\+)?M)?$/i.test(text)) return true;
 
         return false;
       }
 
-      // 检查容器是否包含 Comment 或其它操作
-      function hasCommentOrSiblingActions(container, quoteBtn) {
-        if (!container || container.nodeType !== Node.ELEMENT_NODE) return false;
-        const interactiveItems = container.querySelectorAll('button, [role="button"], a');
-        for (const item of interactiveItems) {
-          if (item === quoteBtn || isQuoteTarget(item)) continue;
-          const text = (item.textContent || '').trim();
-          const label = (item.getAttribute?.('aria-label') || item.getAttribute?.('title') || '').trim();
-          // 如果包含 Comment、评论，或者有其他有效按钮
-          if (/Comment|评论/i.test(text) || /Comment|评论/i.test(label) || text.length > 0 || label.length > 0) {
-            return true;
-          }
-        }
-        return false;
-      }
-
-      function handleQuoteElement(quoteEl) {
-        if (!quoteEl || quoteEl.nodeType !== Node.ELEMENT_NODE) return;
-        if (quoteEl.closest?.('.agy-page-nav-group, #agy-archive-panel, #agy-enhancer-toast')) return;
-        if (quoteEl.hasAttribute('data-agy-block-quote') || quoteEl.classList.contains('agy-hide-quote-item')) return;
+      function handleBlockedElement(el) {
+        if (!el || el.nodeType !== Node.ELEMENT_NODE) return;
+        if (el.closest?.('.agy-page-nav-group, #agy-archive-panel, #agy-enhancer-toast, #agy-universal-context-menu')) return;
+        if (el.hasAttribute('data-agy-block-quote') || el.classList.contains('agy-hide-quote-item')) return;
 
         // 往上寻找悬浮容器（最多向上 3 层，严禁使用 getComputedStyle）
         let container = null;
-        let curr = quoteEl;
+        let curr = el;
         for (let i = 0; i < 3; i++) {
           if (!curr || curr === document.body || curr === document.documentElement) break;
           const role = curr.getAttribute?.('role');
@@ -4496,17 +4487,12 @@
           curr = curr.parentElement;
         }
 
-        const quoteBtn = quoteEl.closest('button, [role="button"]') || quoteEl;
+        const btn = el.closest('button, [role="button"]') || el;
 
-        if (container && hasCommentOrSiblingActions(container, quoteBtn)) {
-          // 复合工具条：仅隐藏 Quote 按钮，保留 Comment 评论正常使用
-          quoteBtn.classList.add('agy-hide-quote-item');
-        } else if (container) {
-          // 纯 Quote 独立浮窗：隐藏整个容器
+        if (container) {
           container.setAttribute('data-agy-block-quote', 'true');
         } else {
-          // 无法判定外层容器时，仅隐藏 Quote 按钮本身，绝不影响周围其他元素
-          quoteBtn.classList.add('agy-hide-quote-item');
+          btn.classList.add('agy-hide-quote-item');
         }
       }
 
@@ -4514,8 +4500,8 @@
         if (!node || node.nodeType !== Node.ELEMENT_NODE) return;
         if (isIgnoredContainer(node)) return;
 
-        if (isQuoteTarget(node)) {
-          handleQuoteElement(node);
+        if (isBlockedPopupTarget(node)) {
+          handleBlockedElement(node);
           return;
         }
 
@@ -4523,8 +4509,8 @@
         const buttons = node.querySelectorAll?.('button, [role="button"], [role="tooltip"]');
         if (buttons && buttons.length > 0) {
           for (const btn of buttons) {
-            if (isQuoteTarget(btn)) {
-              handleQuoteElement(btn);
+            if (isBlockedPopupTarget(btn)) {
+              handleBlockedElement(btn);
             }
           }
         }
