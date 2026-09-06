@@ -184,17 +184,74 @@ async function connectAndAttach() {
             log(`Revealing path in Explorer: ` + rawPath);
             try {
               let cleanPath = rawPath.replace(/^file:\/\/\/?/i, '').replace(/\//g, '\\');
-              if (cleanPath.startsWith('MEDIA:')) {
+              const homeDir = process.env.USERPROFILE || process.env.HOME || 'C:\\Users\\Juste';
+
+              if (cleanPath.startsWith('MEDIA_DIR:')) {
+                const convoId = cleanPath.slice('MEDIA_DIR:'.length).trim();
+                const userUploadedDir = path.join(homeDir, '.gemini', 'antigravity', 'brain', convoId, '.user_uploaded');
+                if (fs.existsSync(userUploadedDir)) {
+                  try {
+                    const files = fs.readdirSync(userUploadedDir)
+                      .filter(f => f.startsWith('media_'))
+                      .map(f => ({ name: f, time: fs.statSync(path.join(userUploadedDir, f)).mtimeMs }))
+                      .sort((a, b) => b.time - a.time);
+                    if (files.length > 0) {
+                      cleanPath = path.join(userUploadedDir, files[0].name);
+                    } else {
+                      cleanPath = userUploadedDir;
+                    }
+                  } catch (e) {
+                    cleanPath = userUploadedDir;
+                  }
+                } else {
+                  cleanPath = path.join(homeDir, '.gemini', 'antigravity', 'brain', convoId);
+                }
+              } else if (cleanPath.startsWith('MEDIA:')) {
                 const parts = cleanPath.split(':');
                 const convoId = parts[1];
                 const filename = parts[2];
-                const homeDir = process.env.USERPROFILE || process.env.HOME || 'C:\\Users\\Juste';
                 const mediaPath = path.join(homeDir, '.gemini', 'antigravity', 'brain', convoId, '.user_uploaded', filename);
-                cleanPath = mediaPath;
+                if (fs.existsSync(mediaPath)) {
+                  cleanPath = mediaPath;
+                } else {
+                  cleanPath = path.join(homeDir, '.gemini', 'antigravity', 'brain', convoId, '.user_uploaded');
+                }
+              } else if (cleanPath.startsWith('ARTIFACT:')) {
+                const parts = cleanPath.split(':');
+                const convoId = parts[1];
+                const title = parts.slice(2).join(':').trim();
+                const brainConvoDir = path.join(homeDir, '.gemini', 'antigravity', 'brain', convoId);
+                if (fs.existsSync(brainConvoDir)) {
+                  try {
+                    const files = fs.readdirSync(brainConvoDir);
+                    const norm = title.toLowerCase().replace(/[^a-z0-9]/g, '');
+                    let found = files.find(f => path.parse(f).name.toLowerCase().replace(/[^a-z0-9]/g, '') === norm);
+                    if (!found) {
+                      found = files.find(f => {
+                        const b = path.parse(f).name.toLowerCase().replace(/[^a-z0-9]/g, '');
+                        return (b.length >= 3 && norm.length >= 3 && (b.startsWith(norm) || norm.startsWith(b)));
+                      });
+                    }
+                    if (found) {
+                      cleanPath = path.join(brainConvoDir, found);
+                    } else {
+                      cleanPath = brainConvoDir;
+                    }
+                  } catch (e) {
+                    cleanPath = brainConvoDir;
+                  }
+                } else {
+                  cleanPath = path.join(homeDir, '.gemini', 'antigravity', 'brain');
+                }
               }
+
               if (/^[a-zA-Z]:/.test(cleanPath)) {
                 if (fs.existsSync(cleanPath)) {
-                  execSync(`explorer.exe /select,"${cleanPath}"`);
+                  if (fs.statSync(cleanPath).isDirectory()) {
+                    execSync(`explorer.exe "${cleanPath}"`);
+                  } else {
+                    execSync(`explorer.exe /select,"${cleanPath}"`);
+                  }
                 } else if (fs.existsSync(path.dirname(cleanPath))) {
                   execSync(`explorer.exe "${path.dirname(cleanPath)}"`);
                 } else {

@@ -3072,18 +3072,26 @@ window.__AGY_BRANCH_NAME__ = "golden_comet_arcs_10h20";
           return candidate.replace(/\//g, '\\');
         }
 
-        // 3. 用户上传的对话图片 (形如 media_1788664594538.png)
-        const fullContext = (imgEl.getAttribute('alt') || '') + ' ' +
-                            (imgEl.getAttribute('title') || '') + ' ' +
-                            src + ' ' +
+        // 3. 用户在提问气泡中上传的图片（无论是未放大的缩略图还是点开放大的图片）
+        const alt = imgEl.getAttribute('alt') || '';
+        const inUserTurn = !!imgEl.closest('.group\\/user-input-step, [class*="user-input-step"]');
+        const isUploadBtn = !!imgEl.closest('button[data-tooltip-id*="-img-"], button[aria-label*="image."]');
+        const isUserUpload = inUserTurn || isUploadBtn || alt.includes('User uploaded media');
+
+        const convoMatch = window.location.pathname.match(/\/c\/([a-f0-9-]+)/i);
+        const convoId = convoMatch ? convoMatch[1] : '';
+
+        // 尝试匹配已有的 media_时间戳 标识
+        const fullContext = alt + ' ' + (imgEl.getAttribute('title') || '') + ' ' + src + ' ' +
                             (imgEl.closest('[class*="media"], [data-media-id], [class*="user-input"]')?.innerText || '');
         const mediaMatch = fullContext.match(/(media_\d+\.[a-zA-Z0-9]+)/i) || src.match(/(media_\d+\.[a-zA-Z0-9]+)/i);
-        if (mediaMatch) {
-          const convoMatch = window.location.pathname.match(/\/c\/([a-f0-9-]+)/i);
-          const convoId = convoMatch ? convoMatch[1] : '';
-          if (convoId) {
-            return `MEDIA:${convoId}:${mediaMatch[1]}`;
-          }
+        if (mediaMatch && convoId) {
+          return `MEDIA:${convoId}:${mediaMatch[1]}`;
+        }
+
+        // 哪怕缩略图没有具体文件名，只要是用户上传图片且在会话中，直接定位该会话的 .user_uploaded 目录
+        if (isUserUpload && convoId) {
+          return `MEDIA_DIR:${convoId}`;
         }
 
         return null;
@@ -3258,12 +3266,52 @@ window.__AGY_BRANCH_NAME__ = "golden_comet_arcs_10h20";
       }
 
       function resolveFileCard(target) {
-        const card = target.closest('[data-testid*="file" i], [data-filename], .artifact-file, [data-artifact-id]');
+        if (!target) return null;
+
+        // 1. 原有的显式属性卡片选择器
+        const card = target.closest('[data-testid*="file" i], [data-filename], .artifact-file, [data-artifact-id], [data-uri*="artifact"], [data-uri*="file:"]');
         if (card) {
+          const uri = card.getAttribute('data-uri');
+          if (uri && uri.startsWith('file:///')) {
+            const clean = decodeURIComponent(uri.replace(/^file:\/\/\/?/i, '')).replace(/\//g, '\\');
+            const filename = card.getAttribute('data-filename') || card.getAttribute('title') || clean.split('\\').pop() || 'file';
+            return { card, filename, filePath: clean };
+          }
           const filename = card.getAttribute('data-filename') || card.getAttribute('title') || card.innerText?.split('\n')[0] || 'file';
           const filePath = card.getAttribute('data-path') || card.getAttribute('data-file-path') || filename;
           return { card, filename, filePath };
         }
+
+        // 2. 检查是否为 Artifacts 列表中的每一项（例如侧边栏/抽屉里 Artifacts 列表下的 Thumbnail 等制品）
+        const row = target.closest('a, button, li, [role="button"], div.cursor-pointer, [class*="item"], div.flex.items-center');
+        if (row) {
+          let container = row.parentElement;
+          let inArtifactsSection = false;
+          for (let i = 0; i < 6 && container; i++) {
+            const text = container.innerText || '';
+            const aria = container.getAttribute('aria-label') || '';
+            const testid = container.getAttribute('data-testid') || '';
+            if (/Artifacts?\s*\d*/i.test(text) || /Artifact/i.test(aria) || /artifact/i.test(testid)) {
+              inArtifactsSection = true;
+              break;
+            }
+            container = container.parentElement;
+          }
+
+          if (inArtifactsSection) {
+            const title = (row.innerText || target.innerText || '').split('\n')[0].trim();
+            if (title && !title.startsWith('Artifacts') && !title.startsWith('See all') && !title.startsWith('Uploads')) {
+              const convoMatch = window.location.pathname.match(/\/c\/([a-f0-9-]+)/i);
+              const convoId = convoMatch ? convoMatch[1] : '';
+              return {
+                card: row,
+                filename: title,
+                filePath: convoId ? `ARTIFACT:${convoId}:${title}` : title
+              };
+            }
+          }
+        }
+
         return null;
       }
 
