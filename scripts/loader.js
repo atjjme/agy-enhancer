@@ -179,6 +179,31 @@ async function connectAndAttach() {
             const jsonStr = text.slice('[AGY_PERSIST_UNREAD]'.length);
             log(`Persisting unread states to disk: ` + jsonStr);
             saveStoredUnreadStates(jsonStr);
+          } else if (typeof text === 'string' && text.startsWith('[AGY_REVEAL_PATH]')) {
+            const rawPath = text.slice('[AGY_REVEAL_PATH]'.length).trim();
+            log(`Revealing path in Explorer: ` + rawPath);
+            try {
+              let cleanPath = rawPath.replace(/^file:\/\/\/?/i, '').replace(/\//g, '\\');
+              if (/^[a-zA-Z]:/.test(cleanPath)) {
+                if (fs.existsSync(cleanPath)) {
+                  execSync(`explorer.exe /select,"${cleanPath}"`);
+                } else if (fs.existsSync(path.dirname(cleanPath))) {
+                  execSync(`explorer.exe "${path.dirname(cleanPath)}"`);
+                } else {
+                  execSync(`explorer.exe "${cleanPath}"`);
+                }
+              }
+            } catch (e) {
+              log(`Failed to reveal path: ` + e.message);
+            }
+          } else if (typeof text === 'string' && text.startsWith('[AGY_OPEN_EXTERNAL]')) {
+            const url = text.slice('[AGY_OPEN_EXTERNAL]'.length).trim();
+            log(`Opening external URL: ` + url);
+            try {
+              execSync(`start "" "${url}"`);
+            } catch (e) {
+              log(`Failed to open URL: ` + e.message);
+            }
           }
         } else if (data.id === 77777) {
           // 心跳探测返回：如果探测出错或异常，切勿当成未就绪而乱注
