@@ -3499,8 +3499,7 @@ window.__AGY_BRANCH_NAME__ = "golden_comet_arcs_10h20";
                 }
               }
             },
-            { label: 'Save As...', icon: 'save', action: () => saveFileLocally(codeInfo.codeText, codeInfo.filename) },
-            { label: 'Reveal in Explorer', icon: 'folder', action: () => revealPath(codeInfo.filename) }
+            { label: 'Save As...', icon: 'save', action: () => saveFileLocally(codeInfo.codeText, codeInfo.filename) }
           ];
           renderMenu(items, e.clientX, e.clientY);
           return;
