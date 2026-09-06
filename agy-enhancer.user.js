@@ -122,7 +122,6 @@ window.__AGY_BRANCH_NAME__ = "golden_comet_arcs_10h20";
   let interruptRestoration = null;
   let isInternalEnhancerScroll = false;
   let quoteObserver = null;
-  let quoteSelectionHandler = null;
 
   window.__AGY_ENHANCER_CLEANUP__ = function () {
     activeTimers.forEach(id => {
@@ -208,11 +207,6 @@ window.__AGY_BRANCH_NAME__ = "golden_comet_arcs_10h20";
     if (quoteObserver) {
       quoteObserver.disconnect();
       quoteObserver = null;
-    }
-    if (quoteSelectionHandler) {
-      document.removeEventListener('selectionchange', quoteSelectionHandler, { passive: true });
-      document.removeEventListener('mouseup', quoteSelectionHandler, { passive: true });
-      quoteSelectionHandler = null;
     }
 
     document.getElementById('agy-quote-interceptor-styles')?.remove();
@@ -3879,39 +3873,42 @@ window.__AGY_BRANCH_NAME__ = "golden_comet_arcs_10h20";
         styleEl = document.createElement('style');
         styleEl.id = styleId;
         styleEl.textContent = `
-          /* 纯 Quote 独立弹窗容器，瞬间隐形且不阻挡指针交互 */
+          /* 纯 Quote 独立弹窗容器隐藏 */
           [data-agy-block-quote="true"] {
             display: none !important;
-            opacity: 0 !important;
             pointer-events: none !important;
-            visibility: hidden !important;
           }
-          /* 复合操作栏（如右侧栏包含评论与引用时），仅隐藏 Quote 项，保留评论 */
+          /* 复合操作栏中仅隐藏 Quote 项，保留评论 */
           .agy-hide-quote-item {
             display: none !important;
+            pointer-events: none !important;
           }
         `;
         document.head.appendChild(styleEl);
       }
 
-      function isInputElement(el) {
-        if (!el || el.nodeType !== Node.ELEMENT_NODE) return false;
+      // 严格排除编辑器内部与输入框，绝对不介入编辑器 DOM
+      function isIgnoredContainer(el) {
+        if (!el || el.nodeType !== Node.ELEMENT_NODE) return true;
         const tag = el.tagName;
-        return tag === 'INPUT' || tag === 'TEXTAREA' || el.isContentEditable;
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || el.isContentEditable) return true;
+        if (el.closest?.('.monaco-editor, .view-line, .view-lines, .monaco-workbench, [contenteditable="true"], textarea, input')) {
+          return true;
+        }
+        return false;
       }
 
-      function isQuoteElement(el) {
+      // 准确判断是否为 Quote 按钮或气泡
+      function isQuoteTarget(el) {
         if (!el || el.nodeType !== Node.ELEMENT_NODE) return false;
-        if (isInputElement(el) || el.closest?.('input, textarea, [contenteditable="true"]')) return false;
+        if (isIgnoredContainer(el)) return false;
 
-        // 1. 检查 aria-label 或 title 属性
         const ariaLabel = (el.getAttribute?.('aria-label') || '').trim();
         const title = (el.getAttribute?.('title') || '').trim();
         if (/^(Quote|引用)(\s*\(?(Ctrl|⌘|\^)\+?L\)?)?$/i.test(ariaLabel) || /^(Quote|引用)(\s*\(?(Ctrl|⌘|\^)\+?L\)?)?$/i.test(title)) {
           return true;
         }
 
-        // 2. 检查文本内容 (避免误伤长段落，仅匹配短按钮/提示文本)
         const text = (el.textContent || '').trim().replace(/\s+/g, ' ');
         if (/^(Quote|引用)(\s*(Ctrl|⌘|\^)\+?L)?$/i.test(text)) {
           return true;
@@ -3920,92 +3917,81 @@ window.__AGY_BRANCH_NAME__ = "golden_comet_arcs_10h20";
         return false;
       }
 
-      function hasCommentOrOtherActions(container) {
+      // 检查容器是否包含 Comment 或其它操作
+      function hasCommentOrSiblingActions(container, quoteBtn) {
         if (!container || container.nodeType !== Node.ELEMENT_NODE) return false;
-
-        // 检查容器内是否包含除了 Quote 以外的按钮/交互操作项，尤其是 "Comment / 评论"
         const interactiveItems = container.querySelectorAll('button, [role="button"], a');
         for (const item of interactiveItems) {
-          if (isQuoteElement(item)) continue;
-
+          if (item === quoteBtn || isQuoteTarget(item)) continue;
           const text = (item.textContent || '').trim();
           const label = (item.getAttribute?.('aria-label') || item.getAttribute?.('title') || '').trim();
-          if (/Comment|评论/i.test(text) || /Comment|评论/i.test(label)) {
+          // 如果包含 Comment、评论，或者有其他有效按钮
+          if (/Comment|评论/i.test(text) || /Comment|评论/i.test(label) || text.length > 0 || label.length > 0) {
             return true;
           }
         }
         return false;
       }
 
-      function processQuoteElement(quoteEl) {
+      function handleQuoteElement(quoteEl) {
         if (!quoteEl || quoteEl.nodeType !== Node.ELEMENT_NODE) return;
         if (quoteEl.closest?.('.agy-page-nav-group, #agy-archive-panel, #agy-enhancer-toast')) return;
+        if (quoteEl.hasAttribute('data-agy-block-quote') || quoteEl.classList.contains('agy-hide-quote-item')) return;
 
-        // 寻找外层浮动卡片/浮层容器
-        let container = quoteEl.closest(
-          '[role="tooltip"], [role="toolbar"], [role="menu"], [data-radix-popper-content-wrapper], [data-floating-ui-portal] > div, [data-tippy-root]'
-        );
-
-        if (!container) {
-          let curr = quoteEl;
-          while (curr && curr !== document.body && curr !== document.documentElement) {
-            try {
-              const pos = window.getComputedStyle(curr).position;
-              if (pos === 'fixed' || pos === 'absolute') {
-                container = curr;
-                break;
-              }
-            } catch (e) {}
-            curr = curr.parentElement;
+        // 往上寻找悬浮容器（最多向上 3 层，严禁使用 getComputedStyle）
+        let container = null;
+        let curr = quoteEl;
+        for (let i = 0; i < 3; i++) {
+          if (!curr || curr === document.body || curr === document.documentElement) break;
+          const role = curr.getAttribute?.('role');
+          if (role === 'tooltip' || role === 'toolbar' || role === 'menu' || curr.hasAttribute?.('data-radix-popper-content-wrapper')) {
+            container = curr;
+            break;
           }
+          curr = curr.parentElement;
         }
 
-        if (!container || container === document.body || container === document.documentElement) {
-          container = quoteEl.closest('button, [role="button"]') || quoteEl;
-        }
+        const quoteBtn = quoteEl.closest('button, [role="button"]') || quoteEl;
 
-        // 判断是否为同时包含评论的复合工具栏
-        if (hasCommentOrOtherActions(container)) {
-          // 仅精准隐藏 Quote 按钮本身，保留评论 (Comment) 功能正常使用
-          const targetBtn = quoteEl.closest('button, [role="button"]') || quoteEl;
-          targetBtn.classList.add('agy-hide-quote-item');
-          targetBtn.style.setProperty('display', 'none', 'important');
-        } else {
-          // 纯 Quote 浮窗：彻底隐藏整个浮动层
+        if (container && hasCommentOrSiblingActions(container, quoteBtn)) {
+          // 复合工具条：仅隐藏 Quote 按钮，保留 Comment 评论正常使用
+          quoteBtn.classList.add('agy-hide-quote-item');
+        } else if (container) {
+          // 纯 Quote 独立浮窗：隐藏整个容器
           container.setAttribute('data-agy-block-quote', 'true');
-          container.style.setProperty('display', 'none', 'important');
-          container.style.setProperty('opacity', '0', 'important');
-          container.style.setProperty('pointer-events', 'none', 'important');
-          container.style.setProperty('visibility', 'hidden', 'important');
+        } else {
+          // 无法判定外层容器时，仅隐藏 Quote 按钮本身，绝不影响周围其他元素
+          quoteBtn.classList.add('agy-hide-quote-item');
         }
       }
 
-      function checkSubtree(root) {
-        if (!root || root.nodeType !== Node.ELEMENT_NODE) return;
-        if (isQuoteElement(root)) {
-          processQuoteElement(root);
+      function inspectNode(node) {
+        if (!node || node.nodeType !== Node.ELEMENT_NODE) return;
+        if (isIgnoredContainer(node)) return;
+
+        if (isQuoteTarget(node)) {
+          handleQuoteElement(node);
           return;
         }
-        const candidates = root.querySelectorAll?.('button, [role="button"], [role="tooltip"], [aria-label*="Quote" i], [aria-label*="引用"]');
-        if (candidates && candidates.length > 0) {
-          candidates.forEach(c => {
-            if (isQuoteElement(c)) {
-              processQuoteElement(c);
+
+        // 仅在新增节点的直接子节点中查找候选按钮
+        const buttons = node.querySelectorAll?.('button, [role="button"], [role="tooltip"]');
+        if (buttons && buttons.length > 0) {
+          for (const btn of buttons) {
+            if (isQuoteTarget(btn)) {
+              handleQuoteElement(btn);
             }
-          });
+          }
         }
       }
 
-      // 1. DOM 变动通知（微秒级精准截获新挂载的弹窗）
+      // 仅监听 DOM 新增节点（严禁监听 attributes，彻底杜绝死循环和主线程卡死）
       quoteObserver = new MutationObserver((mutations) => {
         for (const m of mutations) {
           for (const added of m.addedNodes) {
             if (added.nodeType === Node.ELEMENT_NODE) {
-              checkSubtree(added);
+              inspectNode(added);
             }
-          }
-          if (m.type === 'attributes' && m.target.nodeType === Node.ELEMENT_NODE) {
-            checkSubtree(m.target);
           }
         }
       });
@@ -4013,30 +3999,8 @@ window.__AGY_BRANCH_NAME__ = "golden_comet_arcs_10h20";
       quoteObserver.observe(document.body, {
         childList: true,
         subtree: true,
-        attributes: true,
-        attributeFilter: ['style', 'class', 'aria-hidden']
+        attributes: false
       });
-
-      // 2. 划词状态兜底同步（确保复用旧 DOM 节点时也能瞬间响应）
-      let rafId = null;
-      quoteSelectionHandler = () => {
-        if (rafId) cancelAnimationFrame(rafId);
-        rafId = requestAnimationFrame(() => {
-          const sel = window.getSelection();
-          if (sel && !sel.isCollapsed && sel.toString().trim().length > 0) {
-            const floatingLayers = document.querySelectorAll(
-              '[role="tooltip"], [role="toolbar"], [data-radix-popper-content-wrapper], .absolute, .fixed'
-            );
-            floatingLayers.forEach(layer => checkSubtree(layer));
-          }
-        });
-      };
-
-      document.addEventListener('selectionchange', quoteSelectionHandler, { passive: true });
-      document.addEventListener('mouseup', quoteSelectionHandler, { passive: true });
-
-      // 初始扫描
-      checkSubtree(document.body);
     }
 
     initProjectArchiver();
