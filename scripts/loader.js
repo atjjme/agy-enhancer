@@ -40,12 +40,24 @@ const logFile = path.join(
   'agy-loader.log'
 );
 
+const MAX_LOG_SIZE = 3 * 1024 * 1024; // 3MB 日志上限
+
 function log(...args) {
   const now = new Date();
   const time = now.toLocaleDateString() + ' ' + now.toTimeString().split(' ')[0] + '.' + String(now.getMilliseconds()).padStart(3, '0');
   const text = `[${time}] ` + args.map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' ');
   console.log(text);
   try {
+    if (fs.existsSync(logFile)) {
+      const stats = fs.statSync(logFile);
+      if (stats.size > MAX_LOG_SIZE) {
+        const oldLog = logFile + '.old';
+        if (fs.existsSync(oldLog)) {
+          try { fs.unlinkSync(oldLog); } catch (e) {}
+        }
+        try { fs.renameSync(logFile, oldLog); } catch (e) {}
+      }
+    }
     fs.appendFileSync(logFile, text + '\n', 'utf8');
   } catch (e) {}
 }
@@ -141,13 +153,14 @@ function getActivePortInfo() {
 
 async function connectAndAttach() {
   if (isConnecting) return;
-  const port = getActivePortInfo();
-  if (!port) return;
-
-  // 若端口未变且现有 WebSocket 处于打开状态，直接保持，无需重复向 CDP 端口发送 HTTP GET /json/list
-  if (port === lastPort && currentWs && currentWs.readyState === WebSocket.OPEN) {
+  // 若现有 WebSocket 连接保持畅通，直接复用，完全免去读取磁盘文件和 HTTP 请求
+  const wsOpenState = (typeof WebSocket !== 'undefined' && WebSocket.OPEN) ? WebSocket.OPEN : 1;
+  if (currentWs && currentWs.readyState === wsOpenState) {
     return;
   }
+
+  const port = getActivePortInfo();
+  if (!port) return;
 
   isConnecting = true;
   try {
@@ -351,43 +364,56 @@ function checkPageReadiness() {
   } catch (e) {}
 }
 
+let cachedBranchInfo = null;
+let lastBranchInfoCheck = 0;
+
 function getCurrentBranchInfo() {
+  const now = Date.now();
+  if (cachedBranchInfo && (now - lastBranchInfoCheck < 15000)) {
+    return cachedBranchInfo;
+  }
+  lastBranchInfoCheck = now;
+
   let branch = '';
+  // 1. 优先通过轻量级文件直接读取，避免高频拉起同步阻塞的 git.exe 子进程
   try {
-    branch = execSync('git rev-parse --abbrev-ref HEAD', {
-      cwd: __dirname,
-      encoding: 'utf8',
-      stdio: ['pipe', 'pipe', 'ignore'],
-      timeout: 1000
-    }).trim();
+    let gitDir = path.resolve(__dirname, '../.git');
+    if (fs.existsSync(gitDir) && fs.statSync(gitDir).isFile()) {
+      const content = fs.readFileSync(gitDir, 'utf8').trim();
+      const match = content.match(/gitdir:\s*(.*)/);
+      if (match) gitDir = match[1].trim();
+    }
+    const headFile = path.join(gitDir, 'HEAD');
+    if (fs.existsSync(headFile)) {
+      const headContent = fs.readFileSync(headFile, 'utf8').trim();
+      const refMatch = headContent.match(/ref:\s*refs\/heads\/(.*)/);
+      if (refMatch) branch = refMatch[1].trim();
+    }
   } catch (e) {}
 
+  // 2. 文件读取失败时才降级使用 git 命令
   if (!branch) {
     try {
-      let gitDir = path.resolve(__dirname, '../.git');
-      if (fs.existsSync(gitDir) && fs.statSync(gitDir).isFile()) {
-        const content = fs.readFileSync(gitDir, 'utf8').trim();
-        const match = content.match(/gitdir:\s*(.*)/);
-        if (match) gitDir = match[1].trim();
-      }
-      const headFile = path.join(gitDir, 'HEAD');
-      if (fs.existsSync(headFile)) {
-        const headContent = fs.readFileSync(headFile, 'utf8').trim();
-        const refMatch = headContent.match(/ref:\s*refs\/heads\/(.*)/);
-        if (refMatch) branch = refMatch[1].trim();
-      }
+      branch = execSync('git rev-parse --abbrev-ref HEAD', {
+        cwd: __dirname,
+        encoding: 'utf8',
+        stdio: ['pipe', 'pipe', 'ignore'],
+        timeout: 600
+      }).trim();
     } catch (e2) {}
   }
 
   // 只要不是主干（master 或 main），一律视为分支并添加（分支）标签
   const isMain = branch === 'master' || branch === 'main';
   const tag = isMain ? '' : ' (branch)';
-  return { branch, isMain, tag };
+  cachedBranchInfo = { branch, isMain, tag };
+  return cachedBranchInfo;
 }
 
 function injectEnhancer(ws) {
   const targetWs = ws || currentWs;
-  if (!targetWs || targetWs.readyState !== WebSocket.OPEN) return;
+  const wsOpen = (typeof WebSocket !== 'undefined' && WebSocket.OPEN) ? WebSocket.OPEN : 1;
+  if (!targetWs || targetWs.readyState !== wsOpen) return;
   try {
     if (!fs.existsSync(enhancerFile)) {
       log('[Error] Enhancer source file not found:', enhancerFile);
@@ -412,16 +438,20 @@ function injectEnhancer(ws) {
   }
 }
 
-// 快速轮询：每 250ms 检查一次客户端与页面连接状态，每 1800ms 主动探测页面就绪状态
-setInterval(connectAndAttach, 250);
+// 平衡轮询：未连接时每 1200ms 检测一次连接状态，每 1800ms 主动探测页面就绪状态
+setInterval(connectAndAttach, 1200);
 setInterval(checkPageReadiness, 1800);
 connectAndAttach();
 
-// 监听源码变动：修改保存时瞬间同步到窗口
+// 监听源码变动：修改保存时防抖同步到窗口
+let watchDebounceTimer = null;
 try {
   fs.watch(enhancerFile, (eventType) => {
     if (eventType === 'change' && currentWs) {
-      setTimeout(() => injectEnhancer(currentWs), 80);
+      if (watchDebounceTimer) clearTimeout(watchDebounceTimer);
+      watchDebounceTimer = setTimeout(() => {
+        injectEnhancer(currentWs);
+      }, 100);
     }
   });
 } catch (e) {}

@@ -107,6 +107,9 @@
   let interruptRestoration = null;
   let isInternalEnhancerScroll = false;
   let quoteObserver = null;
+  let contextMenuDocClickHandler = null;
+  let contextMenuDocKeydownHandler = null;
+  let convoSwitchPopstateHandler = null;
 
   window.__AGY_ENHANCER_CLEANUP__ = function () {
     activeTimers.forEach(id => {
@@ -118,6 +121,10 @@
     if (windowPopstateHandler) {
       window.removeEventListener('popstate', windowPopstateHandler);
       windowPopstateHandler = null;
+    }
+    if (convoSwitchPopstateHandler) {
+      window.removeEventListener('popstate', convoSwitchPopstateHandler);
+      convoSwitchPopstateHandler = null;
     }
     if (docClickHandler) {
       document.removeEventListener('click', docClickHandler);
@@ -134,6 +141,14 @@
     if (contextMenuHandler) {
       document.removeEventListener('contextmenu', contextMenuHandler, true);
       contextMenuHandler = null;
+    }
+    if (contextMenuDocClickHandler) {
+      document.removeEventListener('click', contextMenuDocClickHandler, true);
+      contextMenuDocClickHandler = null;
+    }
+    if (contextMenuDocKeydownHandler) {
+      document.removeEventListener('keydown', contextMenuDocKeydownHandler, true);
+      contextMenuDocKeydownHandler = null;
     }
     lastContextMenuPos = null;
     activeNativeConvoId = null;
@@ -1170,14 +1185,17 @@
         pm?.projectsStateProvider?.getState?.(),
         tsp?.getState?.()?.summaries
       ];
-      function scan(obj) {
-        if (!obj || cachedGeminiBaseUri) return;
+      const visited = new WeakSet();
+      function scan(obj, depth = 0) {
+        if (!obj || cachedGeminiBaseUri || depth > 6) return;
         if (typeof obj === 'string') {
           const m = obj.match(/^(file:\/\/\/.*?[\\/]\.gemini[\\/]antigravity)[\\/]/i);
           if (m) cachedGeminiBaseUri = m[1];
         } else if (typeof obj === 'object') {
+          if (visited.has(obj)) return;
+          visited.add(obj);
           for (const k in obj) {
-            try { scan(obj[k]); } catch (e) {}
+            try { scan(obj[k], depth + 1); } catch (e) {}
             if (cachedGeminiBaseUri) return;
           }
         }
@@ -1764,7 +1782,7 @@
             document.body.appendChild(dd);
 
             const closeDropdown = (evt) => {
-              if (!dd.contains(evt.target) && !btn.contains(evt.target)) {
+              if (!evt || (!dd.contains(evt.target) && !btn.contains(evt.target))) {
                 dd.remove();
                 document.removeEventListener('click', closeDropdown);
               }
@@ -1772,20 +1790,20 @@
             setTimeout(() => document.addEventListener('click', closeDropdown), 10);
 
             dd.querySelector('.agy-dd-item.copy-name')?.addEventListener('click', async () => {
-              dd.remove();
+              closeDropdown();
               await navigator.clipboard.writeText(p.project.name);
               showNotification(`Copied project name: "${p.project.name}"`);
             });
 
             dd.querySelector('.agy-dd-item.settings')?.addEventListener('click', () => {
-              dd.remove();
+              closeDropdown();
               isPanelOpen = false;
               renderArchivePanel(pm);
               openProjectSettings(p.project.id);
             });
 
             dd.querySelector('.agy-dd-item.open-project-folder')?.addEventListener('click', () => {
-              dd.remove();
+              closeDropdown();
               const uri = getProjectFolderUri(p);
               if (uri) {
                 openLocalFolder(uri, 'project');
@@ -1796,7 +1814,7 @@
             });
 
             dd.querySelector('.agy-dd-item.restore')?.addEventListener('click', async () => {
-              dd.remove();
+              closeDropdown();
               await pm.updateProject({ ...p.project, archived: false });
               showNotification(`Project [${p.project.name}] restored`);
               renderArchivePanel(pm);
@@ -1804,14 +1822,14 @@
             });
 
             dd.querySelector('.agy-dd-item.new-chat')?.addEventListener('click', () => {
-              dd.remove();
+              closeDropdown();
               isPanelOpen = false;
               renderArchivePanel(pm);
               navigateTo(`/?section=${encodeURIComponent(p.project.id)}`);
             });
 
             dd.querySelector('.agy-dd-item.delete')?.addEventListener('click', async () => {
-              dd.remove();
+              closeDropdown();
               if (confirm(`Are you sure you want to delete project [${p.project.name}]?`)) {
                 if (pm.deleteProject) {
                   await pm.deleteProject(p.project.id);
@@ -1944,7 +1962,7 @@
             document.body.appendChild(dd);
 
             const closeConvoDd = (evt) => {
-              if (!dd.contains(evt.target) && !btn.contains(evt.target)) {
+              if (!evt || (!dd.contains(evt.target) && !btn.contains(evt.target))) {
                 dd.remove();
                 btn.classList.remove('active');
                 document.removeEventListener('click', closeConvoDd);
@@ -1955,8 +1973,7 @@
             // 重命名
             dd.querySelector('.convo-rename')?.addEventListener('click', (ev) => {
               ev.stopPropagation();
-              dd.remove();
-              btn.classList.remove('active');
+              closeConvoDd();
 
               const convoLink = panel.querySelector(`.agy-convo-item[data-convo-id="${convoId}"]`);
               const titleSpan = convoLink?.querySelector('.agy-convo-title');
@@ -2022,8 +2039,7 @@
             // 标为未读 / 标为已读
             dd.querySelector('.convo-unread')?.addEventListener('click', async (ev) => {
               ev.stopPropagation();
-              dd.remove();
-              btn.classList.remove('active');
+              closeConvoDd();
               const newUnread = !c.markedAsUnread;
               const as = getAgentService();
               if (as?.updateConversationAnnotations) {
@@ -2048,8 +2064,7 @@
             // 删除对话
             dd.querySelector('.convo-delete')?.addEventListener('click', async (ev) => {
               ev.stopPropagation();
-              dd.remove();
-              btn.classList.remove('active');
+              closeConvoDd();
               if (confirm(`Delete conversation "${c.title}"?`)) {
                 const as = getAgentService();
                 if (as?.deleteCascadeTrajectory) {
@@ -2072,8 +2087,7 @@
             // 复制: 对话名称
             dd.querySelector('.copy-convo-name')?.addEventListener('click', async (ev) => {
               ev.stopPropagation();
-              dd.remove();
-              btn.classList.remove('active');
+              closeConvoDd();
               await navigator.clipboard.writeText(c.title);
               showNotification(`Copied conversation name: "${c.title}"`);
             });
@@ -2081,8 +2095,7 @@
             // 复制: 对话 ID
             dd.querySelector('.copy-convo-id')?.addEventListener('click', async (ev) => {
               ev.stopPropagation();
-              dd.remove();
-              btn.classList.remove('active');
+              closeConvoDd();
               await navigator.clipboard.writeText(c.id);
               showNotification(`Copied conversation ID: ${c.id}`);
             });
@@ -2091,8 +2104,7 @@
             if (archiveWorkspaceName) {
               dd.querySelector('.copy-workspace-name')?.addEventListener('click', async (ev) => {
                 ev.stopPropagation();
-                dd.remove();
-                btn.classList.remove('active');
+                closeConvoDd();
                 await navigator.clipboard.writeText(archiveWorkspaceName);
                 showNotification(`Copied workspace name: "${archiveWorkspaceName}"`);
               });
@@ -2101,8 +2113,7 @@
             // 复制: 项目名称
             dd.querySelector('.copy-project-name')?.addEventListener('click', async (ev) => {
               ev.stopPropagation();
-              dd.remove();
-              btn.classList.remove('active');
+              closeConvoDd();
               await navigator.clipboard.writeText(p.project.name);
               showNotification(`Copied project name: "${p.project.name}"`);
             });
@@ -2110,8 +2121,7 @@
             // 打开: 对话文件夹
             dd.querySelector('.open-convo-folder')?.addEventListener('click', (ev) => {
               ev.stopPropagation();
-              dd.remove();
-              btn.classList.remove('active');
+              closeConvoDd();
               const paths = getConvoFolderPaths(convoId, projectId);
               if (paths?.convoBrainUri) {
                 openLocalFolder(paths.convoBrainUri, 'convo');
@@ -2124,8 +2134,7 @@
             // 打开: 项目 / 分支文件夹
             dd.querySelector('.open-project-folder')?.addEventListener('click', (ev) => {
               ev.stopPropagation();
-              dd.remove();
-              btn.classList.remove('active');
+              closeConvoDd();
               const paths = getConvoFolderPaths(convoId, projectId);
               if (paths?.targetProjectUri) {
                 openLocalFolder(paths.targetProjectUri, 'project');
@@ -2346,8 +2355,8 @@
         });
       }
 
-      // 监听变更与定时保活
-      addInterval(updateArchiveUI, 700);
+      // 监听变更与定时保活（已有 onDidChange 实时驱动，保活间隔放宽至 2000ms 节约性能）
+      addInterval(updateArchiveUI, 2000);
       windowPopstateHandler = updateArchiveUI;
       window.addEventListener('popstate', windowPopstateHandler);
       addTimeout(updateArchiveUI, 200);
@@ -3765,17 +3774,19 @@
       }
 
       // 7. 全局点击与失焦自动关闭监听
-      document.addEventListener('click', (e) => {
+      contextMenuDocClickHandler = (e) => {
         if (!e.target.closest('#agy-universal-context-menu')) {
           dismissUniversalContextMenu();
         }
-      }, true);
+      };
+      document.addEventListener('click', contextMenuDocClickHandler, true);
 
-      document.addEventListener('keydown', (e) => {
+      contextMenuDocKeydownHandler = (e) => {
         if (e.key === 'Escape') {
           dismissUniversalContextMenu();
         }
-      }, true);
+      };
+      document.addEventListener('keydown', contextMenuDocKeydownHandler, true);
 
       // 8. 核心 contextmenu 事件总线
       contextMenuHandler = (e) => {
@@ -4262,14 +4273,14 @@
             let hook = cur.memoizedState;
             while (hook) {
               if (hook.memoizedState?.current === container) {
-                // hook.next.next 是 shouldAutoScroll ref (h)
+                // 安全校验 hook.next.next 是否确实是包含 boolean current 的 RefObject (shouldAutoScroll)
                 const hRef = hook.next?.next?.memoizedState;
-                if (hRef && typeof hRef.current === 'boolean') {
+                if (hRef && typeof hRef === 'object' && Object.prototype.hasOwnProperty.call(hRef, 'current') && typeof hRef.current === 'boolean') {
                   hRef.current = false;
                 }
-                // hook.next.next.next.next 是 lastScrollTop ref (l)
+                // 安全校验 hook.next.next.next.next 是否确实是包含 number current 的 RefObject (lastScrollTop)
                 const lRef = hook.next?.next?.next?.next?.memoizedState;
-                if (lRef && typeof lRef.current === 'number') {
+                if (lRef && typeof lRef === 'object' && Object.prototype.hasOwnProperty.call(lRef, 'current') && typeof lRef.current === 'number') {
                   lRef.current = container.scrollTop;
                 }
                 return;
@@ -4455,6 +4466,7 @@
           } else {
             endRestoration('new convo or at bottom');
           }
+          try { window.__AGY_ON_CONVO_SWITCH__?.(effectiveConvoId); } catch (e) {}
         }
       }
 
@@ -4481,8 +4493,9 @@
         return res;
       };
 
-      window.addEventListener('popstate', handleConvoSwitch);
-      addInterval(handleConvoSwitch, 350);
+      convoSwitchPopstateHandler = handleConvoSwitch;
+      window.addEventListener('popstate', convoSwitchPopstateHandler);
+      addInterval(handleConvoSwitch, 600);
 
       // 新提问提交通知钩子：提交新提问代表用户在底部追问，直接删除记录
       notifyNewPromptSubmitted = () => {
@@ -4805,11 +4818,11 @@
       // 周期性检测触底与停留状态（弥补平滑滚动与动态内容渲染）
       addInterval(handleViewingScroll, 400);
 
-      // 对话切换监测
+      // 对话切换监测（与会话切换事件联动，免除独立高频轮询）
       let trackedConvoId = null;
-      function checkConvoSwitchForUnread() {
+      function checkConvoSwitchForUnread(forceConvoId) {
         const container = getChatScrollContainer();
-        const effectiveConvoId = (container ? getContainerConvoId(container) : null) || getCurrentUrlConvoId();
+        const effectiveConvoId = forceConvoId || (container ? getContainerConvoId(container) : null) || getCurrentUrlConvoId();
         if (effectiveConvoId && effectiveConvoId !== trackedConvoId) {
           trackedConvoId = effectiveConvoId;
           if (unreadConvosMap.has(effectiveConvoId)) {
@@ -4819,7 +4832,7 @@
           }
         }
       }
-      addInterval(checkConvoSwitchForUnread, 400);
+      window.__AGY_ON_CONVO_SWITCH__ = checkConvoSwitchForUnread;
 
       // 精准监听各对话生成状态与完成事件（按对话 ID 独立追踪，彻底杜绝切换对话误标与双重未读）
       const activelyGeneratingConvos = new Map(); // convoId -> { startTime, lastSpinningTime, confirmedGenerated, isForeground }
@@ -4971,7 +4984,6 @@
           }
         }
       }
-      addInterval(checkGeneratingAndUnreadState, 400);
 
       // 同步侧边栏指示点：与系统合二为一，共用单一点位，绝不出现双点！
       function syncSidebarIndicators() {
@@ -5017,7 +5029,13 @@
           }
         });
       }
-      addInterval(syncSidebarIndicators, 400);
+
+      // 统合侧边栏扫描：合并高频定时器，间隔设为 800ms，大幅削减 DOM 重复查询与主线程开销
+      function checkAndSyncSidebar() {
+        checkGeneratingAndUnreadState();
+        syncSidebarIndicators();
+      }
+      addInterval(checkAndSyncSidebar, 800);
 
       // 对外暴露辅助方法供右键菜单等模块协同调用与测试
       window.__AGY_MARK_SEEN__ = (id) => markConvoAsSeen(id || getCurrentUrlConvoId(), 'manual API');
@@ -5138,6 +5156,13 @@
 
       // 仅监听 DOM 新增节点（严禁监听 attributes，彻底杜绝死循环和主线程卡死）
       quoteObserver = new MutationObserver((mutations) => {
+        // 核心性能短路：只有用户存在非空划词选区时才可能弹出 Quote 浮窗。
+        // 在大模型高速流式打字输出时，选区为空，直接 0 成本退出，杜绝 querySelectorAll 带来的卡顿
+        const sel = window.getSelection();
+        if (!sel || sel.isCollapsed || sel.rangeCount === 0) {
+          return;
+        }
+
         for (const m of mutations) {
           for (const added of m.addedNodes) {
             if (added.nodeType === Node.ELEMENT_NODE) {
