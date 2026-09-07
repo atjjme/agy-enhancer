@@ -67,7 +67,7 @@ Double-click:
 >
 > <img src="./assets/2026-09-07_10-02-10.png" width="100%" />
 
-[↑ Back to Quick Navigation](#quick-nav)
+[↑ Back to Features](#features)
 
 ---
 
@@ -88,7 +88,7 @@ Double-click:
 >   </tr>
 > </table>
 
-[↑ Back to Quick Navigation](#quick-nav)
+[↑ Back to Features](#features)
 
 ---
 
@@ -114,7 +114,7 @@ Double-click:
 >   </tr>
 > </table>
 
-[↑ Back to Quick Navigation](#quick-nav)
+[↑ Back to Features](#features)
 
 ---
 
@@ -176,7 +176,7 @@ Arranged in **strict order**:
 >   </tr>
 > </table>
 
-[↑ Back to Quick Navigation](#quick-nav)
+[↑ Back to Features](#features)
 
 ---
 
@@ -191,7 +191,7 @@ Arranged in **strict order**:
 >
 > <video src="./assets/2026-09-07_11-41-40.mp4" controls width="100%"></video>
 
-[↑ Back to Quick Navigation](#quick-nav)
+[↑ Back to Features](#features)
 
 ---
 

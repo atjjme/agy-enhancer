@@ -67,7 +67,7 @@
 >
 > <img src="./assets/2026-09-07_10-02-10.png" width="100%" />
 
-[↑ 返回顶部导航](#quick-nav)
+[↑ 返回核心功能导航](#features)
 
 ---
 
@@ -88,7 +88,7 @@
 >   </tr>
 > </table>
 
-[↑ 返回顶部导航](#quick-nav)
+[↑ 返回核心功能导航](#features)
 
 ---
 
@@ -114,7 +114,7 @@
 >   </tr>
 > </table>
 
-[↑ 返回顶部导航](#quick-nav)
+[↑ 返回核心功能导航](#features)
 
 ---
 
@@ -178,7 +178,7 @@
 >   </tr>
 > </table>
 
-[↑ 返回顶部导航](#quick-nav)
+[↑ 返回核心功能导航](#features)
 
 ---
 
@@ -193,7 +193,7 @@
 >
 > <video src="./assets/2026-09-07_11-41-40.mp4" controls width="100%"></video>
 
-[↑ 返回顶部导航](#quick-nav)
+[↑ 返回核心功能导航](#features)
 
 ---
 
