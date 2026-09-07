@@ -84,7 +84,7 @@
 > <table>
 >   <tr>
 >     <td align="center" width="50%"><strong>靜態預覽</strong><br><img src="./assets/2026-09-07_10-05-46.png" /></td>
->     <td align="center" width="50%"><strong>操作演示</strong><br><video src="./assets/2026-09-07_11-27-16.mp4" controls width="100%"></video></td>
+>     <td align="center" width="50%"><strong>操作演示</strong><br><img src="./assets/2026-09-07_11-27-16.gif" width="100%" /><br><a href="./assets/2026-09-07_11-27-16.mp4">▶ 查看高畫質原畫影片</a></td>
 >   </tr>
 > </table>
 
@@ -191,7 +191,7 @@
 
 > 📷 **功能示範影片 / 圖片**：
 >
-> <video src="./assets/2026-09-07_11-41-40.mp4" controls width="100%"></video>
+> <img src="./assets/2026-09-07_11-41-40.gif" width="100%" /><br><a href="./assets/2026-09-07_11-41-40.mp4">▶ 查看高畫質原畫影片</a>
 
 [↑ 返回核心功能導航](#features)
 

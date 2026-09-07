@@ -84,7 +84,7 @@ Double-click:
 > <table>
 >   <tr>
 >     <td align="center" width="50%"><strong>Static Preview</strong><br><img src="./assets/2026-09-07_10-05-46.png" /></td>
->     <td align="center" width="50%"><strong>Interactive Demo</strong><br><video src="./assets/2026-09-07_11-27-16.mp4" controls width="100%"></video></td>
+>     <td align="center" width="50%"><strong>Interactive Demo</strong><br><img src="./assets/2026-09-07_11-27-16.gif" width="100%" /><br><a href="./assets/2026-09-07_11-27-16.mp4">▶ Watch HD Video</a></td>
 >   </tr>
 > </table>
 
@@ -189,7 +189,7 @@ Arranged in **strict order**:
 
 > 📷 **Demo Screenshot / Video**:
 >
-> <video src="./assets/2026-09-07_11-41-40.mp4" controls width="100%"></video>
+> <img src="./assets/2026-09-07_11-41-40.gif" width="100%" /><br><a href="./assets/2026-09-07_11-41-40.mp4">▶ Watch HD Video</a>
 
 [↑ Back to Features](#features)
 
