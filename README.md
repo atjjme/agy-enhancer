@@ -1,67 +1,152 @@
-# Antigravity 对话与翻页增强器 (`agy-enhancer`)
+# Antigravity Dialogue & Navigation Enhancer (`agy-enhancer`)
+
+[English](#english) | [简体中文](#简体中文) | [繁體中文](#繁體中文)
+
+---
+
+<a id="english"></a>
+## English
+
+A paper-style dialogue navigation and browsing enhancement suite tailored for the **Antigravity 2.0 Desktop Client**.
+
+### ✨ Highlights & Usage
+
+1. **"Paper-style" Dialogue Navigation (One Q&A = One Page)**
+   - **Click Up (↑)**: Smoothly jumps back to the **Header** (beginning of the prompt). If already at the header, jumps to the previous Q&A turn. At the first page, goes straight to the conversation top.
+   - **Click Down (↓)**: Smoothly scrolls to the **Footer** (end of the AI response). If already at the footer, moves to the next Q&A turn. At the last page, goes to the conversation bottom.
+   - **Double Click Down (↓)**: Instantly and smoothly navigates straight to the very bottom of the conversation.
+
+2. **Project Workspace Archive**
+   - **One-Click Archive**: Hover over any project in the left sidebar and click the **📥** archive icon to collapse and hide it from the main list.
+   - **View & Restore**: Click the **`Archive`** button next to the `Projects` header to expand the archive panel and click **`Restore`** or the project title to bring it back.
+
+---
+
+### 🚀 Getting Started
+
+#### 1. One-Click Setup & Autostart (Recommended)
+Double-click to run:
+👉 **`install.bat`** (or **`setup-autostart.bat`**)
+- Installs the background daemon to Windows Startup.
+- Automatically launches silently in the background (**no black terminal window**, zero screen clutter).
+- Works across application restarts or whenever you refresh via `Ctrl + R` in Antigravity.
+
+#### 2. Manual Controls
+- **`start-service-silent.vbs`**: Starts the daemon silently in the background.
+- **`stop-service.bat`**: Stops the running background daemon.
+- **`start-enhancer.bat`**: Starts in debug console mode (useful for viewing real-time logs).
+
+#### 3. Customizing Position, Size & Opacity
+Open [`src/agy-enhancer.js`](./src/agy-enhancer.js) with any text editor. You can tweak the `USER_CONFIG` block at the top:
+- `BUTTON_OPACITY`: Default idle opacity (default `0.3` / 30% to avoid blocking text).
+- `BUTTON_HOVER_OPACITY`: Opacity on mouse hover (default `1.0`).
+- `NAV_RIGHT`: Distance from right edge (default `20px`).
+- `NAV_BOTTOM`: Distance from bottom edge (default `170px`).
+- `BUTTON_SIZE`: Button diameter (default `38px`).
+
+> **Hot Reload**: Press `Ctrl + S` to save your changes in the file, and the client updates automatically within 0.1s without restarting!
+
+#### 4. Uninstallation
+Double-click:
+👉 **`uninstall.bat`**
+- Removes the Windows startup shortcut and stops the daemon process.
+
+---
+
+<a id="简体中文"></a>
+## 简体中文
 
 专为 **Antigravity 2.0 桌面客户端** 定制的“纸张式”对话导航与浏览体验套件。
 
----
+### ✨ 核心功能与操作
 
-## 📖 核心理念：“一问一答，皆为一纸”
+1. **“一问一答，皆为一纸”纸张式导航**
+   - **点击【向上 (↑)】**：若在纸张中间或页脚，平滑回到本轮对话【页头】（提问起始处）；若已在页头附近，翻到【上一张纸】（上一轮问答）页头；处于首轮时直达顶部。
+   - **点击【向下 (↓)】**：若在纸张上半部分或页头，平滑直达本轮对话【页脚】（回答末尾处）；若已在页脚附近，翻到【下一张纸】（下一轮问答）页头；处于末轮时直达最新底部。
+   - **双击【向下 (↓)】**：直接平滑滚至整个对话页面的最底部。
 
-把每一次问答（您的提问 + AI的回答）视为一张独立规整的**纸张**：
-- **页头**：本次提问的最顶部；
-- **页脚**：本次回答的最末尾。
-
-在界面的**右侧滚动条旁**，常驻一组极简精致的「向上 / 向下」双圆钮：
-
-1. **点击【向上 (↑)】**：
-   - 如果当前在纸张中间或页脚浏览：点一下**平滑回到本张纸的【页头】**（提问起始处）；
-   - 如果已经在页头附近：再点一下**翻到【上一张纸】（上一轮问答）的页头**；
-   - 处于第一页时：直达整个对话最顶部。
-2. **点击【向下 (↓)】**：
-   - 如果当前在纸张上半部分或页头：点一下**平滑直达本张纸的【页脚】**（回答末尾处）；
-   - 如果已经在页脚附近：再点一下**翻到【下一张纸】（下一轮问答）的页头**；
-   - 处于最后一页时：直达整个对话最新底部；
-   - **双击向下**：直接平滑到达**整个页面的最底部**。
+2. **项目列表折叠归档 (Project Archive)**
+   - **一键归档**：鼠标悬停在左侧任意项目上，点击右侧 **📥** 图标即可快速隐藏折叠该项目。
+   - **查看与还原**：在 `Projects` 标题栏右侧点击 **`Archive`** 按钮展开面板，点击 **`Restore`** 或项目名即可恢复回主列表。
 
 ---
 
-## 🚀 极简使用指南（免黑框，一劳永逸）
+### 🚀 使用指南
 
-### 1. 一劳永逸（开机自启，推荐）
+#### 1. 一键安装与开机自启（推荐）
 双击运行根目录下的：
-👉 **`setup-autostart.bat`**
-- 运行一次后，每次开机它都会**在后台完全隐形自启**；
-- **没有黑框**、**不占桌面**；
-- 无论打开、重启还是在 Antigravity 中按 `Ctrl + R` 刷新，翻页器都会自动实时就绪！
-- 若后续想取消自启，随时双击 **`remove-autostart.bat`** 即可。
+👉 **`install.bat`**（或 **`setup-autostart.bat`**）
+- 自动添加开机自启快捷方式；
+- **后台完全隐形静默运行**（无黑框、不占桌面）；
+- 无论打开、重启还是在客户端中按 `Ctrl + R` 刷新，功能均自动就绪。
 
-### 2. 手动随时启动/停止
-- **`start-service-silent.vbs`**：双击即可在后台隐形启动守护（无黑框）；
-- **`stop-service.bat`**：双击即可完全退出后台守护服务；
-- **`start-enhancer.bat`**：控制台调试模式（有命令行窗口，便于查看实时日志）。
+#### 2. 手动启动与停止
+- **`start-service-silent.vbs`**：后台静默启动守护服务（无黑框）。
+- **`stop-service.bat`**：停止并退出后台守护服务。
+- **`start-enhancer.bat`**：控制台调试模式（显示终端窗口，便于查看实时日志）。
+
+#### 3. 个性化位置、大小与透明度微调
+使用文本编辑器打开 [`src/agy-enhancer.js`](./src/agy-enhancer.js)，在顶部的 `USER_CONFIG` 中可按需修改：
+- `BUTTON_OPACITY`：平时默认透明度（默认 `0.3`，即 30% 半透明，避免遮挡内容）；
+- `BUTTON_HOVER_OPACITY`：鼠标悬停时的透明度（默认 `1.0` 完全清晰）；
+- `NAV_RIGHT`：距离右侧边缘间距（默认 `20px`）；
+- `NAV_BOTTOM`：距离底部高度（默认 `170px`）；
+- `BUTTON_SIZE`：按钮直径大小（默认 `38px`）。
+
+> **热更新**：保存文件后（`Ctrl + S`），客户端将在 0.1 秒内自动生效，无需重启客户端！
+
+#### 4. 卸载
+双击运行：
+👉 **`uninstall.bat`**
+- 自动清理开机自启项并停止后台服务。
 
 ---
 
-## 🎨 手动调节按钮位置、大小与透明度
+<a id="繁體中文"></a>
+## 繁體中文
 
-用记事本打开 [`src/agy-enhancer.js`](file:///E:/Prejects/agy-enhancer/src/agy-enhancer.js)：
-在最顶部的 `USER_CONFIG` 中可随意调节：
-- `BUTTON_OPACITY`：平时默认透明度（默认 0.3 即 30% 半透明，避免遮挡背景文字）；
-- `BUTTON_HOVER_OPACITY`：鼠标划过时的透明度（默认 1.0 完全清晰，保留优质动效）；
-- `NAV_RIGHT`：距离右侧边缘间距（默认 20px，紧贴滚动条左侧）；
-- `NAV_BOTTOM`：距离底部高度（默认 170px，可自由上下微调）；
-- `BUTTON_SIZE`：按钮直径大小（默认 38px）。
+專為 **Antigravity 2.0 桌面用戶端** 定制的「紙張式」對話導航與瀏覽體驗套件。
 
-在记事本中按 `Ctrl + S` 保存，**当前窗口会自动在 0.1 秒内热更新生效**！
+### ✨ 核心功能與操作
+
+1. **「一問一答，皆為一紙」紙張式導航**
+   - **點擊【向上 (↑)】**：若在紙張中間或頁尾，平滑回到本輪對話【頁首】（提問起始處）；若已在頁首附近，翻到【上一張紙】（上一輪問答）頁首；處於首輪時直達頂部。
+   - **點擊【向下 (↓)】**：若在紙張上半部分或頁首，平滑直達本輪對話【頁尾】（回答末尾處）；若已在頁尾附近，翻到【下一張紙】（下一輪問答）頁首；處於末輪時直達最新底部。
+   - **按兩下【向下 (↓)】**：直接平滑捲動至整個對話頁面的最底部。
+
+2. **專案列表折疊封存 (Project Archive)**
+   - **一鍵封存**：滑鼠懸停在左側任意專案上，點擊右側 **📥** 圖示即可快速隱藏折疊該專案。
+   - **查看與還原**：在 `Projects` 標題列右側點擊 **`Archive`** 按鈕展開面板，點擊 **`Restore`** 或專案名稱即可恢復回主列表。
 
 ---
 
-## 📦 项目列表折叠归档 (Project Archive)
+### 🚀 使用指南
 
-当侧边栏项目较多、部分未完成项目暂时不用又占用大量空间时，可使用折叠归档：
-1. **一键快速归档**：鼠标悬停在左侧任意项目上，点击右侧与三个点样式完全一致的 **📥** 按钮（悬停提示 `Archive [项目名]`），即可将该项目归档折叠，立刻从主项目列表中隐藏，腾出垂直空间。
-2. **查看与还原**：在 `Projects` 标题栏右侧点击 **`Archive`** 按钮（有归档项目时附带数字徽标），展开折叠面板，点击 **`Restore`** 或直接点击项目名，即可随时恢复回主列表。
-3. **激活自动出归档**：如果在该归档项目中激活了最新对话，或通过链接打开了该项目，系统会自动解除归档并重新显示在主列表中。
-4. **原生三点菜单联动**：增强器已自动解锁 Antigravity 官方底层的环境特性，在项目的三个点 `⋮` 菜单中同样可以使用官方原生的 `Archive Workspace` 功能。
-5. **完美契合主题**：所有组件均采用 Antigravity 原生 Tailwind 与 CSS 变量设计，深色/浅色模式无缝自适应，不使用任何冲突的硬编码颜色。
+#### 1. 一鍵安裝與開機自啟（推薦）
+按兩下執行根目錄下的：
+👉 **`install.bat`**（或 **`setup-autostart.bat`**）
+- 自動新增開機自啟捷徑；
+- **後台完全隱形靜默執行**（無黑框、不佔桌面）；
+- 無論開啟、重啟還是在用戶端中按 `Ctrl + R` 重新整理，功能皆自動就緒。
+
+#### 2. 手動啟動與停止
+- **`start-service-silent.vbs`**：後台靜默啟動守護服務（無黑框）。
+- **`stop-service.bat`**：停止並結束後台守護服務。
+- **`start-enhancer.bat`**：主控台除錯模式（顯示終端視窗，便於查看即時日誌）。
+
+#### 3. 個性化位置、大小與透明度微調
+使用文字編輯器打開 [`src/agy-enhancer.js`](./src/agy-enhancer.js)，在頂部的 `USER_CONFIG` 中可按需修改：
+- `BUTTON_OPACITY`：平時預設透明度（預設 `0.3`，即 30% 半透明，避免遮擋內容）；
+- `BUTTON_HOVER_OPACITY`：滑鼠懸停時的透明度（預設 `1.0` 完全清晰）；
+- `NAV_RIGHT`：距離右側邊緣間距（預設 `20px`）；
+- `NAV_BOTTOM`：距離底部高度（預設 `170px`）；
+- `BUTTON_SIZE`：按鈕直徑大小（預設 `38px`）。
+
+> **熱更新**：儲存檔案後（`Ctrl + S`），用戶端將在 0.1 秒內自動生效，無需重啟用戶端！
+
+#### 4. 解除安裝
+按兩下執行：
+👉 **`uninstall.bat`**
+- 自動清理開機自啟項目並停止後台服務。
 
 
