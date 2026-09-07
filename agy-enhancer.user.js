@@ -628,10 +628,10 @@
 
       /* 项目/对话操作下拉菜单 */
       .agy-options-dropdown {
-        background: var(--card, var(--sidebar, var(--background, #ffffff)));
-        color: var(--foreground, #101010);
+        background: var(--popover, var(--card, var(--sidebar, var(--background, #ffffff))));
+        color: var(--popover-foreground, var(--foreground, #101010));
         border: 1px solid var(--border, rgba(125, 125, 125, 0.25));
-        border-radius: 8px;
+        border-radius: var(--radius, 8px);
         box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
         padding: 4px;
         min-width: 160px;
@@ -639,6 +639,8 @@
         flex-direction: column;
         gap: 1px;
         font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        font-size: 13px;
+        line-height: 19.5px;
         animation: agyFadeIn 0.12s ease-out;
         z-index: 9999999;
       }
@@ -682,15 +684,18 @@
         position: absolute;
         top: -4px;
         left: calc(100% + 4px);
-        background: var(--card, var(--sidebar, var(--background, #ffffff)));
-        color: var(--foreground, #101010);
+        background: var(--popover, var(--card, var(--sidebar, var(--background, #ffffff))));
+        color: var(--popover-foreground, var(--foreground, #101010));
         border: 1px solid var(--border, rgba(125, 125, 125, 0.25));
-        border-radius: 7px;
+        border-radius: var(--radius, 8px);
         box-shadow: 0 10px 28px rgba(0, 0, 0, 0.22), 0 2px 8px rgba(0, 0, 0, 0.1);
         padding: 4px;
         min-width: 150px;
         flex-direction: column;
         gap: 2px;
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        font-size: 13px;
+        line-height: 19.5px;
         z-index: 10000000;
         animation: agyFadeIn 0.1s ease-out;
       }
@@ -2963,7 +2968,7 @@
         edit: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>'
       };
 
-      // 2. 注入菜单专属沉浸样式 (自适应深浅色，毛玻璃与微边框)
+      // 2. 注入菜单专属样式 (统一对齐系统主题背景、字体与字号规范)
       function ensureContextMenuStyles() {
         const styleId = 'agy-context-menu-styles';
         if (document.getElementById(styleId)) return;
@@ -2975,38 +2980,17 @@
             z-index: 999999;
             min-width: 175px;
             max-width: 280px;
-            background: rgba(30, 30, 30, 0.88);
-            backdrop-filter: blur(16px);
-            -webkit-backdrop-filter: blur(16px);
-            border: 1px solid rgba(255, 255, 255, 0.12);
-            border-radius: 8px;
-            box-shadow: 0 12px 32px -4px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.05);
+            background: var(--popover, var(--card, var(--sidebar, var(--background, #ffffff))));
+            border: 1px solid var(--border, rgba(125, 125, 125, 0.25));
+            border-radius: var(--radius, 8px);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
             padding: 4px;
-            color: #ececec;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            color: var(--popover-foreground, var(--foreground, #101010));
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
             font-size: 13px;
-            line-height: 1.4;
+            line-height: 19.5px;
             user-select: none;
             animation: agy-menu-fade-in 0.1s ease-out;
-          }
-          @media (prefers-color-scheme: light) {
-            #agy-universal-context-menu {
-              background: rgba(255, 255, 255, 0.94);
-              border: 1px solid rgba(0, 0, 0, 0.1);
-              box-shadow: 0 12px 32px -4px rgba(0, 0, 0, 0.18), 0 0 0 1px rgba(0, 0, 0, 0.05);
-              color: #1a1a1a;
-            }
-            .agy-context-menu-item:hover {
-              background: rgba(0, 0, 0, 0.06) !important;
-            }
-            .agy-context-menu-sep {
-              background: rgba(0, 0, 0, 0.08) !important;
-            }
-          }
-          .dark #agy-universal-context-menu, [data-theme="dark"] #agy-universal-context-menu {
-            background: rgba(30, 30, 30, 0.88);
-            border: 1px solid rgba(255, 255, 255, 0.12);
-            color: #ececec;
           }
           @keyframes agy-menu-fade-in {
             from { opacity: 0; transform: scale(0.97); }
@@ -3015,47 +2999,55 @@
           .agy-context-menu-item {
             display: flex;
             align-items: center;
-            gap: 8px;
-            padding: 6px 10px;
-            border-radius: 5px;
+            gap: 6px;
+            padding: 4px 8px;
+            border-radius: 6px;
             cursor: pointer;
-            transition: background 0.12s ease;
+            transition: background 0.12s ease, color 0.12s ease;
             white-space: nowrap;
+            color: var(--secondary-foreground, var(--foreground, #101010));
+            font-size: 13px;
+            line-height: 19.5px;
+            font-weight: 400;
           }
           .agy-context-menu-item:hover {
-            background: rgba(255, 255, 255, 0.1);
+            background: var(--secondary, rgba(125, 125, 125, 0.15));
+            color: var(--foreground, #101010);
           }
           .agy-context-menu-icon {
-            width: 14px;
-            height: 14px;
+            width: 16px;
+            height: 16px;
             display: flex;
             align-items: center;
             justify-content: center;
             flex-shrink: 0;
-            opacity: 0.82;
+            color: var(--secondary-foreground, var(--foreground, #101010));
+            opacity: 0.85;
           }
           .agy-context-menu-item:hover .agy-context-menu-icon {
             opacity: 1;
+            color: var(--foreground, #101010);
           }
           .agy-context-menu-icon svg {
-            width: 14px;
-            height: 14px;
+            width: 16px;
+            height: 16px;
             stroke: currentColor;
           }
           .agy-context-menu-label {
             flex: 1;
-            font-weight: 450;
+            font-weight: 400;
             overflow: hidden;
             text-overflow: ellipsis;
           }
           .agy-context-menu-sep {
             height: 1px;
-            margin: 3px 6px;
-            background: rgba(255, 255, 255, 0.08);
+            margin: 4px -4px;
+            background: var(--border, rgba(125, 125, 125, 0.18));
           }
         `;
         document.head.appendChild(style);
       }
+      ensureContextMenuStyles();
 
       // 3. 关闭现有菜单
       function dismissUniversalContextMenu() {
