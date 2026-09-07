@@ -4,8 +4,9 @@
 
 ---
 
+<a id="quick-nav"></a>
 ### 📌 Quick Navigation
-[🚀 Prerequisites & Setup](#-prerequisites--setup) · [✨ Core Features](#-core-features--operations) · [🎨 Customization](#-customization--hot-reload) · [📜 Userscript](#-tampermonkey-userscript-guide) · [❓ FAQ](#-faq--troubleshooting) · [📦 Download Now](https://github.com/atjjme/agy-enhancer/releases/latest)
+[🚀 Prerequisites & Setup](#setup) · [✨ Core Features](#features) · [🎨 Customization](#customization) · [📜 Userscript](#userscript) · [❓ FAQ](#faq) · [📦 Download Now](https://github.com/atjjme/agy-enhancer/releases/latest)
 
 ---
 
@@ -15,7 +16,7 @@ As Antigravity updates and evolves, may this project gradually fade into the bac
 
 ---
 
-<a id="prerequisites--setup"></a>
+<a id="setup"></a>
 ### 🚀 Prerequisites & Setup
 
 #### 1. System Requirements
@@ -46,19 +47,19 @@ Double-click:
 
 ---
 
-<a id="core-features--operations"></a>
+<a id="features"></a>
 ### ✨ Core Features & Operations
 
-1. [Status Indicator: Top-right green dot shows active injection status](#en-feature-1)
-2. [Quick Navigation: Up/Down floating buttons in bottom-right corner](#en-feature-2)
-3. [Project Archive: One-click archive & restore workspace projects](#en-feature-3)
-4. [Context Menu Overhaul: Comprehensive right-click actions across the UI](#en-feature-4)
-5. [Conversation Reading Memory: Automatically remembers scroll position per chat](#en-feature-5)
-6. [Smart Unread Detection: Marks as read only after genuine viewing](#en-feature-6)
+1. [Status Indicator: Top-right green dot shows active injection status](#feature-1)
+2. [Quick Navigation: Up/Down floating buttons in bottom-right corner](#feature-2)
+3. [Project Archive: One-click archive & restore workspace projects](#feature-3)
+4. [Context Menu Overhaul: Comprehensive right-click actions across the UI](#feature-4)
+5. [Conversation Reading Memory: Automatically remembers scroll position per chat](#feature-5)
+6. [Smart Unread Detection: Marks as read only after genuine viewing](#feature-6)
 
 ---
 
-#### <a id="en-feature-1"></a> 1. Status Indicator: Top-right green dot shows active injection status
+#### <a id="feature-1"></a> 1. Status Indicator: Top-right green dot shows active injection status
 
 - **Description**: Once the enhancer service launches and successfully injects into the client, a discreet green indicator dot appears in the top-right corner of Antigravity, confirming that all enhancements are active and ready.
 
@@ -66,11 +67,11 @@ Double-click:
 >
 > <img src="./assets/2026-09-07_10-02-10.png" width="100%" />
 
-[↑ Back to Top Navigation](#-quick-navigation)
+[↑ Back to Quick Navigation](#quick-nav)
 
 ---
 
-#### <a id="en-feature-2"></a> 2. Quick Navigation: Up/Down floating buttons in bottom-right corner
+#### <a id="feature-2"></a> 2. Quick Navigation: Up/Down floating buttons in bottom-right corner
 
 - **The Problem**: In native Antigravity, long AI responses automatically leave the viewport pinned at the very bottom. Navigating back up requires tedious manual scrolling and often overshoots target prompts.
 - **Solution & Experience**:
@@ -87,11 +88,11 @@ Double-click:
 >   </tr>
 > </table>
 
-[↑ Back to Top Navigation](#-quick-navigation)
+[↑ Back to Quick Navigation](#quick-nav)
 
 ---
 
-#### <a id="en-feature-3"></a> 3. Project Archive: One-click archive & restore workspace projects
+#### <a id="feature-3"></a> 3. Project Archive: One-click archive & restore workspace projects
 
 - **The Problem**: Unfinished projects clutter the left sidebar, consuming precious vertical screen space.
 - **Solution & Experience**:
@@ -113,11 +114,11 @@ Double-click:
 >   </tr>
 > </table>
 
-[↑ Back to Top Navigation](#-quick-navigation)
+[↑ Back to Quick Navigation](#quick-nav)
 
 ---
 
-#### <a id="en-feature-4"></a> 4. Context Menu Overhaul: Comprehensive right-click actions across the UI
+#### <a id="feature-4"></a> 4. Context Menu Overhaul: Comprehensive right-click actions across the UI
 
 - **The Problem**: The native client lacks right-click context menus for common daily operations like copying, opening local folders, saving artifacts, or quoting text.
 - **Enhanced Behavior**:
@@ -139,7 +140,7 @@ Arranged in **strict order**:
 
 | Trigger Scenario / Target Entity | Menu Item (Strict Order) | Behavior Description |
 | :--- | :--- | :--- |
-| **Selected Text**<br>*(Text highlighted in prompt or response)* | 1. **`Copy`**<br>2. **`Quote`**<br>*(If selected text is URL: 3. `Open Link in Browser` 4. `Copy Link Address`)*<br>*(If selected text is path: 3. `Reveal in Explorer` 4. `Copy Path`)*<br>5. **`Search`** | • Copies selection to clipboard<br>• Formats text into a markdown quote block into the prompt input box<br>• Smart recognition: URLs can be directly opened in external browser; local paths can be revealed in Explorer<br>• Performs Google search in default browser |
+| **Selected Text**<br>*(Text highlighted in prompt or response)* | 1. **`Copy`**<br>2. **`Quote`**<br>*(If selected text is URL: 3. `Open Link in Browser` 4. `Copy Link Address`)*<br>*(If selected text is path: 3. `Reveal in Explorer` 4. `Copy Path`)【Identified even without selection】*<br>5. **`Search`** | • Copies selection to clipboard<br>• Formats text into a markdown quote block into the prompt input box<br>• Smart recognition: URLs can be directly opened in external browser; local paths can be revealed in Explorer<br>• Performs Google search in default browser |
 | **Code Block**<br>*(No text selected)* | 1. **`Copy Code`**<br>2. **`Save As...`** | • Copies full raw code text (triggers native copy button when possible)<br>• Exports code block as a local file with smart file extension detection |
 | **Hyperlink**<br>*(URL link)* | 1. **`Open Link in Browser`**<br>2. **`Copy Link Address`** | • Opens URL in default system browser (safely once)<br>• Copies URL to clipboard |
 | **Local Path** | 1. **`Reveal in Explorer`**<br>2. **`Copy Path`** *(Folder only)*<br>*(Image paths additionally offer: 3. `Copy Image`)* | • Highlights and opens location in Windows Explorer<br>• Copies directory path to clipboard<br>• If path points to an image, copies bitmap to clipboard |
@@ -175,11 +176,11 @@ Arranged in **strict order**:
 >   </tr>
 > </table>
 
-[↑ Back to Top Navigation](#-quick-navigation)
+[↑ Back to Quick Navigation](#quick-nav)
 
 ---
 
-#### <a id="en-feature-5"></a> 5. Conversation Reading Memory: Remembers scroll position per chat
+#### <a id="feature-5"></a> 5. Conversation Reading Memory: Remembers scroll position per chat
 
 - **The Problem**: In native Antigravity, switching conversations forcibly snaps the view to the bottom, losing your reading context in lengthy dialogues or code reviews.
 - **Solution & Experience**:
@@ -190,11 +191,11 @@ Arranged in **strict order**:
 >
 > <video src="./assets/2026-09-07_11-41-40.mp4" controls width="100%"></video>
 
-[↑ Back to Top Navigation](#-quick-navigation)
+[↑ Back to Quick Navigation](#quick-nav)
 
 ---
 
-#### <a id="en-feature-6"></a> 6. Smart Unread Detection: Marks as read only after genuine viewing
+#### <a id="feature-6"></a> 6. Smart Unread Detection: Marks as read only after genuine viewing
 
 - **The Problem**:
   1. If you switch away while a response is generating, the native client marks the conversation as read prematurely, risking overlooked outputs;
@@ -209,11 +210,11 @@ Arranged in **strict order**:
 >
 > <img src="./assets/2026-09-07_12-03-24.png" width="100%" />
 
-[↑ Back to Top Navigation](#-quick-navigation)
+[↑ Back to Quick Navigation](#quick-nav)
 
 ---
 
-<a id="customization--hot-reload"></a>
+<a id="customization"></a>
 ### 🎨 Customization & Hot Reload
 
 Open [`src/agy-enhancer.js`](./src/agy-enhancer.js) with any text editor and tweak `USER_CONFIG` at the top:
@@ -227,11 +228,11 @@ Open [`src/agy-enhancer.js`](./src/agy-enhancer.js) with any text editor and twe
 > ⚡ **Sub-Second Hot Reload**:
 > Save your changes with `Ctrl + S`, and the daemon will hot-reload the UI within **0.1 seconds** without restarting the client or reloading the app!
 
-[↑ Back to Top Navigation](#-quick-navigation)
+[↑ Back to Quick Navigation](#quick-nav)
 
 ---
 
-<a id="tampermonkey-userscript-guide"></a>
+<a id="userscript"></a>
 ### 📜 Userscript (Tampermonkey) Guide
 
 Beyond the Windows background service daemon, this repository includes a pre-packaged userscript [`agy-enhancer.user.js`](./agy-enhancer.user.js).
@@ -241,11 +242,11 @@ If you access Antigravity through modern web browsers (Chrome, Edge, Firefox, et
 2. Drag and drop [`agy-enhancer.user.js`](./agy-enhancer.user.js) into your browser, or create a new script in Tampermonkey and paste the code;
 3. Refresh Antigravity Web to enjoy full navigation, archive, and context menu enhancements.
 
-[↑ Back to Top Navigation](#-quick-navigation)
+[↑ Back to Quick Navigation](#quick-nav)
 
 ---
 
-<a id="faq--troubleshooting"></a>
+<a id="faq"></a>
 ### ❓ FAQ & Troubleshooting
 
 #### Q1: No green indicator dot appeared after setup?
@@ -268,4 +269,4 @@ Simply download the latest ZIP package from [Releases](https://github.com/atjjme
 - **Temporary Stop**: Double-click `stop-service.bat` to terminate the background process;
 - **Full Removal**: Double-click `uninstall.bat` to remove the startup shortcut and stop the service cleanly.
 
-[↑ Back to Top Navigation](#-quick-navigation)
+[↑ Back to Quick Navigation](#quick-nav)
