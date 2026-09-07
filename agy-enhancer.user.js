@@ -11,6 +11,8 @@
 // @run-at       document-idle
 // ==/UserScript==
 
+window.__AGY_BRANCH_TAG__ = " (branch)";
+window.__AGY_BRANCH_NAME__ = "fix_archived_session_menu_behavior";
 /**
  * Antigravity 增强器 (agy-enhancer enhancer)
  * 
@@ -717,20 +719,32 @@
         position: relative;
         display: flex;
         align-items: center;
-        gap: 6px;
-        padding: 4px 6px;
-        border-radius: 4px;
-        font-size: 12px;
+        justify-content: space-between;
+        padding: 5px 8px;
+        border-radius: 6px;
         color: var(--muted-foreground);
         cursor: pointer;
         transition: background 0.15s ease, color 0.15s ease;
         text-decoration: none;
-        min-height: 26px;
         box-sizing: border-box;
       }
       .agy-convo-item:hover {
         background: var(--secondary, rgba(125, 125, 125, 0.15));
         color: var(--foreground);
+      }
+      .agy-convo-content {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        min-width: 0;
+        flex: 1;
+      }
+      .agy-convo-top-row {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        min-width: 0;
+        width: 100%;
       }
       .agy-convo-title {
         flex: 1;
@@ -738,6 +752,35 @@
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
+        font-size: 13px;
+        line-height: 1.3;
+        color: var(--foreground);
+      }
+      .agy-convo-time {
+        font-size: 11px;
+        color: var(--muted-foreground);
+        opacity: 0.65;
+        flex-shrink: 0;
+        margin-left: 4px;
+        user-select: none;
+      }
+      .agy-convo-item:hover .agy-convo-time,
+      .agy-convo-item:has(.agy-convo-options-btn.active) .agy-convo-time {
+        display: none;
+      }
+      .agy-convo-subtext {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        min-width: 0;
+        width: 100%;
+        font-size: 11px;
+        color: var(--muted-foreground);
+        opacity: 0.75;
+        user-select: none;
+      }
+      .agy-convo-subtext svg {
+        opacity: 0.7;
       }
       .agy-convo-item.unread .agy-convo-title {
         font-weight: 600;
@@ -1460,20 +1503,74 @@
         }
       } catch (e) {}
 
+      function formatRelativeTime(seconds) {
+        if (!seconds) return '';
+        const nowSec = Math.floor(Date.now() / 1000);
+        const diff = Math.max(0, nowSec - seconds);
+        if (diff < 60) return 'now';
+        if (diff < 3600) return `${Math.floor(diff / 60)}m`;
+        if (diff < 86400) return `${Math.floor(diff / 3600)}h`;
+        if (diff < 86400 * 30) return `${Math.floor(diff / 86400)}d`;
+        if (diff < 86400 * 365) return `${Math.floor(diff / (86400 * 30))}mo`;
+        return `${Math.floor(diff / (86400 * 365))}y`;
+      }
+
       function getProjectConversations(projectId) {
         const tsp = getTSP();
         if (!tsp) return [];
         const summaries = tsp.getState()?.summaries || {};
-        const list = Object.entries(summaries).map(([key, s]) => ({
-          id: key, // 使用 key 作为真实对话 ID（不能用 s.trajectoryId，否则报数据不存在且跳转首页）
-          title: s.summary || s.title || 'Untitled conversation',
-          projectId: s.projectId || s.trajectoryMetadata?.projectId,
-          time: Number(s.lastModifiedTime?.seconds || s.createdTime?.seconds || 0),
-          archived: s.annotations?.archived === true,
-          markedAsUnread: s.annotations?.markedAsUnread === true
-        }));
-        // 仅展示归属于该项目、且未被单独归档的正常对话
-        return list.filter(c => c.projectId === projectId && !c.archived).sort((a, b) => b.time - a.time);
+        const list = Object.entries(summaries).map(([key, s]) => {
+          const pId = s.projectId || s.trajectoryMetadata?.projectId;
+          if (pId !== projectId) return null;
+
+          // 排除子 Agent 与内部子任务会话 (如 **Task**: ok /boost, <original_task> 等)
+          const parentId = s.parentConversationId || s.trajectoryMetadata?.parentConversationId;
+          const isSubagent = !!parentId ||
+            (s.nestingDepth && Number(s.nestingDepth) > 0) ||
+            (s.trajectoryMetadata?.nestingDepth && Number(s.trajectoryMetadata?.nestingDepth) > 0) ||
+            !!s.subagentSpec ||
+            !!s.trajectoryMetadata?.subagentSpec;
+          if (isSubagent) return null;
+
+          // 仅展示未被单独归档的正常会话
+          if (s.annotations?.archived === true) return null;
+
+          // 获取工作区/分支名称 (Workspace / Branch Name)
+          let workspaceName = '';
+          const workspaces = s.workspaces || s.trajectoryMetadata?.workspaces || [];
+          for (const w of workspaces) {
+            if (w.branchName) {
+              workspaceName = w.branchName;
+              break;
+            }
+            if (w.workspaceFolderAbsoluteUri?.includes('/worktrees/')) {
+              workspaceName = w.workspaceFolderAbsoluteUri.split('/').filter(Boolean).pop();
+              break;
+            }
+          }
+          if (!workspaceName && s.trajectoryMetadata?.workspaceUris) {
+            for (const u of s.trajectoryMetadata.workspaceUris) {
+              if (u.includes('/worktrees/')) {
+                workspaceName = u.split('/').filter(Boolean).pop();
+                break;
+              }
+            }
+          }
+
+          const timeSec = Number(s.lastModifiedTime?.seconds || s.createdTime?.seconds || 0);
+
+          return {
+            id: key, // 使用 key 作为真实对话 ID（不能用 s.trajectoryId，否则报数据不存在且跳转首页）
+            title: s.summary || s.title || 'Untitled conversation',
+            projectId: pId,
+            time: timeSec,
+            timeText: formatRelativeTime(timeSec),
+            workspaceName,
+            markedAsUnread: s.annotations?.markedAsUnread === true
+          };
+        }).filter(Boolean);
+
+        return list.sort((a, b) => b.time - a.time);
       }
 
       function escapeHtml(str) {
@@ -1678,9 +1775,19 @@
                       <div class="agy-convo-empty">No conversations</div>
                     ` : convos.map(c => `
                       <a class="agy-convo-item ${c.markedAsUnread ? 'unread' : ''}" href="/c/${encodeURIComponent(c.id)}?section=${encodeURIComponent(item.project.id)}" data-convo-id="${c.id}" data-project-id="${item.project.id}" title="${escapeHtml(c.title)}">
-                        ${c.markedAsUnread ? '<span class="agy-convo-unread-dot" title="Unread"></span>' : ''}
-                        <svg width="13" height="13" viewBox="0 -960 960 960" fill="currentColor" class="shrink-0" style="opacity: 0.7;"><path d="M240-400h480v-60H240v60Zm0-120h480v-60H240v60Zm0-120h480v-60H240v60ZM80-80v-720q0-33 23.5-56.5T160-880h640q33 0 56.5 23.5T880-800v480q0 33-23.5 56.5T800-240H240L80-80Zm126-220H800v-480H160v535l46-55Zm-46 0v-480 480Z"/></svg>
-                        <span class="agy-convo-title">${escapeHtml(c.title)}</span>
+                        <div class="agy-convo-content">
+                          <div class="agy-convo-top-row">
+                            ${c.markedAsUnread ? '<span class="agy-convo-unread-dot" title="Unread"></span>' : ''}
+                            <span class="agy-convo-title">${escapeHtml(c.title)}</span>
+                            ${c.timeText ? `<span class="agy-convo-time">${escapeHtml(c.timeText)}</span>` : ''}
+                          </div>
+                          ${c.workspaceName ? `
+                            <div class="agy-convo-subtext" title="${escapeHtml(c.workspaceName)}">
+                              <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 -960 960 960" fill="currentColor" class="shrink-0"><path d="M450-180V-467.85l-210-210V-560H180V-780H400v60H282.15L510-492.15V-180H450ZM580.15-536.77l-43.38-43.38L677.85-720H560v-60H780v220H720V-677.85L580.15-536.77Z"/></svg>
+                              <span class="min-w-0 truncate">${escapeHtml(c.workspaceName)}</span>
+                            </div>
+                          ` : ''}
+                        </div>
                         <button class="agy-convo-options-btn" data-convo-id="${c.id}" data-project-id="${item.project.id}" title="Conversation options" aria-label="Conversation options">
                           <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 -960 960 960" fill="currentColor"><path d="M480-189.23q-24.75,0-42.37-17.62T420-249.23t17.62-42.37T480-309.23t42.37,17.62T540-249.23t-17.62,42.37T480-189.23ZM480-420q-24.75,0-42.37-17.62T420-480t17.62-42.37T480-540t42.37,17.62T540-480t-17.62,42.37T480-420Zm0-230.77q-24.75,0-42.37-17.62T420-710.77t17.62-42.37T480-770.77t42.37,17.62T540-710.77t-17.62,42.37T480-650.77Z"/></svg>
                         </button>
@@ -1863,8 +1970,24 @@
             const convoId = btn.getAttribute('data-convo-id');
             const projectId = btn.getAttribute('data-project-id');
             const convos = getProjectConversations(projectId);
-            const c = convos.find(x => x.id === convoId);
-            const p = archived.find(x => x.project.id === projectId);
+            const tsp = getTSP();
+            let c = convos.find(x => x.id === convoId);
+            if (!c && tsp) {
+              const s = tsp.getState()?.summaries?.[convoId];
+              if (s) {
+                c = {
+                  id: convoId,
+                  title: s.summary || s.title || 'Untitled conversation',
+                  projectId: s.projectId || s.trajectoryMetadata?.projectId || projectId,
+                  markedAsUnread: s.annotations?.markedAsUnread === true
+                };
+              }
+            }
+            let p = archived.find(x => x.project.id === projectId);
+            if (!p && pm) {
+              const allProjects = pm.projectsStateProvider?.getState() || [];
+              p = allProjects.find(x => x.project?.id === projectId);
+            }
             if (!c || !p) return;
 
             const existingDd = document.getElementById('agy-convo-options-dropdown');
@@ -1907,25 +2030,27 @@
             dd.style.left = `${leftPos}px`;
             dd.style.zIndex = '9999999';
 
-            const archiveSummaries = tsp?.getState()?.summaries || {};
-            const archiveConvoSummary = archiveSummaries[c.id];
-            let archiveWorkspaceName = '';
-            const archiveWorkspaces = archiveConvoSummary?.workspaces || archiveConvoSummary?.trajectoryMetadata?.workspaces || [];
-            for (const w of archiveWorkspaces) {
-              if (w.branchName) {
-                archiveWorkspaceName = w.branchName;
-                break;
-              }
-              if (w.workspaceFolderAbsoluteUri?.includes('/worktrees/')) {
-                archiveWorkspaceName = w.workspaceFolderAbsoluteUri.split('/').filter(Boolean).pop();
-                break;
-              }
-            }
-            if (!archiveWorkspaceName && archiveConvoSummary?.trajectoryMetadata?.workspaceUris) {
-              for (const u of archiveConvoSummary.trajectoryMetadata.workspaceUris) {
-                if (u.includes('/worktrees/')) {
-                  archiveWorkspaceName = u.split('/').filter(Boolean).pop();
+            let archiveWorkspaceName = c.workspaceName || '';
+            if (!archiveWorkspaceName && tsp) {
+              const archiveSummaries = tsp.getState()?.summaries || {};
+              const archiveConvoSummary = archiveSummaries[c.id];
+              const archiveWorkspaces = archiveConvoSummary?.workspaces || archiveConvoSummary?.trajectoryMetadata?.workspaces || [];
+              for (const w of archiveWorkspaces) {
+                if (w.branchName) {
+                  archiveWorkspaceName = w.branchName;
                   break;
+                }
+                if (w.workspaceFolderAbsoluteUri?.includes('/worktrees/')) {
+                  archiveWorkspaceName = w.workspaceFolderAbsoluteUri.split('/').filter(Boolean).pop();
+                  break;
+                }
+              }
+              if (!archiveWorkspaceName && archiveConvoSummary?.trajectoryMetadata?.workspaceUris) {
+                for (const u of archiveConvoSummary.trajectoryMetadata.workspaceUris) {
+                  if (u.includes('/worktrees/')) {
+                    archiveWorkspaceName = u.split('/').filter(Boolean).pop();
+                    break;
+                  }
                 }
               }
             }
