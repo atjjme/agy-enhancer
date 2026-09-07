@@ -1,117 +1,11 @@
-# Antigravity Dialogue & Navigation Enhancer (`agy-enhancer`)
+# Antigravity 对话与导航增强套件 (`agy-enhancer`)
 
-[English](#english) | [简体中文](#简体中文) | [繁體中文](#繁體中文)
-
----
-
-<a id="english"></a>
-## English
-
-A paper-style dialogue navigation and browsing enhancement suite tailored for the **Antigravity 2.0 Desktop Client**.
-
-### 🚀 Getting Started
-
-#### Direct Download: Download ZIP & Extract anywhere
-
-#### 1. One-Click Setup & Autostart (Recommended)
-Double-click in the root directory:
-👉 **`install.bat`** (or **`setup-autostart.bat`**)
-- **`install.bat`** is the familiar installer name for general users;
-- **`setup-autostart.bat`** reflects the core mechanism;
-- Both execute identical logic: automatically configures Windows startup and launches the daemon in background (runs silently without popup windows; a green status indicator will appear at the top-right corner of the Antigravity client).
-
-#### 2. Manual Controls
-- **`start-service-silent.vbs`**: Starts the daemon silently in the background (no console window).
-- **`stop-service.bat`**: Stops and terminates the background daemon.
-- **`start-enhancer.bat`**: Starts in debug console mode (shows terminal window for real-time logs).
-
-#### 3. Uninstallation
-Double-click:
-👉 **`uninstall.bat`**
-- Automatically removes the startup shortcut and terminates the daemon.
+[简体中文](README.md) | [English](README.en.md) | [繁體中文](README.zh-TW.md)
 
 ---
 
-<a id="en-features"></a>
-### ✨ Core Features & Overview
-
-1. [📖 "Paper-style" Dialogue Navigation (One Q&A = One Page)](#en-feature-1)
-2. [📦 Project Workspace Archive](#en-feature-2)
-3. [🎨 Button Customization & Instant Hot Reload](#en-feature-3)
-
----
-
-#### <a id="en-feature-1"></a> 1. 📖 "Paper-style" Dialogue Navigation
-Treats every Q&A turn (your prompt + AI response) as an independent "page":
-- **Click Up (↑)**: Smoothly jumps back to the **Header** (start of the prompt). If already near the header, turns to the previous Q&A page header. At the first page, goes straight to the conversation top.
-- **Click Down (↓)**: Smoothly scrolls down to the **Footer** (end of the response). If already near the footer, turns to the next Q&A page header. At the last page, goes straight to the latest bottom.
-- **Double Click Down (↓)**: Instantly and smoothly navigates straight to the very bottom of the conversation.
-
-> 📷 **Screenshot / GIF Demo**:
-> ![Navigation Demo Placeholder](./assets/demo_navigation_placeholder.png)
-> *(Placeholder: Insert dialogue navigation demo GIF / video here)*
-
-[↑ Back to Features](#en-features)
-
----
-
-#### <a id="en-feature-2"></a> 2. 📦 Project Workspace Archive
-- **One-Click Archive**: Hover over any project in the left sidebar and click the **📥** archive icon to collapse and hide it from the main list.
-- **View & Restore**: Click the **`Archive`** button next to the `Projects` header to expand the archive panel and click **`Restore`** or the project title to bring it back.
-- **Auto Unarchive on Activation**: Interacting with or opening an archived project automatically unarchives and restores it to the main list.
-- **Theme Adaptive**: Seamlessly styled with native Antigravity Tailwind & CSS variables in dark and light modes.
-
-> 📷 **Screenshot / GIF Demo**:
-> ![Project Archive Demo Placeholder](./assets/demo_archive_placeholder.png)
-> *(Placeholder: Insert project archive demo GIF / video here)*
-
-[↑ Back to Features](#en-features)
-
----
-
-#### <a id="en-feature-3"></a> 3. 🎨 Button Customization & Instant Hot Reload
-Open [`src/agy-enhancer.js`](./src/agy-enhancer.js) with any text editor to adjust `USER_CONFIG`:
-- `BUTTON_OPACITY`: Default idle opacity (default `0.3` / 30% to avoid blocking text).
-- `BUTTON_HOVER_OPACITY`: Opacity on hover (default `1.0`).
-- `NAV_RIGHT`: Distance from right edge (default `20px`).
-- `NAV_BOTTOM`: Distance from bottom edge (default `170px`).
-- `BUTTON_SIZE`: Button diameter (default `38px`).
-
-> **Hot Reload**: Press `Ctrl + S` to save, and changes take effect within 0.1s in the live client without reloading the application!
-
-> 📷 **Screenshot / GIF Demo**:
-> ![Customization Demo Placeholder](./assets/demo_config_placeholder.png)
-> *(Placeholder: Insert customization demo GIF / video here)*
-
-[↑ Back to Features](#en-features)
-
----
-
-<a id="简体中文"></a>
-## 简体中文
-
-专为 **Antigravity 2.0 桌面客户端** 定制的功能及操作增强套件。
-
-### 🚀 使用指南
-
-#### 直接下载：下载 ZIP 压缩包并解压至任意文件夹
-
-#### 1. 一键安装与开机自启（推荐）
-双击运行根目录下的：
-👉 **`install.bat`**（或 **`setup-autostart.bat`**）
-- **`install.bat`** 是普通用户熟悉的安装名称；
-- **`setup-autostart.bat`** 是核心机制的表现名称；
-- 两者功能完全一致：自动配置 Windows 开机自启并在后台静默启动守护服务（无弹窗提示；注入成功后 Antigravity 界面右上角会有绿色状态圆点指示）。
-
-#### 2. 手动启动与停止
-- **`start-service-silent.vbs`**：后台静默启动守护服务（无黑框）。
-- **`stop-service.bat`**：停止并退出后台守护服务。
-- **`start-enhancer.bat`**：控制台调试模式（显示终端窗口，便于查看实时日志）。
-
-#### 3. 卸载
-双击运行：
-👉 **`uninstall.bat`**
-- 自动清理开机自启项并停止后台服务。
+### 📌 快速导航
+[🚀 运行环境与安装](#-运行环境与安装) · [✨ 核心功能](#-核心功能与操作) · [🎨 参数配置](#-参数自定义与热更新) · [📜 油猴脚本](#-油猴脚本-userscript-指南) · [❓ 常见问题 FAQ](#-常见问题排查-faq) · [📦 立即下载](https://github.com/atjjme/agy-enhancer/releases/latest)
 
 ---
 
@@ -121,7 +15,38 @@ Open [`src/agy-enhancer.js`](./src/agy-enhancer.js) with any text editor to adju
 
 ---
 
-<a id="zh-features"></a>
+<a id="运行环境与安装"></a>
+### 🚀 运行环境与安装
+
+#### 1. 前置环境要求
+- **操作系统**：Windows 10 / Windows 11
+- **软件环境**：
+  - **Antigravity 2.0 桌面客户端**（支持所有最新版本）；
+  - **[Node.js](https://nodejs.org/)** 环境（推荐 LTS 版本，Node.js 16+ 均可，用于运行本地轻量守护服务。可在终端输入 `node -v` 验证是否已安装）。
+
+#### 2. 下载安装包
+👉 **[点击前往 Releases 下载最新版本 ZIP 压缩包](https://github.com/atjjme/agy-enhancer/releases/latest)** 并解压至任意文件夹。
+
+#### 3. 一键安装与开机自启（推荐）
+双击运行解压后根目录下的：
+👉 **`install.bat`**（或 **`setup-autostart.bat`**）
+- **`install.bat`** 是普通用户熟悉的安装名称；
+- **`setup-autostart.bat`** 是核心机制的表现名称；
+- 两者功能完全一致：自动配置 Windows 开机自启并在后台静默启动守护服务（无黑框弹窗；注入成功后 Antigravity 界面右上角会有绿色状态圆点指示）。
+
+#### 4. 手动启动与停止
+- **`start-service-silent.vbs`**：后台静默启动守护服务（无黑框）。
+- **`stop-service.bat`**：停止并退出后台守护服务。
+- **`start-enhancer.bat`**：控制台调试模式（显示终端窗口，便于查看实时加载与交互日志）。
+
+#### 5. 卸载
+双击运行：
+👉 **`uninstall.bat`**
+- 自动清理 Windows 开机自启项并立刻停止后台守护服务。
+
+---
+
+<a id="核心功能与操作"></a>
 ### ✨ 核心功能与操作
 
 1. [脚本生效：在 Antigravity 2.0 界面右上角显示绿点指示](#zh-feature-1)
@@ -141,7 +66,7 @@ Open [`src/agy-enhancer.js`](./src/agy-enhancer.js) with any text editor to adju
 >
 > <img src="./assets/2026-09-07_10-02-10.png" width="100%" />
 
-[↑ 返回功能列表](#zh-features)
+[↑ 返回顶部导航](#-快速导航)
 
 ---
 
@@ -162,7 +87,7 @@ Open [`src/agy-enhancer.js`](./src/agy-enhancer.js) with any text editor to adju
 >   </tr>
 > </table>
 
-[↑ 返回功能列表](#zh-features)
+[↑ 返回顶部导航](#-快速导航)
 
 ---
 
@@ -188,7 +113,7 @@ Open [`src/agy-enhancer.js`](./src/agy-enhancer.js) with any text editor to adju
 >   </tr>
 > </table>
 
-[↑ 返回功能列表](#zh-features)
+[↑ 返回顶部导航](#-快速导航)
 
 ---
 
@@ -252,7 +177,7 @@ Open [`src/agy-enhancer.js`](./src/agy-enhancer.js) with any text editor to adju
 >   </tr>
 > </table>
 
-[↑ 返回功能列表](#zh-features)
+[↑ 返回顶部导航](#-快速导航)
 
 ---
 
@@ -267,11 +192,11 @@ Open [`src/agy-enhancer.js`](./src/agy-enhancer.js) with any text editor to adju
 >
 > <video src="./assets/2026-09-07_11-41-40.mp4" controls width="100%"></video>
 
-[↑ 返回功能列表](#zh-features)
+[↑ 返回顶部导航](#-快速导航)
 
 ---
 
-#### <a id="zh-feature-6"></a> 6. 智能未读判定：让用户真实看完输出信息然后标记为已读
+#### <a id="zh-feature-6"></a> 6. 智能未读判定：真实阅读完输出信息后再标记为已读
 
 - **原因**：
   1. 在当前会话生成内容时，若用户中途切换到其他会话，该会话会被原生客户端错误地提前标记为“已读”，导致用户遗漏后续输出；
@@ -286,90 +211,63 @@ Open [`src/agy-enhancer.js`](./src/agy-enhancer.js) with any text editor to adju
 >
 > <img src="./assets/2026-09-07_12-03-24.png" width="100%" />
 
-[↑ 返回功能列表](#zh-features)
+[↑ 返回顶部导航](#-快速导航)
 
 ---
 
-<a id="繁體中文"></a>
-## 繁體中文
+<a id="参数自定义与热更新"></a>
+### 🎨 参数自定义与热更新
 
-專為 **Antigravity 2.0 桌面用戶端** 定制的「紙張式」對話導航與瀏覽體驗套件。
+您可以使用任意文本编辑器打开 [`src/agy-enhancer.js`](./src/agy-enhancer.js)，在顶部的 `USER_CONFIG` 对象中根据个人喜好调整界面参数：
 
-### 🚀 使用指南
+- `BUTTON_OPACITY`: 平时静止时的半透明度（默认 `0.3`，即 30% 透明度，避免遮挡代码与文字）；
+- `BUTTON_HOVER_OPACITY`: 鼠标悬停时的透明度（默认 `1.0` 完全清晰）；
+- `NAV_RIGHT`: 导航按钮距离窗口右侧边缘的间距（默认 `20px`）；
+- `NAV_BOTTOM`: 导航按钮距离底部输入框的高度（默认 `170px`）；
+- `BUTTON_SIZE`: 导航按钮的圆形直径（默认 `38px`）。
 
-#### 直接下載 zip 壓縮包，解壓存放任意資料夾
+> ⚡ **毫秒级极速热更新**：
+> 修改配置并按下 `Ctrl + S` 保存后，后台守护服务会在 **0.1 秒内自动同步生效**至客户端窗口，无需重新启动客户端或重载软件！
 
-#### 1. 一鍵安裝與開機自啟（推薦）
-按兩下執行根目錄下的：
-👉 **`install.bat`**（或 **`setup-autostart.bat`**）
-- **`install.bat`** 是普通用戶熟悉的安裝名稱；
-- **`setup-autostart.bat`** 是核心功能的表現名稱；
-- 兩者功能完全一樣，即自動新增開機自啟並啟動指令碼（靜默執行，無反應提示。Antigravity 介面右上角會有綠點顯示）；
-
-#### 2. 手動啟動與停止
-- **`start-service-silent.vbs`**：後台靜默啟動守護服務（無黑框）。
-- **`stop-service.bat`**：停止並結束後台守護服務。
-- **`start-enhancer.bat`**：主控台除錯模式（顯示終端視窗，便於查看即時日誌）。
-
-#### 3. 解除安裝
-按兩下執行：
-👉 **`uninstall.bat`**
-- 自動清理開機自啟項目並停止後台服務。
+[↑ 返回顶部导航](#-快速导航)
 
 ---
 
-<a id="tc-features"></a>
-### ✨ 核心功能與操作
+<a id="油猴脚本-userscript-指南"></a>
+### 📜 油猴脚本 (Userscript) 指南
 
-1. [📖 「一問一答，皆為一紙」紙張式導航](#tc-feature-1)
-2. [📦 專案列表折疊封存 (Project Archive)](#tc-feature-2)
-3. [🎨 按鈕位置大小微調與熱更新](#tc-feature-3)
+除了作为 Windows 后台常驻守护服务使用外，本项目还提供了油猴用户脚本文件 [`agy-enhancer.user.js`](./agy-enhancer.user.js)。
 
----
+如果您通过主流浏览器（Chrome、Edge、Firefox 等）访问 Antigravity 的 Web 端或本地网页端界面：
+1. 确保浏览器已安装 [Tampermonkey](https://www.tampermonkey.net/) 插件；
+2. 将根目录下的 [`agy-enhancer.user.js`](./agy-enhancer.user.js) 拖拽进浏览器窗口，或在 Tampermonkey 管理面板中选择“添加新脚本”并将代码复制保存；
+3. 访问 Antigravity Web 界面时，脚本将自动加载并提供完整的导航、归档与右键增强能力。
 
-#### <a id="tc-feature-1"></a> 1. 📖 「一問一答，皆為一紙」紙張式導航
-把每一次問答（提問 + AI回答）視為一張獨立規整的紙張：
-- **點擊【向上 (↑)】**：若在紙張中間或頁尾，平滑回到本輪對話【頁首】（提問起始處）；若已在頁首附近，翻到【上一張紙】（上一輪問答）頁首；處於首輪時直達頂部。
-- **點擊【向下 (↓)】**：若在紙張上半部分或頁首，平滑直達本輪對話【頁尾】（回答末尾處）；若已在頁尾附近，翻到【下一張紙】（下一輪問答）頁首；處於末輪時直達最新底部。
-- **按兩下【向下 (↓)】**：直接平滑捲動至整個對話頁面的最底部。
-
-> 📷 **功能示範影片 / 圖片佔位**：
-> ![紙張式導航示範佔位圖](./assets/demo_navigation_placeholder.png)
-> *(佔位符：可在此插入功能示範動圖 GIF 或影片連結)*
-
-[↑ 返回功能列表](#tc-features)
+[↑ 返回顶部导航](#-快速导航)
 
 ---
 
-#### <a id="tc-feature-2"></a> 2. 📦 專案列表折疊封存 (Project Archive)
-- **一鍵快速封存**：滑鼠懸停在左側任意專案上，點擊右側 **📥** 圖示即可將該專案封存折疊，立刻從主專案列表中隱藏，騰出垂直空間。
-- **查看與還原**：在 `Projects` 標題列右側點擊 **`Archive`** 按鈕（有封存專案時附帶數字徽標），展開折疊面板，點擊 **`Restore`** 或直接點擊專案名稱，即可隨時恢復回主列表。
-- **啟用自動解除封存**：在封存專案中啟用新對話或透過連結進入時，自動解除封存並恢復顯示在主列表。
-- **完美契合主題**：採用 Antigravity 原生 Tailwind 與 CSS 變數，深色/淺色模式自適應。
+<a id="常见问题排查-faq"></a>
+### ❓ 常见问题排查 (FAQ)
 
-> 📷 **功能示範影片 / 圖片佔位**：
-> ![專案封存示範佔位圖](./assets/demo_archive_placeholder.png)
-> *(佔位符：可在此插入功能示範動圖 GIF 或影片連結)*
+#### Q1: 运行安装后，Antigravity 右上角没有出现绿色圆点？
+1. **客户端运行状态**：请确保 Antigravity 2.0 桌面端已启动；
+2. **检测 Node.js 环境**：打开命令行（CMD 或 PowerShell），输入 `node -v`。若提示命令未找到，请前往 [Node.js 官网](https://nodejs.org/) 下载并安装 LTS 版本；
+3. **查看排错日志**：双击运行根目录下的 `start-enhancer.bat`（调试控制台模式），查看终端中打印的端口检测及连接日志；
+4. **窗口刷新重试**：如果在打开客户端后曾按过 `Ctrl + R` 强制刷新，服务通常会在 0.2 秒内自动重新载入。
 
-[↑ 返回功能列表](#tc-features)
+#### Q2: 项目后续发布新版本，如何更新？
+直接前往 [Releases 最新发布页面](https://github.com/atjjme/agy-enhancer/releases/latest) 下载新的 ZIP 压缩包，解压并覆盖本地同名文件即可。
+- 如果后台守护服务正在运行，修改/覆盖 `src/agy-enhancer.js` 时会触发自动热重载；
+- 无需重复配置开机自启，也无需重启电脑。
 
----
+#### Q3: 守护进程会影响系统性能或收集个人隐私吗？
+- **零破坏与安全侵入**：绝不修改 Antigravity 安装包或核心底层代码，安全可靠；
+- **资源占用极低**：守护服务仅监听文件变动与端口连接，内存占用极小，几乎零 CPU 消耗；
+- **纯本地离线运行**：所有逻辑与数据（归档、阅读位置、已读标记）均保存在您本机的 `%APPDATA%\antigravity` 目录下，**绝不向任何外部第三方服务器上传**您的提示词、对话记录、项目路径等任何隐私数据。
 
-#### <a id="tc-feature-3"></a> 3. 🎨 按鈕位置大小微調與熱更新
-使用文字編輯器打開 [`src/agy-enhancer.js`](./src/agy-enhancer.js)，在頂部的 `USER_CONFIG` 中可按需修改：
-- `BUTTON_OPACITY`：平時預設透明度（預設 `0.3`，即 30% 半透明，避免遮擋內容）；
-- `BUTTON_HOVER_OPACITY`：滑鼠懸停時的透明度（預設 `1.0` 完全清晰）；
-- `NAV_RIGHT`：距離右側邊緣間距（預設 `20px`）；
-- `NAV_BOTTOM`：距離底部高度（預設 `170px`）；
-- `BUTTON_SIZE`：按鈕直徑大小（預設 `38px`）。
+#### Q4: 如何彻底关闭或卸载？
+- **临时停止服务**：双击运行 `stop-service.bat`，即可立刻终止正在运行的后台守护进程；
+- **彻底卸载清理**：双击运行 `uninstall.bat`，脚本会自动清除 Windows Startup 启动文件夹中的快捷方式，并同步终止服务。
 
-> **熱更新**：儲存檔案後（`Ctrl + S`），用戶端將在 0.1 秒內自動生效，無需重啟用戶端！
-
-> 📷 **功能示範影片 / 圖片佔位**：
-> ![參數自訂示範佔位圖](./assets/demo_config_placeholder.png)
-> *(佔位符：可在此插入功能示範動圖 GIF 或影片連結)*
-
-[↑ 返回功能列表](#tc-features)
-
-
-
+[↑ 返回顶部导航](#-快速导航)
