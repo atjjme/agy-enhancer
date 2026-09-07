@@ -1,6 +1,6 @@
 # Antigravity 對話與導航增強套件 (`agy-enhancer`)
 
-[繁體中文](README.zh-TW.md) | [简体中文](README.md) | [English](README.en.md)
+[繁體中文](README.zh-TW.md) | [English](README.md) | [简体中文](README.zh-CN.md)
 
 ---
 
@@ -59,7 +59,7 @@
 
 ---
 
-#### <a id="feature-1"></a> 1. 指令碼生效：在 Antigravity 2.0 介面右上角顯示綠點指示
+#### <a id="feature-1"></a> 1. 指令碼生效：在 Antigravity 2.0 介面右上角顯示綠点指示
 
 - **說明**：指令碼成功啟動並注入後，Antigravity 用戶端右上角會出現一個綠色圓點指示器，直觀標識增強功能已就緒生效。
 
