@@ -713,17 +713,6 @@
           <span class="switch-slider"></span>
         </label>
       </div>
-
-      <div class="control-row">
-        <div class="control-text">
-          <div class="control-label">右上角常驻绿色运行指示点</div>
-          <div class="control-subtext">在 Antigravity 客户端右上角显示极小状态小圆点与启动时的展开提示。</div>
-        </div>
-        <label class="switch-ui">
-          <input type="checkbox" id="ENABLE_STATUS_INDICATOR">
-          <span class="switch-slider"></span>
-        </label>
-      </div>
     </div>
 
     <!-- 🎛️ 增强功能层级容器（受全局总开关断电联动） -->
@@ -790,6 +779,17 @@
 
         <div class="control-row">
           <div class="control-text">
+            <div class="control-label">右上角常驻绿色运行指示点</div>
+            <div class="control-subtext">在 Antigravity 客户端右上角显示极小状态小圆点与启动时的展开提示。</div>
+          </div>
+          <label class="switch-ui">
+            <input type="checkbox" id="ENABLE_STATUS_INDICATOR">
+            <span class="switch-slider"></span>
+          </label>
+        </div>
+
+        <div class="control-row">
+          <div class="control-text">
             <div class="control-label">右下角常驻智能翻页双按钮</div>
             <div class="control-subtext">向上（↑）/向下（↓）智能翻阅长对话，双击直达全页最新消息。</div>
           </div>
@@ -797,16 +797,6 @@
             <input type="checkbox" id="ENABLE_NAV_BUTTONS">
             <span class="switch-slider"></span>
           </label>
-        </div>
-
-        <div class="sub-tree-panel" id="navButtonsSubPanel">
-          <div class="sub-control-row">
-            <div class="sub-control-label">保留官方原生的居中向下滚动按钮（默认由双按钮接管）</div>
-            <label class="switch-ui mini-switch">
-              <input type="checkbox" id="ENABLE_CENTER_BOTTOM_BUTTON">
-              <span class="switch-slider"></span>
-            </label>
-          </div>
         </div>
 
         <div class="control-row">
@@ -897,7 +887,6 @@
       'ENABLE_CONTEXT_MENU_MESSAGES',
       'ENABLE_CONTEXT_MENU_MEDIA',
       'ENABLE_NAV_BUTTONS',
-      'ENABLE_CENTER_BOTTOM_BUTTON',
       'ENABLE_PROJECT_ARCHIVER',
       'ENABLE_BLOCK_QUOTE_POPUP',
       'ENABLE_SCROLL_PERSISTENCE',
@@ -913,7 +902,6 @@
       ENABLE_CONTEXT_MENU_MESSAGES: true,
       ENABLE_CONTEXT_MENU_MEDIA: true,
       ENABLE_NAV_BUTTONS: true,
-      ENABLE_CENTER_BOTTOM_BUTTON: false,
       ENABLE_PROJECT_ARCHIVER: true,
       ENABLE_BLOCK_QUOTE_POPUP: true,
       ENABLE_SCROLL_PERSISTENCE: true,
@@ -961,15 +949,6 @@
         ctxSubPanel.classList.remove('collapsed');
       } else {
         ctxSubPanel.classList.add('collapsed');
-      }
-
-      // 翻页导航子面板联动
-      const navBtnCheck = document.getElementById('ENABLE_NAV_BUTTONS').checked;
-      const navSubPanel = document.getElementById('navButtonsSubPanel');
-      if (navBtnCheck && masterCheck) {
-        navSubPanel.classList.remove('collapsed');
-      } else {
-        navSubPanel.classList.add('collapsed');
       }
     }
 

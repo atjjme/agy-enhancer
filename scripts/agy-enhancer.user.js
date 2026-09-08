@@ -45,9 +45,6 @@ window.__AGY_BRANCH_NAME__ = "local_web_settings_dashboard";
     // 【翻页导航】右侧常驻智能翻页双按钮
     ENABLE_NAV_BUTTONS: true,
 
-    // 是否开启居中原有的向下按钮（默认 false，由右侧翻页按钮组接管）
-    ENABLE_CENTER_BOTTOM_BUTTON: false,
-
     // 【项目归档】左侧项目折叠与归档抽屉
     ENABLE_PROJECT_ARCHIVER: true,
 

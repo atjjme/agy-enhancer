@@ -29,7 +29,6 @@ const DEFAULT_CONFIG = {
   ENABLE_CONTEXT_MENU_MESSAGES: true,
   ENABLE_CONTEXT_MENU_MEDIA: true,
   ENABLE_NAV_BUTTONS: true,
-  ENABLE_CENTER_BOTTOM_BUTTON: false,
   ENABLE_PROJECT_ARCHIVER: true,
   ENABLE_BLOCK_QUOTE_POPUP: true,
   ENABLE_SCROLL_PERSISTENCE: true,
@@ -107,19 +106,21 @@ function isDaemonRunning() {
 }
 
 function getStoredConfig() {
-  let config = Object.assign({}, DEFAULT_CONFIG);
+  let rawConfig = {};
   try {
     if (fs.existsSync(configFile)) {
-      const raw = fs.readFileSync(configFile, 'utf8');
-      Object.assign(config, JSON.parse(raw));
+      rawConfig = JSON.parse(fs.readFileSync(configFile, 'utf8'));
     } else if (fs.existsSync(localConfigFile)) {
-      const raw = fs.readFileSync(localConfigFile, 'utf8');
-      Object.assign(config, JSON.parse(raw));
+      rawConfig = JSON.parse(fs.readFileSync(localConfigFile, 'utf8'));
     } else if (fs.existsSync(fallbackConfigFile)) {
-      const raw = fs.readFileSync(fallbackConfigFile, 'utf8');
-      Object.assign(config, JSON.parse(raw));
+      rawConfig = JSON.parse(fs.readFileSync(fallbackConfigFile, 'utf8'));
     }
   } catch (e) {}
+
+  const config = {};
+  for (const key of Object.keys(DEFAULT_CONFIG)) {
+    config[key] = typeof rawConfig[key] === 'boolean' ? rawConfig[key] : DEFAULT_CONFIG[key];
+  }
   config.ENABLE_AUTOSTART = isAutostartEnabled();
   return config;
 }
