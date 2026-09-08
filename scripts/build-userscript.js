@@ -2,7 +2,7 @@ const fs = require('fs');
 const path = require('path');
 
 const corePath = path.join(__dirname, '../src/agy-enhancer.js');
-const targetPath = path.join(__dirname, '../agy-enhancer.user.js');
+const targetPath = path.join(__dirname, 'agy-enhancer.user.js');
 
 const header = `// ==UserScript==
 // @name         Antigravity Enhancer (agy-enhancer)

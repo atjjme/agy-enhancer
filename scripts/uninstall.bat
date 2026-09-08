@@ -11,7 +11,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command "$startupDir = [Environme
 
 echo.
 echo [2/2] Stopping background daemon...
-powershell -Command "Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -like '*scripts\loader.js*' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force; Write-Host 'Stopped process PID:' $_.ProcessId }"
+powershell -Command "Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -like '*loader.js*' -or $_.CommandLine -like '*settings-server.js*' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force; Write-Host ('Stopped process PID: ' + $_.ProcessId) }"
 
 echo.
 echo 🎉 Uninstalled successfully. Service stopped.

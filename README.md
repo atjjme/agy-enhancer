@@ -1,12 +1,12 @@
-# Antigravity Dialogue & Navigation Enhancer (`agy-enhancer`)
+﻿# Antigravity Dialogue & Navigation Enhancer (`agy-enhancer`)
 
-[English](README.md) | [简体中文](README.zh-CN.md) | [繁體中文](README.zh-TW.md)
+[English](README.md) | [简体中文](docs/README.zh-CN.md) | [繁體中文](docs/README.zh-TW.md)
 
 ---
 
 <a id="quick-nav"></a>
 ### 📌 Quick Navigation
-[🚀 Prerequisites & Setup](#setup) · [✨ Core Features](#features) · [🎨 Customization](#customization) · [📜 Userscript](#userscript) · [❓ FAQ](#faq) · [📦 Download Now](https://github.com/atjjme/agy-enhancer/releases/latest)
+[🚀 Quick Setup](#setup) · [📂 Internal Scripts Reference](#files-guide) · [✨ Core Features](#features) · [🎛️ Settings Dashboard](#settings-guide) · [📜 Userscript](#userscript) · [❓ FAQ](#faq) · [📦 Download Now](https://github.com/atjjme/agy-enhancer/releases/latest)
 
 ---
 
@@ -17,33 +17,57 @@ As Antigravity updates and evolves, may this project gradually fade into the bac
 ---
 
 <a id="setup"></a>
-### 🚀 Prerequisites & Setup
+### 🚀 Quick Setup & Installation
 
 #### 1. System Requirements
 - **Operating System**: Windows 10 / Windows 11
 - **Software Dependencies**:
-  - **Antigravity 2.0 Desktop Client** (compatible with all recent builds);
+  - **Antigravity Desktop Client** (compatible with all recent builds);
   - **[Node.js](https://nodejs.org/)** runtime (LTS version recommended, v16+; used for running the lightweight background daemon. Run `node -v` in terminal to verify installation).
 
 #### 2. Download Package
 👉 **[Click here to download the latest Release ZIP](https://github.com/atjjme/agy-enhancer/releases/latest)** and extract it to any local directory.
 
-#### 3. One-Click Setup & Autostart (Recommended)
-Double-click in the root directory:
-👉 **`install.bat`** (or **`setup-autostart.bat`**)
-- **`install.bat`** is the friendly installer name for general users;
-- **`setup-autostart.bat`** reflects the core mechanism;
-- Both execute identical logic: automatically configures Windows startup and launches the daemon silently in background (runs without popup console windows; a green status indicator dot will appear at the top-right corner of the Antigravity client upon successful injection).
+#### 3. One-Click Initialization & Autostart
+After extraction, the root directory is kept clean and minimal with only 3 files. Simply double-click:
+👉 **`install.bat`**
+- **Automated Environment Check**: Detects Node.js runtime environment;
+- **Windows Autostart Setup**: Configures silent auto-launch upon Windows logon;
+- **Silent Daemon Launch**: Injects the client silently in the background (no console popups; upon successful injection, a green indicator dot appears in the top-right corner of Antigravity);
+- **Auto-Launch Settings**: Automatically opens **`settings.html`** in your browser so you can toggle and configure features right away!
 
-#### 4. Manual Controls
-- **`start-service-silent.vbs`**: Starts the daemon silently in the background (no console window).
-- **`stop-service.bat`**: Stops and terminates the background daemon.
-- **`start-enhancer.bat`**: Starts in debug console mode (shows terminal window for real-time connection and interaction logs).
+---
 
-#### 5. Uninstallation
-Double-click:
-👉 **`uninstall.bat`**
-- Automatically removes the Windows startup shortcut and stops the background service immediately.
+<a id="files-guide"></a>
+#### Internal Maintenance Scripts Reference:
+
+| Script File | Path | Core Purpose & Usage |
+| :--- | :--- | :--- |
+| **`start-service-silent.vbs`** | `scripts/` | **Silent Launch**: Launches `loader.js` hidden via Windows Script Host without any console popup. The Startup shortcut points here. |
+| **`stop-service.bat`** | `scripts/` | **Stop Service**: Immediately terminates active Node.js injector daemons and frees all local resources. |
+| **`settings.bat`** | `scripts/` | **Launch Settings**: Ensures the daemon is running and opens `settings.html` in default browser (simply double-clicking `settings.html` works identically). |
+| **`start-enhancer.bat`** | `scripts/` | **Debug Console**: Shows a terminal window with real-time CDP port detection, injection status, and interaction logs. |
+| **`setup-autostart.bat`** | `scripts/` | **Configure Autostart**: Adds or updates the silent startup shortcut in the Windows Startup folder independently. |
+| **`remove-autostart.bat`** | `scripts/` | **Remove Autostart**: Cleans up the startup shortcut without affecting currently running processes. |
+| **`uninstall.bat`** | `scripts/` | **Complete Uninstall**: Cleans up startup shortcuts and terminates active background daemons cleanly. |
+
+---
+
+<a id="settings-guide"></a>
+### 🎛️ Settings Dashboard (`settings.html`)
+
+#### 1. Why `settings.html`?
+No cluttered or cumbersome configuration modal inside the Antigravity UI.
+- **Unified Lightweight Architecture**: The settings server is natively integrated into the background daemon (`loader.js`). Only 1 single lightweight Node.js process runs in the background. When idle, the listening thread is suspended by Windows kernel IOCP (**0.00% CPU overhead**), bound strictly to `127.0.0.1` (zero network exposure).
+- **Instant Access Anytime**:
+  - Run **`install.bat`** once upon initial extraction to set up autostart and daemon;
+  - Afterwards, simply double-click **`settings.html`** in the root directory anytime to open settings in a fraction of a second, without running the installer again;
+  - If the daemon has not yet been started, the page politely guides you to double-click `install.bat`, and automatically connects once running.
+- **Layered Hierarchical Control**:
+  - **Master Switch**: When toggled off, the entire feature set is disabled and de-energized, leaving Antigravity in 100% clean official state;
+  - **Context Menu & Quote Float Linkage**: Context menu features are controlled by a single master switch. The Quote floating prompt blocker is subordinate to the context menu switch (disabling the context menu automatically turns off Quote blocker; enabling it allows toggling Quote blocker freely);
+  - Independent switches for **Status Indicator, Quick Navigation, Project Archive, Reading Memory, Smart Unread, and Windows Autostart**.
+- **Instant Hot Reload**: Clicking "Save Settings" pushes updates to memory and reinjects Antigravity in real-time (~0ms latency) without restarting the client! Close the page when done.
 
 ---
 
@@ -56,6 +80,7 @@ Double-click:
 4. [Context Menu Overhaul: Comprehensive right-click actions across the UI](#feature-4)
 5. [Conversation Reading Memory: Automatically remembers scroll position per chat](#feature-5)
 6. [Smart Unread Detection: Marks as read only after genuine viewing](#feature-6)
+7. [Local Web Settings: Configure and toggle features via local dashboard](#feature-7)
 
 ---
 
@@ -120,32 +145,34 @@ Double-click:
 
 #### <a id="feature-4"></a> 4. Context Menu Overhaul: Comprehensive right-click actions across the UI
 
-- **The Problem**: The native client lacks right-click context menus for common daily operations like copying, opening local folders, saving artifacts, or quoting text.
-- **Enhanced Behavior**:
+- **The Problem**:
+  1. Native Antigravity lacks right-click context menus, forcing high-frequency actions into deep menus or rendering them unavailable;
+  2. A context menu consolidates copying, folder navigation, file management, and quoted prompts, significantly enhancing productivity.
+- **Solution & Experience**:
 
 #### I. Left Sidebar Context Menu
-- **Unarchived Chats**:
-  1. Elevated "Copy" sub-options directly to primary menu level for faster access;
-  2. Added "Reveal in Explorer" (highlights conversation file in Windows Explorer).
-- **Project Chats**:
-  1. Elevated "Copy" actions to top-level;
-  2. Added "Reveal in Explorer" for conversation;
-  3. Added "Open Project Directory".
-- **Project Items**:
-  1. Added "Open Project Directory".
+- **Standard Conversation**:
+  1. "Copy" is promoted directly to the top-level menu;
+  2. Added "Reveal Conversation Folder" in Windows Explorer.
+- **Project Conversation**:
+  1. "Copy" promoted to top-level menu;
+  2. Added "Reveal Conversation Folder";
+  3. Added "Reveal Project Folder".
+- **Project Item**:
+  1. Added "Reveal Project Folder".
 
-#### II. Main Chat Area (Prompts & Responses) Menu Specification
+#### II. Chat Stream (Prompt & Response) Menu Specification
 
 Arranged in **strict order**:
 
 | Trigger Scenario / Target Entity | Menu Item (Strict Order) | Behavior Description |
 | :--- | :--- | :--- |
-| **Selected Text**<br>*(Text highlighted in prompt or response)* | 1. **`Copy`**<br>2. **`Quote`**<br>*(If selected text is URL: 3. `Open Link in Browser` 4. `Copy Link Address`)*<br>*(If selected text is path: 3. `Reveal in Explorer` 4. `Copy Path`)【Identified even without selection】*<br>5. **`Search`** | • Copies selection to clipboard<br>• Formats text into a markdown quote block into the prompt input box<br>• Smart recognition: URLs can be directly opened in external browser; local paths can be revealed in Explorer<br>• Performs Google search in default browser |
-| **Code Block**<br>*(No text selected)* | 1. **`Copy Code`**<br>2. **`Save As...`** | • Copies full raw code text (triggers native copy button when possible)<br>• Exports code block as a local file with smart file extension detection |
-| **Hyperlink**<br>*(URL link)* | 1. **`Open Link in Browser`**<br>2. **`Copy Link Address`** | • Opens URL in default system browser (safely once)<br>• Copies URL to clipboard |
-| **Local Path** | 1. **`Reveal in Explorer`**<br>2. **`Copy Path`** *(Folder only)*<br>*(Image paths additionally offer: 3. `Copy Image`)* | • Highlights and opens location in Windows Explorer<br>• Copies directory path to clipboard<br>• If path points to an image, copies bitmap to clipboard |
-| **Artifact Card / Attachment** | 1. **`Reveal in Explorer`**<br>2. **`Copy Path`** *(Folder only)*<br>*(Image artifacts additionally offer: 3. `Copy Image`)* | • Reveals artifact directory in Windows Explorer<br>• Copies artifact directory path to clipboard<br>• Copies image bitmap directly if applicable |
-| **Image Element** | 1. **`Copy Image`**<br>2. **`Reveal in Explorer`** *(Local images)*<br>3. **`Copy Path`** *(Folder only)*<br>4. **`Save Image As...`** | • Copies binary image bitmap directly to system clipboard<br>• Opens container directory in Explorer<br>• Copies directory path<br>• Saves image file locally |
+| **Selected Text**<br>*(Text highlighted)* | 1. **`Copy`**<br>2. **`Quote`**<br>*(Highlighted URL offers: 3. `Open Link in Browser` 4. `Copy Link Address`)*<br>*(Highlighted path offers: 3. `Reveal in Explorer` 4. `Copy Path`) [Recognized without highlighting as well]*<br>5. **`Search`** | • Copies selected text to clipboard<br>• Formats text into prompt quote in chat input<br>• Smart entity recognition: opens/copies URLs, opens/copies local paths directly<br>• Searches selection with Google in default browser |
+| **Code Block**<br>*(No selection)* | 1. **`Copy Code`**<br>2. **`Save As...`** | • Copies full code block text (prioritizes native copy button)<br>• Exports code block to local file with language-aware extension |
+| **Hyperlink**<br>*(URL)* | 1. **`Open Link in Browser`**<br>2. **`Copy Link Address`** | • Opens URL in default browser (guaranteed single trigger)<br>• Copies URL to clipboard |
+| **Local Path** | 1. **`Reveal in Explorer`**<br>2. **`Copy Path`** *(Folder only)*<br>*(Image paths support: 3. `Copy Image`)* | • Reveals path in Windows Explorer<br>• Copies folder path (directory only, no file name)<br>• Copies image bitmap directly if applicable |
+| **Artifact Card / Attachment** | 1. **`Reveal in Explorer`**<br>2. **`Copy Path`** *(Folder only)*<br>*(Image artifacts support: 3. `Copy Image`)* | • Reveals artifact directory in Explorer<br>• Copies folder path (directory only)<br>• Copies image bitmap directly if applicable |
+| **Image Element** | 1. **`Copy Image`**<br>2. **`Reveal in Explorer`** *(Local images)*<br>3. **`Copy Path`** *(Folder only)*<br>4. **`Save Image As...`** | • Copies binary bitmap directly to system clipboard<br>• Reveals directory in Explorer<br>• Copies folder path<br>• Saves image file locally |
 | **Blank Message Bubble** | *(Disabled / Hidden)* | • Kept blank and clean to allow native click behaviors |
 
 ---
@@ -156,7 +183,7 @@ Arranged in **strict order**:
 
 | Trigger Scenario / Target Entity | Menu Item (Strict Order) | Behavior Description |
 | :--- | :--- | :--- |
-| **Selected Text / Code Line** | 1. **`Comment`**<br>2. **`Copy`**<br>3. **`Quote`**<br>4. **`Explain`** | • Triggers inline code commenting input<br>• Copies selected text/code<br>• Formats selection into prompt quote<br>• Inserts code explanation prompt into chat input |
+| **Selected Text / Code Line** | 1. **`Comment`**<br>2. **`Copy`**<br>3. **`Quote`**<br>4. **`Explain`** | • Blocks native floating toolbar; triggers inline commenting input<br>• Copies selected text/code<br>• Formats selection into prompt quote<br>• Inserts code explanation prompt into chat input |
 | **Code Editor Empty Area** | 1. **`Copy Code`**<br>2. **`Reveal in Explorer`**<br>3. **`Copy Path`** *(Folder only)*<br>4. **`Save As...`** | • Copies full code content<br>• Locates artifact/source file in Windows Explorer<br>• Copies directory path<br>• Exports as local file |
 | **Image Element** | 1. **`Copy Image`**<br>2. **`Reveal in Explorer`**<br>3. **`Copy Path`** *(Folder only)*<br>4. **`Save Image As...`** | • Copies image bitmap directly to clipboard<br>• Reveals directory in Explorer<br>• Copies directory path<br>• Saves image locally |
 | **Hyperlink** | 1. **`Open Link in Browser`**<br>2. **`Copy Link Address`** | • Opens in external default browser<br>• Copies link URL |
@@ -210,23 +237,18 @@ Arranged in **strict order**:
 >
 > <img src="./assets/2026-09-07_12-03-24.png" width="100%" />
 
-[↑ Back to Quick Navigation](#quick-nav)
+[↑ Back to Features](#features)
 
 ---
 
-<a id="customization"></a>
-### 🎨 Customization & Hot Reload
+#### <a id="feature-7"></a> 7. Local Web Settings: Configure and toggle features via local dashboard
 
-Open [`src/agy-enhancer.js`](./src/agy-enhancer.js) with any text editor and tweak `USER_CONFIG` at the top:
+- **The Problem**: Different users have distinct workflow preferences and desire granular feature toggling.
+- **Solution & Experience**: Easily toggle individual features in `settings.html` without cluttering the Antigravity UI with bloated setting popups.
 
-- `BUTTON_OPACITY`: Idle semi-transparency (default `0.3`, or 30% opacity to prevent obscuring text);
-- `BUTTON_HOVER_OPACITY`: Hover opacity (default `1.0` for crisp visibility);
-- `NAV_RIGHT`: Margin from the right edge (default `20px`);
-- `NAV_BOTTOM`: Margin from bottom chat input (default `170px`);
-- `BUTTON_SIZE`: Diameter of the circular navigation buttons (default `38px`).
-
-> ⚡ **Sub-Second Hot Reload**:
-> Save your changes with `Ctrl + S`, and the daemon will hot-reload the UI within **0.1 seconds** without restarting the client or reloading the app!
+> 📷 **Demo Screenshot / Video**:
+>
+> <img src="./assets/2026-09-07_12-03-24.png" width="100%" />
 
 [↑ Back to Quick Navigation](#quick-nav)
 
@@ -235,11 +257,11 @@ Open [`src/agy-enhancer.js`](./src/agy-enhancer.js) with any text editor and twe
 <a id="userscript"></a>
 ### 📜 Userscript (Tampermonkey) Guide
 
-Beyond the Windows background service daemon, this repository includes a pre-packaged userscript [`agy-enhancer.user.js`](./agy-enhancer.user.js).
+Beyond the Windows background service daemon, this repository includes a pre-packaged userscript [`scripts/agy-enhancer.user.js`](./scripts/agy-enhancer.user.js).
 
 If you access Antigravity through modern web browsers (Chrome, Edge, Firefox, etc.) or localhost web ports:
 1. Ensure the [Tampermonkey](https://www.tampermonkey.net/) extension is installed in your browser;
-2. Drag and drop [`agy-enhancer.user.js`](./agy-enhancer.user.js) into your browser, or create a new script in Tampermonkey and paste the code;
+2. Drag and drop [`scripts/agy-enhancer.user.js`](./scripts/agy-enhancer.user.js) into your browser, or create a new script in Tampermonkey and paste the code;
 3. Refresh Antigravity Web to enjoy full navigation, archive, and context menu enhancements.
 
 [↑ Back to Quick Navigation](#quick-nav)
@@ -249,10 +271,10 @@ If you access Antigravity through modern web browsers (Chrome, Edge, Firefox, et
 <a id="faq"></a>
 ### ❓ FAQ & Troubleshooting
 
-#### Q1: No green indicator dot appeared after setup?
-1. **Client Status**: Make sure Antigravity 2.0 desktop client is currently running;
+#### Q1: No green indicator dot appeared after running install.bat?
+1. **Client Status**: Make sure Antigravity desktop client is currently running;
 2. **Verify Node.js**: Open CMD or PowerShell and execute `node -v`. If command is not found, install the LTS release from [Node.js Official Site](https://nodejs.org/);
-3. **Debug Log**: Run `start-enhancer.bat` in debug console mode to inspect terminal logs and connection errors;
+3. **Debug Log**: Run `scripts/start-enhancer.bat` in debug console mode to inspect terminal logs and connection errors;
 4. **Window Refresh**: If you used `Ctrl + R` to hard reload the window, the daemon automatically re-injects in ~0.2s.
 
 #### Q2: How do I update to newer releases?
@@ -266,7 +288,7 @@ Simply download the latest ZIP package from [Releases](https://github.com/atjjme
 - **100% Local & Private**: All settings, archives, and scroll records stay in your local `%APPDATA%\antigravity` folder. **Never sends or uploads** prompts, conversation logs, or paths to any external server.
 
 #### Q4: How do I terminate or completely uninstall?
-- **Temporary Stop**: Double-click `stop-service.bat` to terminate the background process;
-- **Full Removal**: Double-click `uninstall.bat` to remove the startup shortcut and stop the service cleanly.
+- **Temporary Stop**: Double-click `scripts/stop-service.bat` to terminate the background process;
+- **Full Removal**: Double-click `scripts/uninstall.bat` to remove the startup shortcut and stop the service cleanly.
 
 [↑ Back to Quick Navigation](#quick-nav)

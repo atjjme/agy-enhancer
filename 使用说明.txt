@@ -1,0 +1,121 @@
+﻿================================================================================
+                    AGY Enhancer Instructions & User Guide
+================================================================================
+
+Welcome to AGY Enhancer! 【下划有中文简体，中文繁体介绍】
+
+--------------------------------------------------------------------------------
+1. Quick Start Guide
+--------------------------------------------------------------------------------
+
+1. [Initial Setup / Launch]:
+   Double-click [ install.bat ] in the root directory.
+   - Automatically detects Node.js runtime environment;
+   - Injects enhancement patch and sets up silent background autostart;
+   - Automatically launches settings dashboard in your browser.
+
+2. [Settings / Adjust Preferences]:
+   Double-click [ settings.html ] in the root directory anytime.
+   - Directly opens the configuration dashboard in your browser;
+   - Green indicator (● Connected) in top-right corner confirms active connection;
+   - Changes take effect instantly without restarting Antigravity.
+
+--------------------------------------------------------------------------------
+2. Scripts & Utilities in scripts/ (Manual Operation Guide)
+--------------------------------------------------------------------------------
+
+1. [Silent Launch] start-service-silent.vbs  Launches the loader daemon silently in the background without any console popups.
+
+2. [Stop Service] stop-service.bat  Safely stops all currently running background services (frees port 37210).
+
+3. [Open Settings] settings.bat  Ensures background daemon is running and opens settings.html in default browser.
+
+4. [Debug Console] start-enhancer.bat  Launches the enhancer with a visible console window for live logs.
+
+5. [Setup Autostart] setup-autostart.bat  Creates a Windows startup shortcut for current user (points to silent launcher).
+
+6. [Remove Autostart] remove-autostart.bat  Removes startup shortcut from Windows Startup folder.
+
+7. [Uninstall] uninstall.bat  Completely uninstalls enhancer (stops services, removes autostart, cleans patches).
+
+
+================================================================================
+                      AGY Enhancer (Antigravity 增强器) 使用说明
+================================================================================
+
+欢迎使用 AGY Enhancer！
+
+--------------------------------------------------------------------------------
+一、 极简推荐上手
+--------------------------------------------------------------------------------
+
+1. 【首次安装 / 启动】：
+   直接双击根目录下的【 install.bat 】
+   - 自动检测 Node.js 运行环境；
+   - 自动注入增强补丁并无感配置后台自启；
+   - 自动在浏览器弹出设置面板。
+
+2. 【日常调参 / 随时修改配置】：
+   随时双击根目录下的【 settings.html 】
+   - 会直接在浏览器中打开配置面板；
+   - 界面右上角显示绿色指示灯（● 服务已连接）即表示配置即时生效；
+   - 任何修改实时热生效，无需重启客户端。
+
+--------------------------------------------------------------------------------
+二、 scripts 目录下所有程序与脚本详解（手动运行指引）
+--------------------------------------------------------------------------------
+
+1. 【静默启动服务】 start-service-silent.vbs  在后台彻底静默启动 loader 守护进程，完全没有任何黑框或命令行弹窗。
+
+2. 【停止服务】 stop-service.bat  安全停止当前正在运行的所有增强器后台服务（包括释放 37210 本地端口）。
+
+3. 【唤起设置面板】 settings.bat  确保后台服务就绪，并自动在默认浏览器中打开 settings.html。
+
+4. 【前台调试启动】 start-enhancer.bat  以“可见命令行黑框”形式启动增强服务。
+
+5. 【单设开机自启】 setup-autostart.bat  仅为当前 Windows 用户创建开机自启动快捷方式（指向后台静默启动脚本）。
+
+6. 【移除开机自启】 remove-autostart.bat  安全清理 Windows Startup（启动文件夹）中的自启项，开机不再自动启动增强器。
+
+7. 【完整卸载清理】 uninstall.bat  彻底卸载增强器！自动终止后台进程、移除开机自启项、清除客户端注入补丁。
+
+
+================================================================================
+                      AGY Enhancer (Antigravity 增強器) 使用說明
+================================================================================
+
+歡迎使用 AGY Enhancer！
+
+--------------------------------------------------------------------------------
+一、 極簡推薦上手
+--------------------------------------------------------------------------------
+
+1. 【首次安裝 / 啟動】：
+   直接按兩下根目錄下的【 install.bat 】
+   - 自動檢測 Node.js 執行環境；
+   - 自動注入增強補丁並無感配置後台自啟；
+   - 自動在瀏覽器彈出設定面板。
+
+2. 【日常調參 / 隨時修改配置】：
+   隨時按兩下根目錄下的【 settings.html 】
+   - 會直接在瀏覽器中打開配置面板；
+   - 介面右上角顯示綠色指示燈（● 服務已連接）即表示配置即時生效；
+   - 任何修改實時熱生效，無需重啟客戶端。
+
+--------------------------------------------------------------------------------
+二、 scripts 目錄下所有程式與腳本詳解（手動執行指引）
+--------------------------------------------------------------------------------
+
+1. 【靜默啟動服務】 start-service-silent.vbs  在後台徹底靜默啟動 loader 守護進程，完全沒有任何黑框或命令列彈窗。
+
+2. 【停止服務】 stop-service.bat  安全停止當前正在執行的所有增強器後台服務（包括釋放 37210 本地端口）。
+
+3. 【喚起設定面板】 settings.bat  確保後台服務就緒，並自動在預設瀏覽器中打開 settings.html。
+
+4. 【前台調試啟動】 start-enhancer.bat  以「可見命令列黑框」形式啟動增強服務。
+
+5. 【單設開機自啟】 setup-autostart.bat  僅為當前 Windows 使用者建立開機自啟動捷徑（指向後台靜默啟動腳本）。
+
+6. 【移除開機自啟】 remove-autostart.bat  安全清理 Windows Startup（啟動資料夾）中的自啟項，開機不再自動啟動增強器。
+
+7. 【完整解除安裝】 uninstall.bat  徹底卸載增強器！自動終止後台進程、移除開機自啟項、清除客戶端注入補丁。

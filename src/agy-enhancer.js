@@ -12,7 +12,33 @@
   'use strict';
 
   // ==================== 0. 用户自定义配置区 ====================
-  const USER_CONFIG = {
+  const INJECTED_CONFIG = (typeof window.__AGY_CONFIG__ === 'object' && window.__AGY_CONFIG__) ? window.__AGY_CONFIG__ : {};
+
+  const USER_CONFIG = Object.assign({
+    // 【总控开关】增强器全局总开关
+    ENABLE_MASTER: true,
+
+    // 【状态指示】右上角状态指示小圆点与启动 Toast
+    ENABLE_STATUS_INDICATOR: true,
+
+    // 【右键增强】全局右键菜单总开关
+    ENABLE_CONTEXT_MENU: true,
+
+    // 【选词弹窗】是否屏蔽划词选中文本时弹出的 Quote (Ctrl+L) 浮窗（依附于右键总开关）
+    ENABLE_BLOCK_QUOTE_POPUP: true,
+
+    // 【翻页导航】右侧常驻智能翻页双按钮
+    ENABLE_NAV_BUTTONS: true,
+
+    // 【项目归档】左侧项目折叠与归档抽屉
+    ENABLE_PROJECT_ARCHIVER: true,
+
+    // 【阅读记忆】是否开启多对话滚动位置记忆与恢复
+    ENABLE_SCROLL_POSITION_PERSISTENCE: true,
+
+    // 【智能未读】是否开启智能已读/未读状态追踪与提醒
+    ENABLE_SMART_UNREAD: true,
+
     // 导航按钮组距离窗口右边缘的距离（像素，建议 16~24px 贴近滚动条左侧）
     NAV_RIGHT: 20,
 
@@ -34,17 +60,8 @@
     // 判定到达页头/页脚的灵敏度阈值（像素，默认 45px）
     PAGE_EDGE_THRESHOLD: 45,
 
-    // 是否开启居中原有的向下按钮（默认 false，全由右侧翻页按钮组接管）
-    ENABLE_CENTER_BOTTOM_BUTTON: false,
-
     // 右上角提示收折时长（毫秒，默认 3500ms 即 3.5 秒）
     TOAST_EXPAND_DURATION_MS: 3500,
-
-    // 是否开启多对话滚动位置记忆与恢复（默认开启）
-    ENABLE_SCROLL_POSITION_PERSISTENCE: true,
-
-    // 是否开启智能已读/未读状态追踪与提醒（默认开启）
-    ENABLE_SMART_UNREAD: true,
 
     // 短文自动已读停留时长（毫秒，默认 10000 即 10 秒）
     SHORT_TEXT_VIEW_DURATION_MS: 10000,
@@ -60,10 +77,12 @@
 
     // 离开底部判定阈值（向上翻阅超过 160px 判定离开底部，保留 60px 防抖区间）
     LEAVE_BOTTOM_THRESHOLD: 160,
+  }, INJECTED_CONFIG);
 
-    // 是否屏蔽划词选中文本时弹出的 "Quote (Ctrl+L)" 引用浮窗（放行右侧栏评论浮窗）
-    ENABLE_BLOCK_QUOTE_POPUP: true,
-  };
+  // 兼容参数别名
+  if (typeof INJECTED_CONFIG.ENABLE_SCROLL_PERSISTENCE === 'boolean') {
+    USER_CONFIG.ENABLE_SCROLL_POSITION_PERSISTENCE = INJECTED_CONFIG.ENABLE_SCROLL_PERSISTENCE;
+  }
 
   // ==================== 1. 全局清理与定时器安全管理机制 ====================
   if (typeof window.__AGY_ENHANCER_CLEANUP__ === 'function') {
@@ -110,6 +129,31 @@
   let contextMenuDocClickHandler = null;
   let contextMenuDocKeydownHandler = null;
   let convoSwitchPopstateHandler = null;
+  let typingKeydownHandler = null;
+  let onHeartbeatProjectArchiver = null;
+  let onHeartbeatScrollPersistence = null;
+  let onHeartbeatSmartUnread = null;
+
+  // 精准全局用户按键打字感知：仅在用户真实按键输入的 350ms 内抑制后台轮询，光标常驻聚焦不影响功能
+  let lastTypingTime = 0;
+  function markUserTyping() {
+    lastTypingTime = Date.now();
+  }
+
+  function isUserTyping() {
+    return (Date.now() - lastTypingTime) < 350;
+  }
+
+  typingKeydownHandler = (e) => {
+    const target = e.target;
+    if (!target) return;
+    if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable || target.closest?.('input, textarea, [contenteditable="true"], .monaco-editor')) {
+      lastTypingTime = Date.now();
+    }
+  };
+  window.addEventListener('keydown', typingKeydownHandler, { capture: true, passive: true });
+  window.addEventListener('compositionstart', markUserTyping, { capture: true, passive: true });
+  window.addEventListener('compositionupdate', markUserTyping, { capture: true, passive: true });
 
   window.__AGY_ENHANCER_CLEANUP__ = function () {
     activeTimers.forEach(id => {
@@ -117,6 +161,17 @@
       clearTimeout(id);
     });
     activeTimers.length = 0;
+
+    if (typingKeydownHandler) {
+      window.removeEventListener('keydown', typingKeydownHandler, true);
+      typingKeydownHandler = null;
+    }
+    window.removeEventListener('compositionstart', markUserTyping, true);
+    window.removeEventListener('compositionupdate', markUserTyping, true);
+
+    onHeartbeatProjectArchiver = null;
+    onHeartbeatScrollPersistence = null;
+    onHeartbeatSmartUnread = null;
 
     if (windowPopstateHandler) {
       window.removeEventListener('popstate', windowPopstateHandler);
@@ -227,8 +282,9 @@
     document.getElementById('agy-enhancer-styles')?.remove();
     document.getElementById('agy-page-nav-group')?.remove();
     document.getElementById('agy-scroll-bottom-btn')?.remove();
-    // 保留 #agy-enhancer-toast 单例，避免清理重建时反复重置并重新展开
-    // document.getElementById('agy-enhancer-toast')?.remove();
+    if (USER_CONFIG.ENABLE_MASTER === false || USER_CONFIG.ENABLE_STATUS_INDICATOR === false) {
+      document.getElementById('agy-enhancer-toast')?.remove();
+    }
     document.getElementById('agy-archive-header-btn')?.remove();
     document.getElementById('agy-archive-panel')?.remove();
     document.getElementById('agy-project-options-dropdown')?.remove();
@@ -254,6 +310,13 @@
   }
 
   function initEnhancer() {
+    if (USER_CONFIG.ENABLE_MASTER === false) {
+      console.log('[agy-enhancer] Master switch is OFF, enhancer is completely dormant.');
+      document.getElementById('agy-enhancer-toast')?.remove();
+      window.__AGY_ENHANCER_LOADED__ = false;
+      return;
+    }
+
     window.__AGY_ENHANCER_LOADED__ = true;
 
     // ==================== 1. 注入专用样式 ====================
@@ -894,6 +957,31 @@
     // ==================== 2. 创建右上角生效通知 Toast ====================
     let showNotification = (msg) => {};
 
+    async function openSettingsDashboard() {
+      const url = 'http://127.0.0.1:37210/';
+      let opened = false;
+      if (window.electronNative?.openExternal) {
+        try {
+          await window.electronNative.openExternal(url);
+          opened = true;
+        } catch (e) {
+          console.warn('[agy-enhancer] openExternal error:', e);
+        }
+      }
+      if (!opened) {
+        try {
+          window.open(url, '_blank');
+          opened = true;
+        } catch (e) {
+          console.warn('[agy-enhancer] window.open error:', e);
+        }
+      }
+      if (!opened) {
+        const actionToken = Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+        console.log(`[AGY_OPEN_SETTINGS][${actionToken}]` + url);
+      }
+    }
+
     function createToast() {
       let toast = document.getElementById('agy-enhancer-toast');
       const branchTag = window.__AGY_BRANCH_TAG__ || '';
@@ -927,9 +1015,10 @@
           toast.classList.add('collapsed');
         });
 
-        toast.addEventListener('click', () => {
-          if (collapseTimer) clearTimeout(collapseTimer);
-          toast.classList.toggle('collapsed');
+        toast.addEventListener('click', (e) => {
+          e.stopPropagation();
+          e.preventDefault();
+          openSettingsDashboard();
         });
       } else {
         // 已存在单例 Toast，仅更新标题，绝对不重置收折状态，绝不重新展开！
@@ -951,7 +1040,11 @@
       };
     }
 
-    createToast();
+    if (USER_CONFIG.ENABLE_STATUS_INDICATOR !== false) {
+      createToast();
+    } else {
+      document.getElementById('agy-enhancer-toast')?.remove();
+    }
 
     // ==================== 3. 核心容器与纸张坐标算法 ====================
 
@@ -1190,7 +1283,11 @@
       return group;
     }
 
-    createPageNavButtons();
+    if (USER_CONFIG.ENABLE_NAV_BUTTONS !== false) {
+      createPageNavButtons();
+    } else {
+      document.getElementById('agy-page-nav-group')?.remove();
+    }
 
     // ==================== 项目与对话底层数据及文件夹工具 (Core Helpers) ====================
     function getPM() {
@@ -2409,6 +2506,7 @@
 
       // 实时更新与挂载 UI
       function updateArchiveUI() {
+        if (isUserTyping()) return;
         const pm = getPM();
         if (!pm) return;
 
@@ -2483,8 +2581,7 @@
         });
       }
 
-      // 监听变更与定时保活（已有 onDidChange 实时驱动，保活间隔放宽至 2000ms 节约性能）
-      addInterval(updateArchiveUI, 2000);
+      // 监听变更与初始挂载（保活由全局心跳调度器统一负责，数据变动已有 onDidChange 实时驱动）
       windowPopstateHandler = updateArchiveUI;
       window.addEventListener('popstate', windowPopstateHandler);
       addTimeout(updateArchiveUI, 200);
@@ -2497,8 +2594,12 @@
         });
       }
 
+      onHeartbeatProjectArchiver = updateArchiveUI;
+
       // ==================== 7. 原生侧边栏未归档对话菜单增强 ====================
       function initNativeConvoMenuEnhancer() {
+        if (USER_CONFIG.ENABLE_CONTEXT_MENU === false) return;
+
         if (nativeMenuPointerDownHandler) {
           document.removeEventListener('pointerdown', nativeMenuPointerDownHandler, true);
         }
@@ -2932,6 +3033,8 @@
 
     // ==================== 8. 全局右键上下文菜单系统 (Universal Context Menu) ====================
     function initContextMenuSupport() {
+      if (USER_CONFIG.ENABLE_CONTEXT_MENU === false) return;
+
       if (contextMenuHandler) {
         document.removeEventListener('contextmenu', contextMenuHandler, true);
       }
@@ -3068,8 +3171,9 @@
 
       function copyImageFile(filePath) {
         if (!filePath) return;
+        const actionToken = Date.now() + '_' + Math.random().toString(36).slice(2, 8);
         // 1. 发送给后台守护进程直接将真实图片写入系统原生剪贴板
-        console.log('[AGY_COPY_IMAGE]' + filePath);
+        console.log(`[AGY_COPY_IMAGE][${actionToken}]` + filePath);
 
         // 2. 如果当前页面存在该图片的 img 节点，同时尝试通过浏览器写入剪贴板
         try {
@@ -3083,7 +3187,8 @@
 
       function revealPath(pathStr) {
         if (!pathStr) return;
-        console.log('[AGY_REVEAL_PATH]' + pathStr);
+        const actionToken = Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+        console.log(`[AGY_REVEAL_PATH][${actionToken}]` + pathStr);
       }
 
       function openExternalUrl(url) {
@@ -4610,7 +4715,7 @@
 
       convoSwitchPopstateHandler = handleConvoSwitch;
       window.addEventListener('popstate', convoSwitchPopstateHandler);
-      addInterval(handleConvoSwitch, 600);
+      onHeartbeatScrollPersistence = handleConvoSwitch;
 
       // 新提问提交通知钩子：提交新提问代表用户在底部追问，直接删除记录
       notifyNewPromptSubmitted = () => {
@@ -4857,10 +4962,15 @@
       }
 
       function handleViewingScroll() {
+        if (unreadConvosMap.size === 0) {
+          if (currentViewingConvoId) cleanupViewingSession();
+          return;
+        }
+
         const container = getChatScrollContainer();
         if (!container) return;
 
-        const effectiveConvoId = getContainerConvoId(container) || getCurrentUrlConvoId();
+        const effectiveConvoId = (container ? getContainerConvoId(container) : null) || getCurrentUrlConvoId();
         if (!effectiveConvoId || !unreadConvosMap.has(effectiveConvoId)) {
           if (currentViewingConvoId) cleanupViewingSession();
           return;
@@ -4913,6 +5023,7 @@
 
       // 监听全局滚动捕获与鼠标滚轮事件
       unreadScrollHandler = (e) => {
+        if (unreadConvosMap.size === 0) return;
         const container = getChatScrollContainer();
         if (!container) return;
         if (e.target === container || e.target === document || container.contains(e.target)) {
@@ -4922,6 +5033,7 @@
       window.addEventListener('scroll', unreadScrollHandler, true);
 
       unreadWheelHandler = (e) => {
+        if (unreadConvosMap.size === 0) return;
         const container = getChatScrollContainer();
         if (!container) return;
         if (container.contains(e.target) || e.target === container) {
@@ -4929,9 +5041,6 @@
         }
       };
       window.addEventListener('wheel', unreadWheelHandler, { capture: true, passive: true });
-
-      // 周期性检测触底与停留状态（弥补平滑滚动与动态内容渲染）
-      addInterval(handleViewingScroll, 400);
 
       // 对话切换监测（与会话切换事件联动，免除独立高频轮询）
       let trackedConvoId = null;
@@ -4980,6 +5089,7 @@
       }
 
       function checkGeneratingAndUnreadState() {
+        if (isUserTyping()) return;
         const rows = document.querySelectorAll('[data-testid="conversation-row-sidebar"]');
         const container = getChatScrollContainer();
         const activeConvoId = (container ? getContainerConvoId(container) : null) || getCurrentUrlConvoId();
@@ -5102,6 +5212,7 @@
 
       // 同步侧边栏指示点：与系统合二为一，共用单一点位，绝不出现双点！
       function syncSidebarIndicators() {
+        if (isUserTyping()) return;
         const rows = document.querySelectorAll('[data-testid="conversation-row-sidebar"]');
         rows.forEach(row => {
           const id = row.getAttribute('data-cascade-id');
@@ -5145,12 +5256,17 @@
         });
       }
 
-      // 统合侧边栏扫描：合并高频定时器，间隔设为 800ms，大幅削减 DOM 重复查询与主线程开销
+      // 统合侧边栏扫描：单次遍历合并状态检查与红点同步，大幅削减 DOM 重复查询与主线程开销
       function checkAndSyncSidebar() {
+        if (isUserTyping()) return;
         checkGeneratingAndUnreadState();
         syncSidebarIndicators();
       }
-      addInterval(checkAndSyncSidebar, 800);
+
+      onHeartbeatSmartUnread = () => {
+        handleViewingScroll();
+        checkAndSyncSidebar();
+      };
 
       // 对外暴露辅助方法供右键菜单等模块协同调用与测试
       window.__AGY_MARK_SEEN__ = (id) => markConvoAsSeen(id || getCurrentUrlConvoId(), 'manual API');
@@ -5163,7 +5279,8 @@
 
     // ==================== 11. 划词原生浮窗拦截 (Block Quote & Comment Popups) ====================
     function initQuotePopupInterceptor() {
-      if (!USER_CONFIG.ENABLE_BLOCK_QUOTE_POPUP) return;
+      // 依附于右键总开关：若右键总开关关闭，则屏蔽划词功能一并关闭
+      if (!USER_CONFIG.ENABLE_CONTEXT_MENU || !USER_CONFIG.ENABLE_BLOCK_QUOTE_POPUP) return;
 
       const styleId = 'agy-quote-interceptor-styles';
       let styleEl = document.getElementById(styleId);
@@ -5294,11 +5411,38 @@
       });
     }
 
-    initProjectArchiver();
-    initContextMenuSupport();
-    initConversationScrollPersistence();
-    initSmartUnreadTracker();
-    initQuotePopupInterceptor();
+    if (USER_CONFIG.ENABLE_PROJECT_ARCHIVER !== false) initProjectArchiver();
+    if (USER_CONFIG.ENABLE_CONTEXT_MENU !== false) initContextMenuSupport();
+    if (USER_CONFIG.ENABLE_SCROLL_POSITION_PERSISTENCE !== false) initConversationScrollPersistence();
+    if (USER_CONFIG.ENABLE_SMART_UNREAD !== false) initSmartUnreadTracker();
+    if (USER_CONFIG.ENABLE_CONTEXT_MENU !== false && USER_CONFIG.ENABLE_BLOCK_QUOTE_POPUP !== false) initQuotePopupInterceptor();
+
+    // ==================== 12. 全局统一后台心跳调度器 (Unified Heartbeat Dispatcher) ====================
+    let heartbeatTickCount = 0;
+    function heartbeatDispatcher() {
+      // 1. 全局打字休眠保护：用户按键输入文字的 350ms 内，整轮后台轮询全部静默避让
+      if (isUserTyping()) return;
+
+      heartbeatTickCount++;
+
+      // 2. 模块独立调度（完全由用户配置开关独立控制，便于随时动态启闭与解耦）
+      // 模块 1：会话滚动位置切换与恢复兜底（每 1000ms）
+      if (USER_CONFIG.ENABLE_SCROLL_POSITION_PERSISTENCE && onHeartbeatScrollPersistence) {
+        onHeartbeatScrollPersistence();
+      }
+
+      // 模块 2：智能已读/未读状态追踪与侧边栏红点同步（每 1000ms）
+      if (USER_CONFIG.ENABLE_SMART_UNREAD && onHeartbeatSmartUnread) {
+        onHeartbeatSmartUnread();
+      }
+
+      // 模块 3：项目折叠归档面板与快捷按钮保活（每 2000ms 即每 2 次心跳）
+      if (heartbeatTickCount % 2 === 0 && onHeartbeatProjectArchiver) {
+        onHeartbeatProjectArchiver();
+      }
+    }
+
+    addInterval(heartbeatDispatcher, 1000);
 
     console.log('[agy-enhancer] Page navigator, project archiver, context menu, scroll memory, unread tracker, and quote interceptor ready!');
   }

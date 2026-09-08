@@ -7,13 +7,16 @@ echo    Configuring Antigravity Enhancer Autostart...
 echo ====================================================
 echo.
 
-set "SCRIPT_DIR=%~dp0"
-set "VBS_PATH=%SCRIPT_DIR%start-service-silent.vbs"
+set "SCRIPTS_DIR=%~dp0"
+pushd "%SCRIPTS_DIR%.."
+set "ROOT_DIR=%CD%\"
+popd
+set "VBS_PATH=%SCRIPTS_DIR%start-service-silent.vbs"
 
 if not exist "%VBS_PATH%" (
     echo [Error] Silent start script not found: "%VBS_PATH%"
     echo Please verify file integrity and try again.
-    pause
+    if "%1" neq "--nopause" pause
     exit /b 1
 )
 
@@ -25,7 +28,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command ^
     "$shortcutPath = Join-Path $startupDir 'AntigravityEnhancer.lnk';" ^
     "$shortcut = $ws.CreateShortcut($shortcutPath);" ^
     "$shortcut.TargetPath = '%VBS_PATH%';" ^
-    "$shortcut.WorkingDirectory = '%SCRIPT_DIR%';" ^
+    "$shortcut.WorkingDirectory = '%ROOT_DIR%';" ^
     "$shortcut.Description = 'Antigravity Enhancer Silent Service';" ^
     "$shortcut.Save();" ^
     "if (Test-Path $shortcutPath) { exit 0 } else { exit 1 }"
@@ -39,15 +42,17 @@ if %ERRORLEVEL% equ 0 (
     echo The service will start silently on every system login.
     echo.
 
-    :: 检查当前后台是否已在运行
-    powershell -NoProfile -ExecutionPolicy Bypass -Command ^
-        "$proc = Get-CimInstance Win32_Process -Filter \"Name = 'node.exe'\" | Where-Object { $_.CommandLine -like '*scripts\loader.js*' };" ^
-        "if ($proc) { Write-Host ('[Status] Daemon is already running in background (PID: ' + $proc.ProcessId + ').') -ForegroundColor Yellow }" ^
-        "else { Start-Process -FilePath 'wscript.exe' -ArgumentList '\"%VBS_PATH%\"'; Write-Host '[Status] Daemon started in background.' -ForegroundColor Green }"
+    :: 仅在独立运行（非 install.bat 调用）时检查并启动后台服务
+    if "%1" neq "--nopause" (
+        powershell -NoProfile -ExecutionPolicy Bypass -Command ^
+            "$proc = Get-CimInstance Win32_Process -Filter \"Name = 'node.exe'\" | Where-Object { $_.CommandLine -like '*loader.js*' };" ^
+            "if ($proc) { Write-Host ('[Status] Daemon is already running in background (PID: ' + $proc.ProcessId + ').') -ForegroundColor Yellow }" ^
+            "else { Start-Process -FilePath 'wscript.exe' -ArgumentList '\"%VBS_PATH%\"'; Write-Host '[Status] Daemon started in background.' -ForegroundColor Green }"
+    )
 ) else (
     echo [Failed] Failed to create shortcut. Please check permissions or antivirus settings.
 )
 
 echo.
 echo ====================================================
-pause
+if "%1" neq "--nopause" pause

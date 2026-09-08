@@ -1,49 +1,72 @@
 # Antigravity 对话与导航增强套件 (`agy-enhancer`)
 
-[简体中文](README.zh-CN.md) | [English](README.md) | [繁體中文](README.zh-TW.md)
+[English](../README.md) | [简体中文](README.zh-CN.md) | [繁體中文](README.zh-TW.md)
 
 ---
 
 <a id="quick-nav"></a>
 ### 📌 快速导航
-[🚀 运行环境与安装](#setup) · [✨ 核心功能](#features) · [🎨 参数配置](#customization) · [📜 油猴脚本](#userscript) · [❓ 常见问题 FAQ](#faq) · [📦 立即下载](https://github.com/atjjme/agy-enhancer/releases/latest)
+[🚀 极简上手与安装](#setup) · [📂 目录文件与脚本说明](#files-guide) · [✨ 核心功能](#features) · [🎛️ 设置中心与功能开关](#settings-guide) · [📜 油猴脚本](#userscript) · [❓ 常见问题 FAQ](#faq) · [📦 立即下载](https://github.com/atjjme/agy-enhancer/releases/latest)
 
 ---
 
 ### ✨ 期望
 
-随着 Antigravity 版本的更新，本项目慢慢消失
+随着 Antigravity 版本的更新，本项目慢慢消失。
 
 ---
 
 <a id="setup"></a>
-### 🚀 运行环境与安装
+### 🚀 极简上手与安装
 
 #### 1. 前置环境要求
 - **操作系统**：Windows 10 / Windows 11
 - **软件环境**：
-  - **Antigravity 2.0 桌面客户端**（支持所有最新版本）；
+  - **Antigravity  桌面客户端**（支持所有最新版本）；
   - **[Node.js](https://nodejs.org/)** 环境（推荐 LTS 版本，Node.js 16+ 均可，用于运行本地轻量守护服务。可在终端输入 `node -v` 验证是否已安装）。
 
 #### 2. 下载安装包
 👉 **[点击前往 Releases 下载最新版本 ZIP 压缩包](https://github.com/atjjme/agy-enhancer/releases/latest)** 并解压至任意文件夹。
 
-#### 3. 一键安装与开机自启（推荐）
-双击运行解压后根目录下的：
-👉 **`install.bat`**（或 **`setup-autostart.bat`**）
-- **`install.bat`** 是普通用户熟悉的安装名称；
-- **`setup-autostart.bat`** 是核心机制的表现名称；
-- 两者功能完全一致：自动配置 Windows 开机自启并在后台静默启动守护服务（无黑框弹窗；注入成功后 Antigravity 界面右上角会有绿色状态圆点指示）。
+#### 3. 一键初始化与开机自启
+解压后，根目录极其精简纯净，仅包含 3 个文件。直接双击运行：
+👉 **`install.bat`**
+- **全自动环境检测**：自动检测 Node.js 运行环境；
+- **配置开机静默自启**：随 Windows 登录全自动静默驻留后台；
+- **静默拉起守护服务**：后台无感知注入 Antigravity 客户端（无黑框弹窗；注入成功后 Antigravity 界面右上角会有绿色状态圆点指示）；
+- **自动点亮设置中心**：全自动唤起并打开 **`settings.html`**，您可以即刻在网页中按需开启或关闭各项功能！
 
-#### 4. 手动启动与停止
-- **`start-service-silent.vbs`**：后台静默启动守护服务（无黑框）。
-- **`stop-service.bat`**：停止并退出后台守护服务。
-- **`start-enhancer.bat`**：控制台调试模式（显示终端窗口，便于查看实时加载与交互日志）。
+---
 
-#### 5. 卸载
-双击运行：
-👉 **`uninstall.bat`**
-- 自动清理 Windows 开机自启项并立刻停止后台守护服务。
+#### 内部维护脚本具体用途：
+
+| 脚本文件 | 存放路径 | 核心用途与使用场景 |
+| :--- | :--- | :--- |
+| **`start-service-silent.vbs`** | `scripts/` | **后台静默启动**：通过 Windows 脚本宿主在完全隐藏窗口的状态下启动 `loader.js`。Windows 启动文件夹中的快捷方式就是指向该脚本。 |
+| **`stop-service.bat`** | `scripts/` | **停止后台服务**：一键安全终止正在运行的 Node.js 守护注入进程，立刻释放所有资源。 |
+| **`settings.bat`** | `scripts/` | **辅助调出设置**：确保守护服务运行并打开浏览器（日常使用直接双击根目录 `settings.html` 即可）。 |
+| **`start-enhancer.bat`** | `scripts/` | **前台调试排错**：如果遇到注入问题或想观察代码热更新过程，双击此脚本会弹出控制台黑框，实时输出 CDP 端口检测、窗口挂载与控制台交互日志。 |
+| **`setup-autostart.bat`** | `scripts/` | **单独配置自启**：无需打开设置中心，单独向 Windows Startup 目录添加或更新静默自启快捷方式。 |
+| **`remove-autostart.bat`** | `scripts/` | **单独清理自启**：仅从系统 Startup 目录删除快捷方式，不影响当前正在运行的进程。 |
+| **`uninstall.bat`** | `scripts/` | **一键彻底卸载**：清理开机自启动项，并同步杀掉后台正在运行的守护进程。 |
+
+---
+
+<a id="settings-guide"></a>
+### 🎛️ 设置中心与功能开关 (`settings.html`)
+
+#### 1. 为什么设计 `settings.html`？
+无需在 Antigravity 界面内塞入繁杂的设置弹窗。
+- **一体化架构，极致轻巧**：设置服务原生整合于后台主守护进程 (`loader.js`) 中，**电脑后台永远只有 1 个超轻量 Node 进程**，未操作设置时 CPU 处于内核休眠挂起状态（**0.00% CPU 占用**），且严格仅绑定本机 `127.0.0.1` 环回接口，零外网风险；
+- **随开随用，无需二次安装**：
+  - 用户只需在首次解压时运行一次 **`install.bat`** 完成自启与守护部署；
+  - 后续日常使用中，**随时双击根目录的 `settings.html` 即可秒开秒连**，页面瞬间点亮，无需再去按“安装”；
+  - 若新用户尚未运行后台，页面友好提示双击 `install.bat`，并在启动后全自动点亮同步配置。
+- **分层级联动控制**：
+  - **顶级总闸开关**：关闭时，整个功能区断电置灰休眠，客户端不挂载任何增强事件，100% 恢复官方原生纯净状态；
+  - **右键增强与划词浮窗联动**：右键统一为一个极简总开关，屏蔽划词选中文本时的 Quote 浮窗依附于右键开关（右键关闭时划词屏蔽一并关闭，右键开启时可自主选择开或关）；
+  - **状态指示、导航定位、项目归档、阅读记忆、智能未读、开机自启**均具备独立控制开关。
+- **保存即刻热生效**：点击“保存设置”后，守护进程直接在内存中向 Antigravity 客户端热推送重载，0 毫秒即刻生效，无需重启客户端！改完直接关闭网页即可。
 
 ---
 
@@ -56,6 +79,7 @@
 4. [右键菜单：操作界面全面添加右键功能](#feature-4)
 5. [会话阅读记忆：记住每个会话阅读的进度](#feature-5)
 6. [智能未读判定：真实阅读完输出信息后再标记为已读](#feature-6)
+6. [在本地网页中设置各项功能是否启用](#feature-7)
 
 ---
 
@@ -65,7 +89,7 @@
 
 > 📷 **功能演示视频 / 图片**：
 >
-> <img src="./assets/2026-09-07_10-02-10.png" width="100%" />
+> <img src="../assets/2026-09-07_10-02-10.png" width="100%" />
 
 [↑ 返回核心功能导航](#features)
 
@@ -73,7 +97,7 @@
 
 #### <a id="feature-2"></a> 2. 快速定位：界面右下角显示“向上”“向下”按钮
 
-- **原因**：原生客户端在 AI 输出完成长篇回答后，页面会停留在最底部。用户若想从头阅读，需要频繁手动向上滑动翻阅，极易滑过目标内容，既耗费时间且难以精准定位。
+- **原因**：原生客户端在 AI 输出完成长篇回答后，页面会停留在最底部。用户若想从头阅读，需要频繁手动向上滑动翻阅，既耗费时间且难以精准定位。
 - **效果**：
   1. **点击【向上 (↑)】**：平滑滚动到当前提示词（Prompt）的顶端；若已在顶端，可连续点击切换到上一轮提示词。在首个提问处点击则直达对话顶部；
   2. **点击【向下 (↓)】**：平滑滚动到当前回答（Response）的尾部；若已在尾部，连续点击可跳至下一轮回答尾部；
@@ -83,8 +107,8 @@
 >
 > <table>
 >   <tr>
->     <td align="center" width="50%"><strong>静态预览</strong><br><img src="./assets/2026-09-07_10-05-46.png" /></td>
->     <td align="center" width="50%"><strong>操作演示</strong><br><img src="./assets/2026-09-07_11-27-16.gif" width="100%" /><br><a href="./assets/2026-09-07_11-27-16.mp4">▶ 查看高清原画视频</a></td>
+>     <td align="center" width="50%"><strong>静态预览</strong><br><img src="../assets/2026-09-07_10-05-46.png" /></td>
+>     <td align="center" width="50%"><strong>操作演示</strong><br><img src="../assets/2026-09-07_11-27-16.gif" width="100%" /><br><a href="../assets/2026-09-07_11-27-16.mp4">▶ 查看高清原画视频</a></td>
 >   </tr>
 > </table>
 
@@ -105,12 +129,12 @@
 >
 > <table>
 >   <tr>
->     <td align="center" width="50%"><img src="./assets/2026-09-07_10-09-17.png" /></td>
->     <td align="center" width="50%"><img src="./assets/2026-09-07_10-10-58.png" /></td>
+>     <td align="center" width="50%"><img src="../assets/2026-09-07_10-09-17.png" /></td>
+>     <td align="center" width="50%"><img src="../assets/2026-09-07_10-10-58.png" /></td>
 >   </tr>
 >   <tr>
->     <td align="center" width="50%"><img src="./assets/2026-09-07_10-12-14.png" /></td>
->     <td align="center" width="50%"><img src="./assets/2026-09-07_10-13-02.png" /></td>
+>     <td align="center" width="50%"><img src="../assets/2026-09-07_10-12-14.png" /></td>
+>     <td align="center" width="50%"><img src="../assets/2026-09-07_10-13-02.png" /></td>
 >   </tr>
 > </table>
 
@@ -169,12 +193,12 @@
 >
 > <table>
 >   <tr>
->     <td align="center" width="50%"><img src="./assets/2026-09-07_11-15-21.png" /></td>
->     <td align="center" width="50%"><img src="./assets/2026-09-07_11-14-44.png" /></td>
+>     <td align="center" width="50%"><img src="../assets/2026-09-07_11-15-21.png" /></td>
+>     <td align="center" width="50%"><img src="../assets/2026-09-07_11-14-44.png" /></td>
 >   </tr>
 >   <tr>
->     <td align="center" width="50%"><img src="./assets/2026-09-07_11-17-04.png" /></td>
->     <td align="center" width="50%"><img src="./assets/2026-09-07_11-18-42.png" /></td>
+>     <td align="center" width="50%"><img src="../assets/2026-09-07_11-17-04.png" /></td>
+>     <td align="center" width="50%"><img src="../assets/2026-09-07_11-18-42.png" /></td>
 >   </tr>
 > </table>
 
@@ -191,7 +215,7 @@
 
 > 📷 **功能演示视频 / 图片**：
 >
-> <img src="./assets/2026-09-07_11-41-40.gif" width="100%" /><br><a href="./assets/2026-09-07_11-41-40.mp4">▶ 查看高清原画视频</a>
+> <img src="../assets/2026-09-07_11-41-40.gif" width="100%" /><br><a href="../assets/2026-09-07_11-41-40.mp4">▶ 查看高清原画视频</a>
 
 [↑ 返回核心功能导航](#features)
 
@@ -210,25 +234,20 @@
 
 > 📷 **功能演示视频 / 图片**：
 >
-> <img src="./assets/2026-09-07_12-03-24.png" width="100%" />
+> <img src="../assets/2026-09-07_12-03-24.png" width="100%" />
 
-[↑ 返回顶部导航](#quick-nav)
+[↑ 返回核心功能导航](#features)
 
 ---
 
-<a id="customization"></a>
-### 🎨 参数自定义与热更新
+#### <a id="feature-7"></a> 7. 在本地网页中设置各项功能是否启用
 
-您可以使用任意文本编辑器打开 [`src/agy-enhancer.js`](./src/agy-enhancer.js)，在顶部的 `USER_CONFIG` 对象中根据个人喜好调整界面参数：
+- **原因**：为满足不同人的需求，用户可选择功能开启
+- **效果**：无需在 Antigravity 界面内塞入繁杂的设置弹窗。
 
-- `BUTTON_OPACITY`: 平时静止时的半透明度（默认 `0.3`，即 30% 透明度，避免遮挡代码与文字）；
-- `BUTTON_HOVER_OPACITY`: 鼠标悬停时的透明度（默认 `1.0` 完全清晰）；
-- `NAV_RIGHT`: 导航按钮距离窗口右侧边缘的间距（默认 `20px`）；
-- `NAV_BOTTOM`: 导航按钮距离底部输入框的高度（默认 `170px`）；
-- `BUTTON_SIZE`: 导航按钮的圆形直径（默认 `38px`）。
-
-> ⚡ **毫秒级极速热更新**：
-> 修改配置并按下 `Ctrl + S` 保存后，后台守护服务会在 **0.1 秒内自动同步生效**至客户端窗口，无需重新启动客户端或重载软件！
+> 📷 **功能演示视频 / 图片**：
+>
+> <img src="../assets/2026-09-07_12-03-24.png" width="100%" />
 
 [↑ 返回顶部导航](#quick-nav)
 
@@ -237,11 +256,11 @@
 <a id="userscript"></a>
 ### 📜 油猴脚本 (Userscript) 指南
 
-除了作为 Windows 后台常驻守护服务使用外，本项目还提供了油猴用户脚本文件 [`agy-enhancer.user.js`](./agy-enhancer.user.js)。
+除了作为 Windows 后台常驻守护服务使用外，本项目还提供了油猴用户脚本文件 [`scripts/agy-enhancer.user.js`](../scripts/agy-enhancer.user.js)。
 
 如果您通过主流浏览器（Chrome、Edge、Firefox 等）访问 Antigravity 的 Web 端或本地网页端界面：
 1. 确保浏览器已安装 [Tampermonkey](https://www.tampermonkey.net/) 插件；
-2. 将根目录下的 [`agy-enhancer.user.js`](./agy-enhancer.user.js) 拖拽进浏览器窗口，或在 Tampermonkey 管理面板中选择“添加新脚本”并将代码复制保存；
+2. 将 `scripts/` 目录下的 [`agy-enhancer.user.js`](../scripts/agy-enhancer.user.js) 拖拽进浏览器窗口，或在 Tampermonkey 管理面板中选择“添加新脚本”并将代码复制保存；
 3. 访问 Antigravity Web 界面时，脚本将自动加载并提供完整的导航、归档与右键增强能力。
 
 [↑ 返回顶部导航](#quick-nav)
@@ -251,10 +270,10 @@
 <a id="faq"></a>
 ### ❓ 常见问题排查 (FAQ)
 
-#### Q1: 运行安装后，Antigravity 右上角没有出现绿色圆点？
+#### Q1: 运行 install.bat 后，Antigravity 右上角没有出现绿色圆点？
 1. **客户端运行状态**：请确保 Antigravity 2.0 桌面端已启动；
 2. **检测 Node.js 环境**：打开命令行（CMD 或 PowerShell），输入 `node -v`。若提示命令未找到，请前往 [Node.js 官网](https://nodejs.org/) 下载并安装 LTS 版本；
-3. **查看排错日志**：双击运行根目录下的 `start-enhancer.bat`（调试控制台模式），查看终端中打印的端口检测及连接日志；
+3. **查看排错日志**：双击运行 `scripts/start-enhancer.bat`（调试控制台模式），查看终端中打印的端口检测及连接日志；
 4. **窗口刷新重试**：如果在打开客户端后曾按过 `Ctrl + R` 强制刷新，服务通常会在 0.2 秒内自动重新载入。
 
 #### Q2: 项目后续发布新版本，如何更新？
@@ -268,7 +287,7 @@
 - **纯本地离线运行**：所有逻辑与数据（归档、阅读位置、已读标记）均保存在您本机的 `%APPDATA%\antigravity` 目录下，**绝不向任何外部第三方服务器上传**您的提示词、对话记录、项目路径等任何隐私数据。
 
 #### Q4: 如何彻底关闭或卸载？
-- **临时停止服务**：双击运行 `stop-service.bat`，即可立刻终止正在运行的后台守护进程；
-- **彻底卸载清理**：双击运行 `uninstall.bat`，脚本会自动清除 Windows Startup 启动文件夹中的快捷方式，并同步终止服务。
+- **临时停止服务**：双击运行 `scripts/stop-service.bat`，即可立刻终止正在运行的后台守护进程；
+- **彻底卸载清理**：双击运行 `scripts/uninstall.bat`，脚本会自动清除 Windows Startup 启动文件夹中的快捷方式，并同步终止服务。
 
 [↑ 返回顶部导航](#quick-nav)

@@ -8,7 +8,7 @@ echo ====================================================
 echo.
 
 powershell -NoProfile -ExecutionPolicy Bypass -Command ^
-    "$procs = Get-CimInstance Win32_Process -Filter \"Name = 'node.exe'\" | Where-Object { $_.CommandLine -like '*scripts\loader.js*' };" ^
+    "$procs = Get-CimInstance Win32_Process -Filter \"Name = 'node.exe'\" | Where-Object { $_.CommandLine -like '*loader.js*' -or $_.CommandLine -like '*settings-server.js*' };" ^
     "if ($procs) {" ^
     "    $procs | ForEach-Object {" ^
     "        Stop-Process -Id $_.ProcessId -Force;" ^
