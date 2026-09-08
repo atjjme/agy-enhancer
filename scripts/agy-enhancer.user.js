@@ -975,29 +975,21 @@
     // ==================== 2. 创建右上角生效通知 Toast ====================
     let showNotification = (msg) => {};
 
-    async function openSettingsDashboard() {
+    function openSettingsDashboard() {
       const localFile = window.__AGY_SETTINGS_FILE__;
       const url = localFile ? ('file:///' + localFile.replace(/\\/g, '/')) : 'http://127.0.0.1:37210/';
-      let opened = false;
+
+      // 1. 发送专用 DevTools 信标，由后台守护服务在宿主系统中通过默认浏览器直接唤起 settings.html
+      const actionToken = Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+      console.log(`[AGY_OPEN_SETTINGS][${actionToken}]` + (localFile || url));
+
+      // 2. 如果环境具备 Electron 原生 openExternal 支持，一并调用以确保万无一失
       if (window.electronNative?.openExternal) {
         try {
-          await window.electronNative.openExternal(url);
-          opened = true;
+          window.electronNative.openExternal(url);
         } catch (e) {
           console.warn('[agy-enhancer] openExternal error:', e);
         }
-      }
-      if (!opened) {
-        try {
-          window.open(url, '_blank');
-          opened = true;
-        } catch (e) {
-          console.warn('[agy-enhancer] window.open error:', e);
-        }
-      }
-      if (!opened) {
-        const actionToken = Date.now() + '_' + Math.random().toString(36).slice(2, 8);
-        console.log(`[AGY_OPEN_SETTINGS][${actionToken}]` + (localFile || url));
       }
     }
 
@@ -1009,7 +1001,7 @@
       if (!toast) {
         toast = document.createElement('div');
         toast.id = 'agy-enhancer-toast';
-        toast.title = `Antigravity Enhancer ready${branchTag}`;
+        toast.title = `Antigravity Enhancer ready${branchTag} (点击打开设置)`;
         toast.innerHTML = `
           <div class="dot"></div>
           <span class="toast-text">Antigravity Enhancer active${branchTag}</span>
@@ -1040,11 +1032,16 @@
           openSettingsDashboard();
         });
       } else {
-        // 已存在单例 Toast，仅更新标题，绝对不重置收折状态，绝不重新展开！
-        toast.title = `Antigravity Enhancer ready${branchTag}`;
+        // 已存在单例 Toast，更新标题并重新绑定点击处理
+        toast.title = `Antigravity Enhancer ready${branchTag} (点击打开设置)`;
         if (!toast.classList.contains('collapsed')) {
           toast.classList.add('collapsed');
         }
+        toast.onclick = (e) => {
+          e.stopPropagation();
+          e.preventDefault();
+          openSettingsDashboard();
+        };
       }
 
       showNotification = (msg) => {

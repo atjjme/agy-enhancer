@@ -493,20 +493,26 @@ async function connectAndAttach() {
           } else if (typeof text === 'string' && text.startsWith('[AGY_OPEN_SETTINGS]')) {
             let rawMsg = text.slice('[AGY_OPEN_SETTINGS]'.length).trim();
             const tokenMatch = rawMsg.match(/^\[([0-9]+)_([a-zA-Z0-9]+)\](.*)/);
+            let shouldOpen = false;
             if (tokenMatch) {
               const tokenTime = parseInt(tokenMatch[1], 10);
               const token = tokenMatch[1] + '_' + tokenMatch[2];
-              if (tokenTime >= connectionEstablishedTime - 500 && (Date.now() - tokenTime) <= 5000) {
+              if (tokenTime >= connectionEstablishedTime - 3000 && Math.abs(Date.now() - tokenTime) <= 15000) {
                 if (!handledConsoleTokens.has(token)) {
                   handledConsoleTokens.add(token);
                   if (handledConsoleTokens.size > 500) {
                     const first = handledConsoleTokens.values().next().value;
                     handledConsoleTokens.delete(first);
                   }
-                  log(`[Open Settings] Launching settings dashboard: ${settingsHtmlFile}`);
-                  exec(`start "" "${settingsHtmlFile}"`);
+                  shouldOpen = true;
                 }
               }
+            } else {
+              shouldOpen = true;
+            }
+            if (shouldOpen) {
+              log(`[Open Settings] Launching settings dashboard: ${settingsHtmlFile}`);
+              exec(`start "" "${settingsHtmlFile}"`);
             }
           }
         } else if (data.id === 77777) {
