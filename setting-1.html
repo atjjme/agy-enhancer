@@ -1,0 +1,1114 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Antigravity 增强器 - 赛博全息指挥舱 (HUD Deck)</title>
+  <style>
+    :root {
+      --cyber-bg: #07090e;
+      --cyber-panel: rgba(11, 15, 25, 0.78);
+      --cyber-subpanel: rgba(7, 10, 18, 0.9);
+      --neon-cyan: #00f2fe;
+      --neon-blue: #4facfe;
+      --neon-green: #00ff87;
+      --neon-purple: #b537f2;
+      --neon-amber: #ffaa00;
+      --neon-red: #ff2d55;
+      --cyber-text: #e6f1ff;
+      --cyber-muted: #798baf;
+      --cyber-dim: #3b4866;
+      --border-hud: rgba(0, 242, 254, 0.22);
+      --border-hud-glow: 0 0 15px rgba(0, 242, 254, 0.15);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--cyber-bg);
+      background-image: 
+        linear-gradient(rgba(0, 242, 254, 0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0, 242, 254, 0.03) 1px, transparent 1px),
+        radial-gradient(circle at 50% 0%, rgba(181, 55, 242, 0.12) 0%, transparent 60%),
+        radial-gradient(circle at 10% 80%, rgba(0, 242, 254, 0.08) 0%, transparent 50%);
+      background-size: 32px 32px, 32px 32px, 100% 100%, 100% 100%;
+      color: var(--cyber-text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+      min-height: 100vh;
+      padding: 30px 24px 110px;
+      -webkit-font-smoothing: antialiased;
+      overflow-x: hidden;
+    }
+
+    /* 扫描线氛围 */
+    body::before {
+      content: " ";
+      position: fixed;
+      top: 0; left: 0; bottom: 0; right: 0;
+      background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%);
+      background-size: 100% 4px;
+      pointer-events: none;
+      z-index: 999;
+      opacity: 0.6;
+    }
+
+    .hud-container {
+      max-width: 1180px;
+      margin: 0 auto;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* 顶部战术 HUD 标头 */
+    .hud-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 16px 24px;
+      background: var(--cyber-panel);
+      border: 1px solid var(--border-hud);
+      border-radius: 4px;
+      position: relative;
+      margin-bottom: 24px;
+      box-shadow: var(--border-hud-glow);
+      clip-path: polygon(0 0, calc(100% - 16px) 0, 100% 16px, 100% 100%, 16px 100%, 0 calc(100% - 16px));
+    }
+
+    .hud-header::before {
+      content: "SYSTEM://OVERVIEW.TERMINAL";
+      position: absolute;
+      top: -9px;
+      left: 20px;
+      font-size: 9.5px;
+      font-family: monospace;
+      letter-spacing: 2px;
+      color: var(--neon-cyan);
+      background: var(--cyber-bg);
+      padding: 0 6px;
+    }
+
+    .hud-brand {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .hud-hex-logo {
+      width: 44px;
+      height: 44px;
+      background: linear-gradient(135deg, rgba(0, 242, 254, 0.2) 0%, rgba(181, 55, 242, 0.2) 100%);
+      border: 1px solid var(--neon-cyan);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
+      box-shadow: 0 0 12px rgba(0, 242, 254, 0.4);
+      color: var(--neon-cyan);
+    }
+
+    .hud-title-wrap h1 {
+      font-size: 20px;
+      font-weight: 800;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      background: linear-gradient(90deg, #fff, var(--neon-cyan));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .hud-badge-tag {
+      font-size: 10px;
+      font-family: monospace;
+      padding: 2px 6px;
+      background: rgba(0, 242, 254, 0.15);
+      border: 1px solid var(--neon-cyan);
+      color: var(--neon-cyan);
+      border-radius: 2px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .hud-subtitle {
+      font-size: 12px;
+      color: var(--cyber-muted);
+      margin-top: 3px;
+      font-family: monospace;
+      letter-spacing: 0.5px;
+    }
+
+    /* 状态雷达胶囊 */
+    .hud-conn-capsule {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: rgba(0, 255, 135, 0.08);
+      border: 1px solid rgba(0, 255, 135, 0.35);
+      padding: 8px 18px;
+      font-size: 12px;
+      font-family: monospace;
+      color: var(--neon-green);
+      text-transform: uppercase;
+      box-shadow: 0 0 12px rgba(0, 255, 135, 0.15);
+      position: relative;
+    }
+
+    .hud-conn-capsule.disconnected {
+      background: rgba(255, 45, 85, 0.1);
+      border-color: rgba(255, 45, 85, 0.4);
+      color: var(--neon-red);
+      box-shadow: 0 0 12px rgba(255, 45, 85, 0.2);
+    }
+
+    .radar-blip {
+      width: 8px;
+      height: 8px;
+      background: currentColor;
+      border-radius: 50%;
+      box-shadow: 0 0 8px currentColor;
+      animation: blip 1.6s infinite ease-in-out;
+    }
+
+    @keyframes blip {
+      0%, 100% { opacity: 0.4; transform: scale(0.8); }
+      50% { opacity: 1; transform: scale(1.3); }
+    }
+
+    /* 离线警报板 */
+    .hud-alert-banner {
+      display: none;
+      background: linear-gradient(90deg, rgba(255, 45, 85, 0.15), rgba(181, 55, 242, 0.12));
+      border: 1px solid var(--neon-red);
+      padding: 16px 22px;
+      margin-bottom: 24px;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      box-shadow: 0 0 20px rgba(255, 45, 85, 0.2);
+      clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 12px 100%, 0 calc(100% - 12px));
+    }
+
+    .hud-alert-banner.active {
+      display: flex;
+    }
+
+    .hud-alert-content {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .hud-alert-icon {
+      font-size: 24px;
+      color: var(--neon-amber);
+    }
+
+    .hud-alert-text h4 {
+      font-size: 14px;
+      color: #fff;
+      letter-spacing: 0.5px;
+    }
+
+    .hud-alert-text p {
+      font-size: 12.5px;
+      color: var(--cyber-muted);
+      margin-top: 2px;
+    }
+
+    .hud-btn-check {
+      background: transparent;
+      border: 1px solid var(--neon-cyan);
+      color: var(--neon-cyan);
+      padding: 7px 18px;
+      font-family: monospace;
+      font-size: 12px;
+      cursor: pointer;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      transition: all 0.2s;
+    }
+
+    .hud-btn-check:hover {
+      background: var(--neon-cyan);
+      color: #000;
+      box-shadow: 0 0 15px var(--neon-cyan);
+    }
+
+    /* 双栏指挥平台布局 */
+    .hud-cockpit-grid {
+      display: grid;
+      grid-template-columns: 360px 1fr;
+      gap: 24px;
+      align-items: start;
+    }
+
+    @media (max-width: 900px) {
+      .hud-cockpit-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* 左侧：反应堆核心控制塔 */
+    .reactor-tower {
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    .hud-card {
+      background: var(--cyber-panel);
+      border: 1px solid var(--border-hud);
+      padding: 20px;
+      position: relative;
+      box-shadow: var(--border-hud-glow);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+    }
+
+    /* 边角科技装饰 */
+    .hud-card::after {
+      content: "";
+      position: absolute;
+      bottom: 0; right: 0;
+      width: 10px; height: 10px;
+      border-bottom: 2px solid var(--neon-cyan);
+      border-right: 2px solid var(--neon-cyan);
+      pointer-events: none;
+    }
+
+    .hud-card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid rgba(0, 242, 254, 0.15);
+      padding-bottom: 12px;
+      margin-bottom: 16px;
+    }
+
+    .card-label-group {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .card-label-icon {
+      font-size: 16px;
+      color: var(--neon-cyan);
+    }
+
+    .card-label-title {
+      font-size: 13.5px;
+      font-weight: 700;
+      font-family: monospace;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: #fff;
+    }
+
+    /* 总控反应堆 Hero 效果 */
+    .reactor-core-box {
+      border: 1px solid rgba(0, 255, 135, 0.4);
+      background: radial-gradient(circle at 50% 50%, rgba(0, 255, 135, 0.12) 0%, rgba(7, 10, 18, 0.8) 100%);
+      padding: 24px 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+      transition: all 0.4s ease;
+    }
+
+    .reactor-core-box.dormant {
+      border-color: rgba(255, 45, 85, 0.3);
+      background: radial-gradient(circle at 50% 50%, rgba(255, 45, 85, 0.08) 0%, rgba(7, 10, 18, 0.9) 100%);
+    }
+
+    .reactor-ring-wrapper {
+      position: relative;
+      width: 100px;
+      height: 100px;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .reactor-pulse-ring {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      border: 2px dashed var(--neon-green);
+      animation: rotateRing 14s linear infinite;
+    }
+
+    .reactor-core-box.dormant .reactor-pulse-ring {
+      border-color: var(--cyber-dim);
+      animation-play-state: paused;
+    }
+
+    @keyframes rotateRing {
+      100% { transform: rotate(360deg); }
+    }
+
+    .reactor-status-text {
+      font-family: monospace;
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--neon-green);
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+
+    .reactor-core-box.dormant .reactor-status-text {
+      color: var(--neon-red);
+    }
+
+    .reactor-desc {
+      font-size: 12px;
+      color: var(--cyber-muted);
+      line-height: 1.5;
+      margin-bottom: 18px;
+    }
+
+    /* 右侧：功能矩阵 */
+    .tactical-matrix {
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+      position: relative;
+      transition: all 0.4s ease;
+    }
+
+    /* 休眠遮罩 */
+    .tactical-matrix.master-dormant {
+      opacity: 0.35;
+      filter: grayscale(0.85);
+      pointer-events: none;
+      user-select: none;
+    }
+
+    .dormant-barrier {
+      display: none;
+      position: absolute;
+      top: -10px;
+      left: 0;
+      right: 0;
+      background: rgba(255, 45, 85, 0.18);
+      border: 1px solid var(--neon-red);
+      color: #fff;
+      font-family: monospace;
+      font-size: 12px;
+      padding: 8px 16px;
+      text-align: center;
+      letter-spacing: 2px;
+      z-index: 10;
+      box-shadow: 0 0 15px rgba(255, 45, 85, 0.4);
+    }
+
+    .tactical-matrix.master-dormant .dormant-barrier {
+      display: block;
+    }
+
+    /* 矩阵行项 */
+    .hud-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 12px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      transition: background 0.2s;
+    }
+
+    .hud-row:hover {
+      background: rgba(0, 242, 254, 0.03);
+    }
+
+    .hud-row:last-child {
+      border-bottom: none;
+    }
+
+    .hud-row-info {
+      flex: 1;
+      padding-right: 20px;
+    }
+
+    .hud-row-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .hud-row-tag {
+      font-size: 10px;
+      font-family: monospace;
+      color: var(--neon-cyan);
+      background: rgba(0, 242, 254, 0.1);
+      padding: 1px 5px;
+      border-radius: 2px;
+    }
+
+    .hud-row-desc {
+      font-size: 12px;
+      color: var(--cyber-muted);
+      margin-top: 4px;
+      line-height: 1.5;
+    }
+
+    /* 联动子项面板 */
+    .hud-sub-panel {
+      margin: 8px 12px 14px 20px;
+      padding: 12px 16px;
+      background: var(--cyber-subpanel);
+      border-left: 2px solid var(--neon-purple);
+      position: relative;
+      transition: all 0.3s ease;
+    }
+
+    .hud-sub-panel.collapsed {
+      opacity: 0.25;
+      filter: grayscale(1);
+      pointer-events: none;
+    }
+
+    /* 赛博切角开关 (Cyber Switch) */
+    .cyber-switch {
+      position: relative;
+      display: inline-block;
+      width: 50px;
+      height: 26px;
+      flex-shrink: 0;
+    }
+
+    .cyber-switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .cyber-slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background-color: #1a2233;
+      border: 1px solid var(--cyber-dim);
+      transition: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      clip-path: polygon(6px 0%, 100% 0%, calc(100% - 6px) 100%, 0% 100%);
+    }
+
+    .cyber-slider::before {
+      position: absolute;
+      content: "";
+      height: 18px;
+      width: 18px;
+      left: 3px;
+      bottom: 3px;
+      background-color: var(--cyber-muted);
+      transition: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      clip-path: polygon(4px 0%, 100% 0%, calc(100% - 4px) 100%, 0% 100%);
+    }
+
+    input:checked + .cyber-slider {
+      background-color: rgba(0, 242, 254, 0.2);
+      border-color: var(--neon-cyan);
+      box-shadow: 0 0 10px rgba(0, 242, 254, 0.4);
+    }
+
+    input:checked + .cyber-slider::before {
+      transform: translateX(25px);
+      background-color: var(--neon-cyan);
+      box-shadow: 0 0 8px var(--neon-cyan);
+    }
+
+    /* Hero 大开关 */
+    .reactor-switch {
+      width: 64px;
+      height: 32px;
+    }
+
+    .reactor-switch .cyber-slider::before {
+      height: 24px;
+      width: 24px;
+      bottom: 3px;
+    }
+
+    .reactor-switch input:checked + .cyber-slider {
+      background-color: rgba(0, 255, 135, 0.2);
+      border-color: var(--neon-green);
+      box-shadow: 0 0 15px rgba(0, 255, 135, 0.5);
+    }
+
+    .reactor-switch input:checked + .cyber-slider::before {
+      transform: translateX(33px);
+      background-color: var(--neon-green);
+      box-shadow: 0 0 12px var(--neon-green);
+    }
+
+    /* 底部战术控制指令坞 (HUD Action Bar) */
+    .hud-dock-bar {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: calc(100% - 48px);
+      max-width: 1180px;
+      background: rgba(11, 15, 25, 0.92);
+      border: 1px solid var(--neon-cyan);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8), 0 0 20px rgba(0, 242, 254, 0.25);
+      padding: 12px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      backdrop-filter: blur(16px);
+      z-index: 100;
+      clip-path: polygon(14px 0, 100% 0, calc(100% - 14px) 100%, 0 100%);
+    }
+
+    .dock-status-readout {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-family: monospace;
+      font-size: 13px;
+      color: var(--cyber-muted);
+    }
+
+    .dock-btn-group {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .hud-btn {
+      font-family: monospace;
+      font-size: 13px;
+      font-weight: 700;
+      padding: 10px 24px;
+      cursor: pointer;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      transition: all 0.2s;
+      border: none;
+      clip-path: polygon(8px 0%, 100% 0%, calc(100% - 8px) 100%, 0% 100%);
+    }
+
+    .hud-btn-reset {
+      background: rgba(255, 255, 255, 0.08);
+      color: #cbd5e1;
+      border: 1px solid var(--cyber-dim);
+    }
+
+    .hud-btn-reset:hover {
+      background: rgba(255, 255, 255, 0.16);
+      color: #fff;
+    }
+
+    .hud-btn-commit {
+      background: linear-gradient(135deg, var(--neon-cyan) 0%, var(--neon-blue) 100%);
+      color: #060b13;
+      box-shadow: 0 0 15px rgba(0, 242, 254, 0.5);
+    }
+
+    .hud-btn-commit:hover {
+      box-shadow: 0 0 25px rgba(0, 242, 254, 0.8);
+      transform: translateY(-1px);
+    }
+
+    .hud-btn-commit:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    /* HUD 全息 Toast */
+    .hud-toast {
+      position: fixed;
+      top: 30px;
+      left: 50%;
+      transform: translateX(-50%) translateY(-40px);
+      background: rgba(11, 15, 25, 0.95);
+      border: 1px solid var(--neon-green);
+      box-shadow: 0 0 25px rgba(0, 255, 135, 0.4);
+      color: var(--neon-green);
+      padding: 10px 24px;
+      font-family: monospace;
+      font-size: 13.5px;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      opacity: 0;
+      pointer-events: none;
+      transition: all 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+      z-index: 1000;
+      clip-path: polygon(10px 0, 100% 0, calc(100% - 10px) 100%, 0 100%);
+    }
+
+    .hud-toast.visible {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- 全息交互 Toast -->
+  <div class="hud-toast" id="toastMsg">
+    <span id="toastText">[SYS_OK] 配置已成功写入内核缓存</span>
+  </div>
+
+  <div class="hud-container">
+    
+    <!-- 顶部 HUD 战术标头 -->
+    <header class="hud-header">
+      <div class="hud-brand">
+        <div class="hud-hex-logo">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+          </svg>
+        </div>
+        <div class="hud-title-wrap">
+          <h1>Antigravity // 战术指挥舱 <span class="hud-badge-tag">HOLO-MK1</span></h1>
+          <div class="hud-subtitle">PROMPT_INJECTOR_DAEMON v3.7 • 守护进程与增强模块实时调配控制台</div>
+        </div>
+      </div>
+
+      <div class="hud-conn-capsule" id="connCapsule">
+        <span class="radar-blip"></span>
+        <span id="connLabel">INITIALIZING_LINK...</span>
+      </div>
+    </header>
+
+    <!-- 离线警报板 -->
+    <div class="hud-alert-banner" id="offlineBanner">
+      <div class="hud-alert-content">
+        <div class="hud-alert-icon">⚠️</div>
+        <div class="hud-alert-text">
+          <h4>[LINK_OFFLINE] 守护进程通信信道未就绪</h4>
+          <p>受浏览器跨域与沙盒机制限制，请双击运行根目录下的 <strong>install.bat</strong> 启动后台守护微服务。</p>
+        </div>
+      </div>
+      <button class="hud-btn-check" id="retryConnBtn" type="button">RETRY_LINK</button>
+    </div>
+
+    <!-- 战术双栏平台 -->
+    <div class="hud-cockpit-grid">
+      
+      <!-- 左栏：主控反应堆与系统基底 -->
+      <div class="reactor-tower">
+        
+        <!-- 反应堆总开关 -->
+        <div class="hud-card">
+          <div class="hud-card-header">
+            <div class="card-label-group">
+              <span class="card-label-icon">⚡</span>
+              <span class="card-label-title">CORE_REACTOR // 能量中枢</span>
+            </div>
+            <span class="hud-row-tag">PRIORITY_0</span>
+          </div>
+
+          <div class="reactor-core-box" id="heroMasterCard">
+            <div class="reactor-ring-wrapper">
+              <div class="reactor-pulse-ring"></div>
+              <label class="cyber-switch reactor-switch">
+                <input type="checkbox" id="ENABLE_MASTER">
+                <span class="cyber-slider"></span>
+              </label>
+            </div>
+            <div class="reactor-status-text" id="heroMasterStatusTag">ONLINE // 高能运转中</div>
+            <div class="reactor-desc" id="heroMasterDesc">
+              开启时全面激活各项底层注入；断电关闭时彻底休眠，客户端不挂载任何事件，100% 恢复官方原生纯净状态。
+            </div>
+          </div>
+        </div>
+
+        <!-- 操作系统自启基底 -->
+        <div class="hud-card">
+          <div class="hud-card-header">
+            <div class="card-label-group">
+              <span class="card-label-icon">💻</span>
+              <span class="card-label-title">HOST_OS // 系统守护</span>
+            </div>
+          </div>
+
+          <div class="hud-row">
+            <div class="hud-row-info">
+              <div class="hud-row-title">Windows 开机静默自启动</div>
+              <div class="hud-row-desc">随系统开机自动载入后台静默驻留，零感保障。</div>
+            </div>
+            <label class="cyber-switch">
+              <input type="checkbox" id="ENABLE_AUTOSTART">
+              <span class="cyber-slider"></span>
+            </label>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- 右栏：战术功能矩阵 -->
+      <div class="tactical-matrix" id="featuresContainer">
+        <div class="dormant-barrier">⚠️ 能量中枢已切断 - 全矩阵休眠离线中</div>
+
+        <!-- 界面与交互战术阵列 -->
+        <div class="hud-card">
+          <div class="hud-card-header">
+            <div class="card-label-group">
+              <span class="card-label-icon">🎛️</span>
+              <span class="card-label-title">MATRIX_A // 界面交互阵列</span>
+            </div>
+            <span class="hud-row-tag">HOOK_CLIENT</span>
+          </div>
+
+          <!-- 全局右键功能增强 -->
+          <div class="hud-row">
+            <div class="hud-row-info">
+              <div class="hud-row-title">
+                全局右键功能增强
+                <span class="hud-row-tag">CONTEXT_MENU</span>
+              </div>
+              <div class="hud-row-desc">接管侧边栏会话与项目管理、消息与代码块复制。关闭后彻底不拦截原生右键。</div>
+            </div>
+            <label class="cyber-switch">
+              <input type="checkbox" id="ENABLE_CONTEXT_MENU">
+              <span class="cyber-slider"></span>
+            </label>
+          </div>
+
+          <!-- 联动子项：屏蔽划词 Quote 浮窗 -->
+          <div class="hud-sub-panel" id="quotePopupSubPanel">
+            <div class="hud-row" style="padding: 4px 0;">
+              <div class="hud-row-info">
+                <div class="hud-row-title" style="font-size: 13px; color: var(--neon-cyan);">
+                  屏蔽划词选中文本时的 Quote 浮窗
+                </div>
+                <div class="hud-row-desc">选中文本时不再弹出官方 Quote (Ctrl+L) 气泡，杜绝卡顿。受右键总开关约束。</div>
+              </div>
+              <label class="cyber-switch">
+                <input type="checkbox" id="ENABLE_BLOCK_QUOTE_POPUP">
+                <span class="cyber-slider"></span>
+              </label>
+            </div>
+          </div>
+
+          <!-- 右上角指示点 -->
+          <div class="hud-row">
+            <div class="hud-row-info">
+              <div class="hud-row-title">右上角常驻绿色运行指示点</div>
+              <div class="hud-row-desc">在客户端顶部实时显示微量运行态绿点与启动反馈。</div>
+            </div>
+            <label class="cyber-switch">
+              <input type="checkbox" id="ENABLE_STATUS_INDICATOR">
+              <span class="cyber-slider"></span>
+            </label>
+          </div>
+
+          <!-- 右下角双翻页按钮 -->
+          <div class="hud-row">
+            <div class="hud-row-info">
+              <div class="hud-row-title">右下角常驻智能翻页双按钮</div>
+              <div class="hud-row-desc">向上（↑）/向下（↓）智能翻阅长对话，双击直达最新回复。</div>
+            </div>
+            <label class="cyber-switch">
+              <input type="checkbox" id="ENABLE_NAV_BUTTONS">
+              <span class="cyber-slider"></span>
+            </label>
+          </div>
+
+          <!-- 左侧项目归档抽屉 -->
+          <div class="hud-row">
+            <div class="hud-row-info">
+              <div class="hud-row-title">左侧项目折叠与归档抽屉</div>
+              <div class="hud-row-desc">鼠标悬停一键隐藏暂不处理的项目，并在侧栏提供收纳抽屉。</div>
+            </div>
+            <label class="cyber-switch">
+              <input type="checkbox" id="ENABLE_PROJECT_ARCHIVER">
+              <span class="cyber-slider"></span>
+            </label>
+          </div>
+        </div>
+
+        <!-- 神经记忆与追踪矩阵 -->
+        <div class="hud-card">
+          <div class="hud-card-header">
+            <div class="card-label-group">
+              <span class="card-label-icon">🧠</span>
+              <span class="card-label-title">MATRIX_B // 记忆与状态追踪</span>
+            </div>
+            <span class="hud-row-tag">PERF_CRITICAL</span>
+          </div>
+
+          <!-- 阅读进度持久化 -->
+          <div class="hud-row">
+            <div class="hud-row-info">
+              <div class="hud-row-title">多会话阅读进度记忆与自动回滚</div>
+              <div class="hud-row-desc">切换多会话时精确还原离开时的浏览位置，关停后停止滚动容器监听。</div>
+            </div>
+            <label class="cyber-switch">
+              <input type="checkbox" id="ENABLE_SCROLL_PERSISTENCE">
+              <span class="cyber-slider"></span>
+            </label>
+          </div>
+
+          <!-- 智能未读追踪 -->
+          <div class="hud-row">
+            <div class="hud-row-info">
+              <div class="hud-row-title">智能未读/已读状态追踪</div>
+              <div class="hud-row-desc">长文阅读触底判定与侧栏圆点提示。关闭后停止阅读定时器释放资源。</div>
+            </div>
+            <label class="cyber-switch">
+              <input type="checkbox" id="ENABLE_SMART_UNREAD">
+              <span class="cyber-slider"></span>
+            </label>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+
+    <!-- 底部全息指令坞 -->
+    <div class="hud-dock-bar">
+      <div class="dock-status-readout" id="dockInfo">
+        <span>● [BUFFER]</span>
+        <span id="dockHint">READY // 随时准备写入配置</span>
+      </div>
+      <div class="dock-btn-group">
+        <button class="hud-btn hud-btn-reset" id="resetBtn" type="button">RESTORE_DEF</button>
+        <button class="hud-btn hud-btn-commit" id="saveBtn" type="button">COMMIT_CONFIG</button>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    const API_BASE = (location.protocol === 'http:' || location.protocol === 'https:') 
+      ? '' 
+      : 'http://127.0.0.1:37210';
+
+    const SWITCH_KEYS = [
+      'ENABLE_MASTER',
+      'ENABLE_AUTOSTART',
+      'ENABLE_CONTEXT_MENU',
+      'ENABLE_BLOCK_QUOTE_POPUP',
+      'ENABLE_STATUS_INDICATOR',
+      'ENABLE_NAV_BUTTONS',
+      'ENABLE_PROJECT_ARCHIVER',
+      'ENABLE_SCROLL_PERSISTENCE',
+      'ENABLE_SMART_UNREAD'
+    ];
+
+    const DEFAULTS = {
+      ENABLE_MASTER: true,
+      ENABLE_AUTOSTART: true,
+      ENABLE_CONTEXT_MENU: true,
+      ENABLE_BLOCK_QUOTE_POPUP: true,
+      ENABLE_STATUS_INDICATOR: true,
+      ENABLE_NAV_BUTTONS: true,
+      ENABLE_PROJECT_ARCHIVER: true,
+      ENABLE_SCROLL_PERSISTENCE: true,
+      ENABLE_SMART_UNREAD: true
+    };
+
+    let isDirty = false;
+
+    function toast(text) {
+      const el = document.getElementById('toastMsg');
+      document.getElementById('toastText').textContent = text;
+      el.classList.add('visible');
+      setTimeout(() => el.classList.remove('visible'), 2800);
+    }
+
+    function markDirty() {
+      isDirty = true;
+      document.getElementById('dockHint').innerHTML = '<span style="color: var(--neon-amber);">● [MODIFIED] 存在未提交的更改</span>';
+    }
+
+    function updateHierarchyVisuals() {
+      const masterCheck = document.getElementById('ENABLE_MASTER').checked;
+      const heroCard = document.getElementById('heroMasterCard');
+      const heroStatusTag = document.getElementById('heroMasterStatusTag');
+      const heroDesc = document.getElementById('heroMasterDesc');
+      const featuresContainer = document.getElementById('featuresContainer');
+
+      if (masterCheck) {
+        heroCard.classList.remove('dormant');
+        heroStatusTag.textContent = 'ONLINE // 高能运转中';
+        heroDesc.textContent = '各项增强注入已全面激活，正在全速提供增强辅助支撑。';
+        featuresContainer.classList.remove('master-dormant');
+      } else {
+        heroCard.classList.add('dormant');
+        heroStatusTag.textContent = 'OFFLINE // 全面休眠断电';
+        heroDesc.textContent = '总闸已关闭。客户端内不挂载任何事件，100% 原生纯净运行。';
+        featuresContainer.classList.add('master-dormant');
+      }
+
+      // 右键开关联动划词 Quote
+      const ctxMenuCheck = document.getElementById('ENABLE_CONTEXT_MENU').checked;
+      const quoteSubPanel = document.getElementById('quotePopupSubPanel');
+      const blockQuoteCheck = document.getElementById('ENABLE_BLOCK_QUOTE_POPUP');
+      if (ctxMenuCheck && masterCheck) {
+        quoteSubPanel.classList.remove('collapsed');
+        blockQuoteCheck.disabled = false;
+      } else {
+        quoteSubPanel.classList.add('collapsed');
+        blockQuoteCheck.disabled = true;
+      }
+    }
+
+    SWITCH_KEYS.forEach(key => {
+      const el = document.getElementById(key);
+      if (el) {
+        el.addEventListener('change', () => {
+          markDirty();
+          updateHierarchyVisuals();
+        });
+      }
+    });
+
+    let offlineProbeTimer = null;
+
+    function stopOfflineProbe() {
+      if (offlineProbeTimer) {
+        clearInterval(offlineProbeTimer);
+        offlineProbeTimer = null;
+      }
+    }
+
+    function startOfflineProbe() {
+      if (offlineProbeTimer) return;
+      offlineProbeTimer = setInterval(async () => {
+        try {
+          const res = await fetch(`${API_BASE}/api/config?t=${Date.now()}`, { cache: 'no-store' });
+          if (res.ok) {
+            const data = await res.json();
+            if (data.success && data.config) {
+              stopOfflineProbe();
+              applyLiveConfig(data.config);
+              toast('✨ [LINK_UP] 服务通信信道已恢复，配置已同步');
+            }
+          }
+        } catch (e) {}
+      }, 1800);
+    }
+
+    function applyLiveConfig(liveCfg) {
+      const capsule = document.getElementById('connCapsule');
+      const label = document.getElementById('connLabel');
+      const banner = document.getElementById('offlineBanner');
+
+      capsule.classList.remove('disconnected');
+      banner.classList.remove('active');
+      label.textContent = 'LINKED // 守护进程就绪';
+
+      SWITCH_KEYS.forEach(key => {
+        const el = document.getElementById(key);
+        if (el && typeof liveCfg[key] === 'boolean') {
+          el.checked = liveCfg[key];
+        }
+      });
+
+      if (!document.getElementById('ENABLE_CONTEXT_MENU').checked) {
+        document.getElementById('ENABLE_BLOCK_QUOTE_POPUP').checked = false;
+      }
+
+      isDirty = false;
+      updateHierarchyVisuals();
+      document.getElementById('dockHint').textContent = 'SYNCED // 已同步硬件系统当前状态';
+    }
+
+    async function fetchLiveConfig() {
+      const capsule = document.getElementById('connCapsule');
+      const label = document.getElementById('connLabel');
+      const banner = document.getElementById('offlineBanner');
+
+      try {
+        const res = await fetch(`${API_BASE}/api/config?t=${Date.now()}`, { cache: 'no-store' });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const data = await res.json();
+
+        if (data.success && data.config) {
+          stopOfflineProbe();
+          applyLiveConfig(data.config);
+        }
+      } catch (err) {
+        capsule.classList.add('disconnected');
+        label.textContent = 'DISCONNECTED // 等待守护进程';
+        banner.classList.add('active');
+        document.getElementById('dockHint').textContent = '⚠️ 等待运行 install.bat 激活服务';
+        startOfflineProbe();
+      }
+    }
+
+    document.getElementById('ENABLE_CONTEXT_MENU').addEventListener('change', (e) => {
+      if (e.target.checked) {
+        document.getElementById('ENABLE_BLOCK_QUOTE_POPUP').checked = true;
+      } else {
+        document.getElementById('ENABLE_BLOCK_QUOTE_POPUP').checked = false;
+      }
+    });
+
+    async function handleSave() {
+      const saveBtn = document.getElementById('saveBtn');
+      saveBtn.disabled = true;
+
+      const payload = {};
+      SWITCH_KEYS.forEach(k => {
+        const el = document.getElementById(k);
+        if (el) payload[k] = el.checked;
+      });
+
+      if (!payload.ENABLE_CONTEXT_MENU) {
+        payload.ENABLE_BLOCK_QUOTE_POPUP = false;
+      }
+
+      try {
+        const res = await fetch(`${API_BASE}/api/config`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (data.success) {
+          isDirty = false;
+          toast('✅ [SAVED] 战术配置已更新并热重载！');
+          document.getElementById('dockHint').textContent = 'COMMIT_AT: ' + new Date().toLocaleTimeString();
+        } else {
+          alert('保存失败: ' + (data.error || '未知错误'));
+        }
+      } catch (e) {
+        alert('无法保存：后台服务未响应，请先运行 install.bat 启动服务。');
+      } finally {
+        saveBtn.disabled = false;
+      }
+    }
+
+    function handleReset() {
+      if (!confirm('确定将所有战术配置恢复为出厂默认值吗？')) return;
+      SWITCH_KEYS.forEach(k => {
+        const el = document.getElementById(k);
+        if (el && typeof DEFAULTS[k] === 'boolean') {
+          el.checked = DEFAULTS[k];
+        }
+      });
+      markDirty();
+      updateHierarchyVisuals();
+      toast('[RESET] 已重置为推荐默认值（点击提交生效）');
+    }
+
+    document.getElementById('saveBtn').addEventListener('click', handleSave);
+    document.getElementById('resetBtn').addEventListener('click', handleReset);
+    document.getElementById('retryConnBtn').addEventListener('click', fetchLiveConfig);
+
+    fetchLiveConfig();
+  </script>
+</body>
+</html>

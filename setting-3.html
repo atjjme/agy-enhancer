@@ -1,0 +1,1098 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Antigravity 增强器 - 开发者工作台 (Dev Studio)</title>
+  <style>
+    :root {
+      --studio-bg: #0e1117;
+      --studio-sidebar: #131722;
+      --studio-surface: #181d2a;
+      --studio-card: #1c2232;
+      --studio-border: rgba(255, 255, 255, 0.08);
+      --studio-border-focus: #6366f1;
+      
+      --accent-indigo: #6366f1;
+      --accent-emerald: #10b981;
+      --accent-amber: #f59e0b;
+      --accent-rose: #f43f5e;
+      --accent-sky: #38bdf8;
+
+      --text-white: #f3f4f6;
+      --text-muted: #9ca3af;
+      --text-dim: #4b5563;
+      --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--studio-bg);
+      color: var(--text-white);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* 顶部专业命令状态栏 */
+    .studio-topbar {
+      height: 52px;
+      background: var(--studio-sidebar);
+      border-bottom: 1px solid var(--studio-border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 20px;
+      position: sticky;
+      top: 0;
+      z-index: 50;
+    }
+
+    .topbar-left {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .brand-cube {
+      width: 28px;
+      height: 28px;
+      background: linear-gradient(135deg, var(--accent-indigo), #4338ca);
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-weight: 800;
+      font-size: 13px;
+    }
+
+    .brand-meta {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .brand-name {
+      font-size: 14.5px;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+    }
+
+    .version-tag {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      background: rgba(255, 255, 255, 0.06);
+      padding: 2px 7px;
+      border-radius: 4px;
+      color: var(--accent-sky);
+      border: 1px solid rgba(56, 189, 248, 0.2);
+    }
+
+    .topbar-right {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    /* 状态指示徽标 */
+    .service-status-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 4px 12px;
+      border-radius: 6px;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      background: rgba(16, 185, 129, 0.1);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      color: var(--accent-emerald);
+    }
+
+    .service-status-tag.disconnected {
+      background: rgba(244, 63, 94, 0.1);
+      border-color: rgba(244, 63, 94, 0.3);
+      color: var(--accent-rose);
+    }
+
+    .dot-ping {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: currentColor;
+    }
+
+    /* 主工作台分栏架构 */
+    .studio-workspace {
+      display: flex;
+      flex: 1;
+    }
+
+    /* 左侧模块树侧栏 */
+    .studio-sidebar {
+      width: 260px;
+      background: var(--studio-sidebar);
+      border-right: 1px solid var(--studio-border);
+      padding: 20px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    @media (max-width: 900px) {
+      .studio-sidebar {
+        display: none;
+      }
+    }
+
+    .sidebar-section-title {
+      font-size: 11px;
+      font-family: var(--font-mono);
+      font-weight: 700;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      padding: 0 10px 6px;
+    }
+
+    .sidebar-nav-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .nav-tab-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: 13px;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all 0.18s;
+      text-decoration: none;
+    }
+
+    .nav-tab-item:hover {
+      background: rgba(255, 255, 255, 0.04);
+      color: var(--text-white);
+    }
+
+    .nav-tab-item.active {
+      background: rgba(99, 102, 241, 0.15);
+      color: #a5b4fc;
+      font-weight: 600;
+    }
+
+    .shortcut-badge {
+      margin-left: auto;
+      font-family: var(--font-mono);
+      font-size: 10px;
+      background: rgba(255, 255, 255, 0.08);
+      padding: 1px 5px;
+      border-radius: 3px;
+      color: var(--text-dim);
+    }
+
+    /* 右侧主配置滚动区 */
+    .studio-main-content {
+      flex: 1;
+      padding: 30px 40px 120px;
+      max-width: 940px;
+    }
+
+    /* 离线通知条 */
+    .studio-alert-card {
+      display: none;
+      background: rgba(244, 63, 94, 0.08);
+      border: 1px solid rgba(244, 63, 94, 0.25);
+      border-radius: 8px;
+      padding: 16px 20px;
+      margin-bottom: 24px;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    .studio-alert-card.active {
+      display: flex;
+    }
+
+    .alert-details h5 {
+      font-size: 14px;
+      color: #fda4af;
+      margin-bottom: 4px;
+    }
+
+    .alert-details p {
+      font-size: 12.5px;
+      color: var(--text-muted);
+    }
+
+    .btn-studio-retry {
+      background: rgba(244, 63, 94, 0.2);
+      border: 1px solid rgba(244, 63, 94, 0.4);
+      color: #fff;
+      padding: 6px 14px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-family: var(--font-mono);
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    /* 顶级主控板 (Linear Hero Switch) */
+    .studio-hero-panel {
+      background: linear-gradient(180deg, var(--studio-surface) 0%, var(--studio-card) 100%);
+      border: 1px solid var(--studio-border);
+      border-radius: 10px;
+      padding: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      margin-bottom: 28px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+      position: relative;
+    }
+
+    .studio-hero-panel.dormant {
+      opacity: 0.6;
+      border-color: rgba(255, 255, 255, 0.04);
+    }
+
+    .hero-meta-title {
+      font-size: 11px;
+      font-family: var(--font-mono);
+      font-weight: 700;
+      color: var(--accent-indigo);
+      margin-bottom: 4px;
+      letter-spacing: 0.05em;
+    }
+
+    .hero-meta-h3 {
+      font-size: 18px;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+
+    .hero-meta-desc {
+      font-size: 13px;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+
+    /* 功能分组卡片 */
+    .studio-group-card {
+      background: var(--studio-surface);
+      border: 1px solid var(--studio-border);
+      border-radius: 10px;
+      margin-bottom: 24px;
+      overflow: hidden;
+    }
+
+    .studio-group-header {
+      padding: 14px 20px;
+      background: rgba(255, 255, 255, 0.02);
+      border-bottom: 1px solid var(--studio-border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .group-header-title {
+      font-size: 13.5px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .group-header-tag {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--text-dim);
+    }
+
+    /* 功能行 */
+    .studio-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 20px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+      transition: background 0.15s;
+    }
+
+    .studio-row:last-child {
+      border-bottom: none;
+    }
+
+    .studio-row:hover {
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    .studio-row-text {
+      flex: 1;
+      padding-right: 24px;
+    }
+
+    .studio-row-label {
+      font-size: 14px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .studio-code-name {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--accent-sky);
+      background: rgba(56, 189, 248, 0.08);
+      padding: 1px 6px;
+      border-radius: 3px;
+    }
+
+    .studio-row-desc {
+      font-size: 12.5px;
+      color: var(--text-muted);
+      margin-top: 4px;
+      line-height: 1.5;
+    }
+
+    /* 子面板折叠 */
+    .studio-sub-shelf {
+      margin: 8px 20px 14px 34px;
+      padding: 12px 18px;
+      background: rgba(10, 13, 20, 0.5);
+      border-left: 2px solid var(--accent-indigo);
+      border-radius: 0 6px 6px 0;
+      transition: all 0.25s ease;
+    }
+
+    .studio-sub-shelf.collapsed {
+      opacity: 0.3;
+      filter: grayscale(1);
+      pointer-events: none;
+    }
+
+    /* 功能区休眠联动 */
+    .features-workspace-lock {
+      position: relative;
+      transition: all 0.3s;
+    }
+
+    .features-workspace-lock.master-dormant {
+      opacity: 0.35;
+      filter: grayscale(0.9);
+      pointer-events: none;
+      user-select: none;
+    }
+
+    .lock-notice-tag {
+      display: none;
+      margin-bottom: 12px;
+      padding: 8px 14px;
+      background: rgba(244, 63, 94, 0.12);
+      border: 1px solid rgba(244, 63, 94, 0.3);
+      border-radius: 6px;
+      color: #fda4af;
+      font-size: 12px;
+      font-family: var(--font-mono);
+    }
+
+    .features-workspace-lock.master-dormant .lock-notice-tag {
+      display: block;
+    }
+
+    /* Linear 极客单线开关 (Studio Switch) */
+    .studio-switch {
+      position: relative;
+      display: inline-block;
+      width: 44px;
+      height: 24px;
+      flex-shrink: 0;
+    }
+
+    .studio-switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .studio-slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background-color: #272f44;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      transition: 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+      border-radius: 12px;
+    }
+
+    .studio-slider::before {
+      position: absolute;
+      content: "";
+      height: 18px;
+      width: 18px;
+      left: 2px;
+      bottom: 2px;
+      background-color: #e5e7eb;
+      border-radius: 50%;
+      transition: 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    input:checked + .studio-slider {
+      background-color: var(--accent-indigo);
+      border-color: #818cf8;
+    }
+
+    input:checked + .studio-slider::before {
+      transform: translateX(20px);
+      background-color: #ffffff;
+    }
+
+    /* Hero 大开关 */
+    .hero-studio-switch {
+      width: 52px;
+      height: 28px;
+    }
+
+    .hero-studio-switch .studio-slider::before {
+      height: 22px;
+      width: 22px;
+      left: 2px;
+      bottom: 2px;
+    }
+
+    .hero-studio-switch input:checked + .studio-slider::before {
+      transform: translateX(24px);
+    }
+
+    /* 实时配置 JSON 监视器 (Live JSON Inspector) */
+    .json-inspector-box {
+      margin-top: 30px;
+      background: #090c12;
+      border: 1px solid var(--studio-border);
+      border-radius: 8px;
+      overflow: hidden;
+      font-family: var(--font-mono);
+      font-size: 12px;
+    }
+
+    .json-inspector-bar {
+      background: #111520;
+      padding: 8px 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--studio-border);
+      color: var(--text-muted);
+      cursor: pointer;
+    }
+
+    .json-code-view {
+      padding: 14px;
+      color: #38bdf8;
+      line-height: 1.6;
+      max-height: 220px;
+      overflow-y: auto;
+      white-space: pre;
+    }
+
+    /* 底部保存底栏 */
+    .studio-action-bar {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 60px;
+      background: rgba(19, 23, 34, 0.95);
+      border-top: 1px solid var(--studio-border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 40px;
+      backdrop-filter: blur(12px);
+      z-index: 60;
+    }
+
+    .action-tip-text {
+      font-size: 13px;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-family: var(--font-mono);
+    }
+
+    .action-btn-group {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .studio-btn {
+      font-family: inherit;
+      border: none;
+      border-radius: 6px;
+      padding: 8px 18px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.18s;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .studio-btn-reset {
+      background: rgba(255, 255, 255, 0.06);
+      color: #d1d5db;
+      border: 1px solid var(--studio-border);
+    }
+
+    .studio-btn-reset:hover {
+      background: rgba(255, 255, 255, 0.12);
+      color: #fff;
+    }
+
+    .studio-btn-save {
+      background: var(--accent-indigo);
+      color: #fff;
+    }
+
+    .studio-btn-save:hover {
+      background: #4f46e5;
+    }
+
+    .studio-btn-save:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    /* Toast */
+    .studio-toast {
+      position: fixed;
+      top: 66px;
+      right: 24px;
+      background: #1e2538;
+      border: 1px solid rgba(16, 185, 129, 0.5);
+      color: #34d399;
+      padding: 10px 18px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-family: var(--font-mono);
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(-10px);
+      transition: all 0.25s ease;
+      z-index: 100;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    }
+
+    .studio-toast.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Toast -->
+  <div class="studio-toast" id="toastMsg">
+    <span id="toastText">✓ 变更已持久化写入后台配置</span>
+  </div>
+
+  <!-- 顶部状态栏 -->
+  <header class="studio-topbar">
+    <div class="topbar-left">
+      <div class="brand-cube">AG</div>
+      <div class="brand-meta">
+        <span class="brand-name">Antigravity 增强配置中心</span>
+        <span class="version-tag">PRO STUDIO v3.7</span>
+      </div>
+    </div>
+
+    <div class="topbar-right">
+      <div class="service-status-tag" id="connCapsule">
+        <span class="dot-ping"></span>
+        <span id="connLabel">Daemon: Connecting...</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- 工作台双栏主体 -->
+  <div class="studio-workspace">
+    
+    <!-- 左侧导航树 -->
+    <aside class="studio-sidebar">
+      <div>
+        <div class="sidebar-section-title">Navigation</div>
+        <ul class="sidebar-nav-list">
+          <li><a href="#sec-master" class="nav-tab-item active">⚙️ 主控总闸 <span class="shortcut-badge">#0</span></a></li>
+          <li><a href="#sec-system" class="nav-tab-item">💻 系统服务 <span class="shortcut-badge">#1</span></a></li>
+          <li><a href="#sec-visual" class="nav-tab-item">🎨 界面交互 <span class="shortcut-badge">#2</span></a></li>
+          <li><a href="#sec-memory" class="nav-tab-item">🧠 认知记忆 <span class="shortcut-badge">#3</span></a></li>
+        </ul>
+      </div>
+
+      <div style="margin-top: auto;">
+        <div class="sidebar-section-title">Shortcuts</div>
+        <div style="padding: 0 10px; font-size: 11px; font-family: var(--font-mono); color: var(--text-dim); line-height: 1.8;">
+          <div><kbd style="background: rgba(255,255,255,0.08); padding: 1px 4px; border-radius: 3px;">Ctrl + S</kbd> 保存配置</div>
+          <div><kbd style="background: rgba(255,255,255,0.08); padding: 1px 4px; border-radius: 3px;">F5</kbd> 重新载入</div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- 右侧配置表单 -->
+    <main class="studio-main-content">
+      
+      <!-- 离线提示 -->
+      <div class="studio-alert-card" id="offlineBanner">
+        <div class="alert-details">
+          <h5>⚠️ 守护服务通信未就绪</h5>
+          <p>受浏览器跨域安全限制，请双击运行根目录下 <strong>install.bat</strong> 启动后台守护服务。</p>
+        </div>
+        <button class="btn-studio-retry" id="retryConnBtn" type="button">重试连接</button>
+      </div>
+
+      <!-- 顶级总控卡片 -->
+      <div class="studio-hero-panel" id="heroMasterCard">
+        <div>
+          <div class="hero-meta-title" id="heroMasterStatusTag">● DAEMON ACTIVE</div>
+          <div class="hero-meta-h3">增强器全局总开关</div>
+          <div class="hero-meta-desc" id="heroMasterDesc">
+            开启时激活所有底层注入组件；关闭时彻底休眠，客户端不挂载任何事件，100% 恢复官方原生纯净状态。
+          </div>
+        </div>
+        <label class="studio-switch hero-studio-switch">
+          <input type="checkbox" id="ENABLE_MASTER">
+          <span class="studio-slider"></span>
+        </label>
+      </div>
+
+      <!-- 受控功能区 -->
+      <div class="features-workspace-lock" id="featuresContainer">
+        <div class="lock-notice-tag">⚠️ 全局总开关已关闭，全部功能处于休眠状态</div>
+
+        <!-- 1. 系统与自启服务 -->
+        <div class="studio-group-card" id="sec-system">
+          <div class="studio-group-header">
+            <span class="group-header-title">💻 系统守护与自启</span>
+            <span class="group-header-tag">SYSTEM_DAEMON</span>
+          </div>
+
+          <div class="studio-row">
+            <div class="studio-row-text">
+              <div class="studio-row-label">
+                Windows 开机静默自启动
+                <span class="studio-code-name">ENABLE_AUTOSTART</span>
+              </div>
+              <div class="studio-row-desc">根据系统 Startup 目录自动增删静默启动快捷方式，随开机自动驻留后台。</div>
+            </div>
+            <label class="studio-switch">
+              <input type="checkbox" id="ENABLE_AUTOSTART">
+              <span class="studio-slider"></span>
+            </label>
+          </div>
+        </div>
+
+        <!-- 2. 界面与交互增强 -->
+        <div class="studio-group-card" id="sec-visual">
+          <div class="studio-group-header">
+            <span class="group-header-title">🎨 界面视觉与交互接管</span>
+            <span class="group-header-tag">CLIENT_INJECTION</span>
+          </div>
+
+          <div class="studio-row">
+            <div class="studio-row-text">
+              <div class="studio-row-label">
+                全局右键功能增强
+                <span class="studio-code-name">ENABLE_CONTEXT_MENU</span>
+              </div>
+              <div class="studio-row-desc">统一接管侧边栏会话与项目管理、消息与代码块复制。关闭后完全恢复官方原生右键。</div>
+            </div>
+            <label class="studio-switch">
+              <input type="checkbox" id="ENABLE_CONTEXT_MENU">
+              <span class="studio-slider"></span>
+            </label>
+          </div>
+
+          <!-- 联动子项 -->
+          <div class="studio-sub-shelf" id="quotePopupSubPanel">
+            <div class="studio-row" style="padding: 4px 0;">
+              <div class="studio-row-text">
+                <div class="studio-row-label" style="font-size: 13px;">
+                  屏蔽划词选中文本时的 Quote 浮窗
+                  <span class="studio-code-name" style="font-size: 10px;">ENABLE_BLOCK_QUOTE_POPUP</span>
+                </div>
+                <div class="studio-row-desc" style="font-size: 11.5px;">选中文本时不再弹出官方 Quote (Ctrl+L) 气泡，杜绝卡顿。</div>
+              </div>
+              <label class="studio-switch">
+                <input type="checkbox" id="ENABLE_BLOCK_QUOTE_POPUP">
+                <span class="studio-slider"></span>
+              </label>
+            </div>
+          </div>
+
+          <div class="studio-row">
+            <div class="studio-row-text">
+              <div class="studio-row-label">
+                右上角常驻绿色运行指示点
+                <span class="studio-code-name">ENABLE_STATUS_INDICATOR</span>
+              </div>
+              <div class="studio-row-desc">在客户端顶部实时显示微量运行态绿点与启动反馈。</div>
+            </div>
+            <label class="studio-switch">
+              <input type="checkbox" id="ENABLE_STATUS_INDICATOR">
+              <span class="studio-slider"></span>
+            </label>
+          </div>
+
+          <div class="studio-row">
+            <div class="studio-row-text">
+              <div class="studio-row-label">
+                右下角常驻智能翻页双按钮
+                <span class="studio-code-name">ENABLE_NAV_BUTTONS</span>
+              </div>
+              <div class="studio-row-desc">向上（↑）/向下（↓）智能翻阅长对话，双击直达最新回复。</div>
+            </div>
+            <label class="studio-switch">
+              <input type="checkbox" id="ENABLE_NAV_BUTTONS">
+              <span class="studio-slider"></span>
+            </label>
+          </div>
+
+          <div class="studio-row">
+            <div class="studio-row-text">
+              <div class="studio-row-label">
+                左侧项目折叠与归档抽屉
+                <span class="studio-code-name">ENABLE_PROJECT_ARCHIVER</span>
+              </div>
+              <div class="studio-row-desc">鼠标悬停一键隐藏暂缓项目，并在侧栏提供专属收纳抽屉。</div>
+            </div>
+            <label class="studio-switch">
+              <input type="checkbox" id="ENABLE_PROJECT_ARCHIVER">
+              <span class="studio-slider"></span>
+            </label>
+          </div>
+        </div>
+
+        <!-- 3. 阅读记忆与算法 -->
+        <div class="studio-group-card" id="sec-memory">
+          <div class="studio-group-header">
+            <span class="group-header-title">🧠 阅读进度记忆与状态追踪</span>
+            <span class="group-header-tag">PERFORMANCE</span>
+          </div>
+
+          <div class="studio-row">
+            <div class="studio-row-text">
+              <div class="studio-row-label">
+                多会话阅读进度记忆与自动回滚
+                <span class="studio-code-name">ENABLE_SCROLL_PERSISTENCE</span>
+              </div>
+              <div class="studio-row-desc">精确还原各会话离开时的浏览位置，关闭后完全卸载滚动容器监听。</div>
+            </div>
+            <label class="studio-switch">
+              <input type="checkbox" id="ENABLE_SCROLL_PERSISTENCE">
+              <span class="studio-slider"></span>
+            </label>
+          </div>
+
+          <div class="studio-row">
+            <div class="studio-row-text">
+              <div class="studio-row-label">
+                智能未读/已读状态追踪
+                <span class="studio-code-name">ENABLE_SMART_UNREAD</span>
+              </div>
+              <div class="studio-row-desc">长文阅读触底判定与未读圆点提示，关闭停止后台定时器释放 CPU。</div>
+            </div>
+            <label class="studio-switch">
+              <input type="checkbox" id="ENABLE_SMART_UNREAD">
+              <span class="studio-slider"></span>
+            </label>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- 极客特性：实时配置 JSON 监视器 -->
+      <div class="json-inspector-box">
+        <div class="json-inspector-bar">
+          <span>// LIVE_CONFIG_INSPECTOR</span>
+          <span style="font-size: 11px;">JSON View</span>
+        </div>
+        <pre class="json-code-view" id="jsonPreview">// Loading configuration...</pre>
+      </div>
+
+    </main>
+  </div>
+
+  <!-- 底部固定保存栏 -->
+  <footer class="studio-action-bar">
+    <div class="action-tip-text">
+      <span style="color: var(--accent-indigo);">●</span>
+      <span id="dockHint">快捷键 Ctrl+S 亦可随时保存</span>
+    </div>
+    <div class="action-btn-group">
+      <button class="studio-btn studio-btn-reset" id="resetBtn" type="button">恢复默认</button>
+      <button class="studio-btn studio-btn-save" id="saveBtn" type="button">保存修改 (Save)</button>
+    </div>
+  </footer>
+
+  <script>
+    const API_BASE = (location.protocol === 'http:' || location.protocol === 'https:') 
+      ? '' 
+      : 'http://127.0.0.1:37210';
+
+    const SWITCH_KEYS = [
+      'ENABLE_MASTER',
+      'ENABLE_AUTOSTART',
+      'ENABLE_CONTEXT_MENU',
+      'ENABLE_BLOCK_QUOTE_POPUP',
+      'ENABLE_STATUS_INDICATOR',
+      'ENABLE_NAV_BUTTONS',
+      'ENABLE_PROJECT_ARCHIVER',
+      'ENABLE_SCROLL_PERSISTENCE',
+      'ENABLE_SMART_UNREAD'
+    ];
+
+    const DEFAULTS = {
+      ENABLE_MASTER: true,
+      ENABLE_AUTOSTART: true,
+      ENABLE_CONTEXT_MENU: true,
+      ENABLE_BLOCK_QUOTE_POPUP: true,
+      ENABLE_STATUS_INDICATOR: true,
+      ENABLE_NAV_BUTTONS: true,
+      ENABLE_PROJECT_ARCHIVER: true,
+      ENABLE_SCROLL_PERSISTENCE: true,
+      ENABLE_SMART_UNREAD: true
+    };
+
+    let isDirty = false;
+
+    function refreshJsonPreview() {
+      const obj = {};
+      SWITCH_KEYS.forEach(k => {
+        const el = document.getElementById(k);
+        if (el) obj[k] = el.checked;
+      });
+      document.getElementById('jsonPreview').textContent = JSON.stringify(obj, null, 2);
+    }
+
+    function toast(text) {
+      const el = document.getElementById('toastMsg');
+      document.getElementById('toastText').textContent = text;
+      el.classList.add('visible');
+      setTimeout(() => el.classList.remove('visible'), 2800);
+    }
+
+    function markDirty() {
+      isDirty = true;
+      document.getElementById('dockHint').innerHTML = '<span style="color: var(--accent-amber);">● 检测到未提交的改动 (按 Ctrl+S 保存)</span>';
+      refreshJsonPreview();
+    }
+
+    function updateHierarchyVisuals() {
+      const masterCheck = document.getElementById('ENABLE_MASTER').checked;
+      const heroCard = document.getElementById('heroMasterCard');
+      const heroStatusTag = document.getElementById('heroMasterStatusTag');
+      const heroDesc = document.getElementById('heroMasterDesc');
+      const featuresContainer = document.getElementById('featuresContainer');
+
+      if (masterCheck) {
+        heroCard.classList.remove('dormant');
+        heroStatusTag.textContent = '● DAEMON ACTIVE (工作中)';
+        heroDesc.textContent = '增强组件全面挂载注入，按当前键值执行热重载。';
+        featuresContainer.classList.remove('master-dormant');
+      } else {
+        heroCard.classList.add('dormant');
+        heroStatusTag.textContent = '○ DAEMON SLEEP (休眠中)';
+        heroDesc.textContent = '总闸已关闭。客户端内不挂载任何事件，100% 官方原生纯净运行。';
+        featuresContainer.classList.add('master-dormant');
+      }
+
+      // 右键联动
+      const ctxMenuCheck = document.getElementById('ENABLE_CONTEXT_MENU').checked;
+      const quoteSubPanel = document.getElementById('quotePopupSubPanel');
+      const blockQuoteCheck = document.getElementById('ENABLE_BLOCK_QUOTE_POPUP');
+      if (ctxMenuCheck && masterCheck) {
+        quoteSubPanel.classList.remove('collapsed');
+        blockQuoteCheck.disabled = false;
+      } else {
+        quoteSubPanel.classList.add('collapsed');
+        blockQuoteCheck.disabled = true;
+      }
+
+      refreshJsonPreview();
+    }
+
+    SWITCH_KEYS.forEach(key => {
+      const el = document.getElementById(key);
+      if (el) {
+        el.addEventListener('change', () => {
+          markDirty();
+          updateHierarchyVisuals();
+        });
+      }
+    });
+
+    let offlineProbeTimer = null;
+
+    function stopOfflineProbe() {
+      if (offlineProbeTimer) {
+        clearInterval(offlineProbeTimer);
+        offlineProbeTimer = null;
+      }
+    }
+
+    function startOfflineProbe() {
+      if (offlineProbeTimer) return;
+      offlineProbeTimer = setInterval(async () => {
+        try {
+          const res = await fetch(`${API_BASE}/api/config?t=${Date.now()}`, { cache: 'no-store' });
+          if (res.ok) {
+            const data = await res.json();
+            if (data.success && data.config) {
+              stopOfflineProbe();
+              applyLiveConfig(data.config);
+              toast('✓ 后台服务已恢复，配置已自动同步');
+            }
+          }
+        } catch (e) {}
+      }, 1800);
+    }
+
+    function applyLiveConfig(liveCfg) {
+      const capsule = document.getElementById('connCapsule');
+      const label = document.getElementById('connLabel');
+      const banner = document.getElementById('offlineBanner');
+
+      capsule.classList.remove('disconnected');
+      banner.classList.remove('active');
+      label.textContent = 'Daemon: Online (37210)';
+
+      SWITCH_KEYS.forEach(key => {
+        const el = document.getElementById(key);
+        if (el && typeof liveCfg[key] === 'boolean') {
+          el.checked = liveCfg[key];
+        }
+      });
+
+      if (!document.getElementById('ENABLE_CONTEXT_MENU').checked) {
+        document.getElementById('ENABLE_BLOCK_QUOTE_POPUP').checked = false;
+      }
+
+      isDirty = false;
+      updateHierarchyVisuals();
+      document.getElementById('dockHint').textContent = '已与后台配置文件完全同步';
+    }
+
+    async function fetchLiveConfig() {
+      const capsule = document.getElementById('connCapsule');
+      const label = document.getElementById('connLabel');
+      const banner = document.getElementById('offlineBanner');
+
+      try {
+        const res = await fetch(`${API_BASE}/api/config?t=${Date.now()}`, { cache: 'no-store' });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const data = await res.json();
+
+        if (data.success && data.config) {
+          stopOfflineProbe();
+          applyLiveConfig(data.config);
+        }
+      } catch (err) {
+        capsule.classList.add('disconnected');
+        label.textContent = 'Daemon: Offline (Port 37210)';
+        banner.classList.add('active');
+        document.getElementById('dockHint').textContent = '⚠️ 等待运行 install.bat 点亮服务';
+        startOfflineProbe();
+      }
+    }
+
+    document.getElementById('ENABLE_CONTEXT_MENU').addEventListener('change', (e) => {
+      if (e.target.checked) {
+        document.getElementById('ENABLE_BLOCK_QUOTE_POPUP').checked = true;
+      } else {
+        document.getElementById('ENABLE_BLOCK_QUOTE_POPUP').checked = false;
+      }
+      refreshJsonPreview();
+    });
+
+    async function handleSave() {
+      const saveBtn = document.getElementById('saveBtn');
+      saveBtn.disabled = true;
+
+      const payload = {};
+      SWITCH_KEYS.forEach(k => {
+        const el = document.getElementById(k);
+        if (el) payload[k] = el.checked;
+      });
+
+      if (!payload.ENABLE_CONTEXT_MENU) {
+        payload.ENABLE_BLOCK_QUOTE_POPUP = false;
+      }
+
+      try {
+        const res = await fetch(`${API_BASE}/api/config`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (data.success) {
+          isDirty = false;
+          toast('✓ 配置已保存至 config.json 并热重载');
+          document.getElementById('dockHint').textContent = '上次保存时间: ' + new Date().toLocaleTimeString();
+        } else {
+          alert('保存失败: ' + (data.error || '未知错误'));
+        }
+      } catch (e) {
+        alert('无法保存：后台服务未响应，请先运行 install.bat 启动服务。');
+      } finally {
+        saveBtn.disabled = false;
+      }
+    }
+
+    function handleReset() {
+      if (!confirm('确定将所有设置恢复为推荐默认值吗？')) return;
+      SWITCH_KEYS.forEach(k => {
+        const el = document.getElementById(k);
+        if (el && typeof DEFAULTS[k] === 'boolean') {
+          el.checked = DEFAULTS[k];
+        }
+      });
+      markDirty();
+      updateHierarchyVisuals();
+      toast('已重置为默认值（请点击保存）');
+    }
+
+    document.getElementById('saveBtn').addEventListener('click', handleSave);
+    document.getElementById('resetBtn').addEventListener('click', handleReset);
+    document.getElementById('retryConnBtn').addEventListener('click', fetchLiveConfig);
+
+    // 监听 Ctrl + S 快捷键
+    window.addEventListener('keydown', (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault();
+        handleSave();
+      }
+    });
+
+    fetchLiveConfig();
+  </script>
+</body>
+</html>

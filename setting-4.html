@@ -1,0 +1,949 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Antigravity 增强器 - 瑞士画廊钛金典藏 (Swiss Titanium)</title>
+  <style>
+    :root {
+      --titanium-bg: #090a0c;
+      --titanium-surface: #101216;
+      --titanium-card: #15181e;
+      --titanium-border: rgba(255, 255, 255, 0.08);
+      --titanium-gold: #d4af37;
+      --titanium-gold-light: #f3e5ab;
+      --titanium-gold-dim: rgba(212, 175, 55, 0.15);
+      
+      --text-pure: #ffffff;
+      --text-muted: #8e95a5;
+      --text-sub: #545b6b;
+      
+      --font-serif: "Playfair Display", "Songti SC", "SimSun", serif;
+      --font-sans: -apple-system, BlinkMacSystemFont, "Helvetica Neue", "PingFang SC", sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--titanium-bg);
+      color: var(--text-pure);
+      font-family: var(--font-sans);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 50px 24px 140px;
+      -webkit-font-smoothing: antialiased;
+      position: relative;
+    }
+
+    /* 钛金哑光细腻微质感 */
+    body::after {
+      content: "";
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: radial-gradient(circle at 50% 10%, rgba(212, 175, 55, 0.04) 0%, transparent 60%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .gallery-container {
+      width: 100%;
+      max-width: 860px;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* 顶部杂志级排版大标题 */
+    .gallery-header {
+      border-bottom: 1px solid var(--titanium-border);
+      padding-bottom: 30px;
+      margin-bottom: 40px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+    }
+
+    .header-left {
+      max-width: 540px;
+    }
+
+    .gallery-kicker {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.25em;
+      text-transform: uppercase;
+      color: var(--titanium-gold);
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .gallery-kicker::before {
+      content: "";
+      width: 16px;
+      height: 1px;
+      background: var(--titanium-gold);
+    }
+
+    .gallery-title {
+      font-size: 34px;
+      font-weight: 300;
+      letter-spacing: -0.03em;
+      line-height: 1.15;
+      margin-bottom: 12px;
+    }
+
+    .gallery-title strong {
+      font-weight: 700;
+      color: var(--titanium-gold-light);
+    }
+
+    .gallery-desc {
+      font-size: 13.5px;
+      color: var(--text-muted);
+      line-height: 1.6;
+    }
+
+    /* 极简金色状态胶囊 */
+    .titanium-status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 16px;
+      border: 1px solid var(--titanium-border);
+      border-radius: 40px;
+      font-size: 11.5px;
+      letter-spacing: 0.05em;
+      color: var(--titanium-gold);
+      background: var(--titanium-surface);
+      white-space: nowrap;
+    }
+
+    .titanium-status-badge.disconnected {
+      border-color: rgba(244, 63, 94, 0.4);
+      color: #f43f5e;
+    }
+
+    .gold-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: currentColor;
+    }
+
+    /* 离线引导横幅 */
+    .gallery-offline-card {
+      display: none;
+      background: var(--titanium-surface);
+      border: 1px solid rgba(212, 175, 55, 0.3);
+      padding: 20px 24px;
+      margin-bottom: 36px;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+    }
+
+    .gallery-offline-card.active {
+      display: flex;
+    }
+
+    .offline-main h4 {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--titanium-gold-light);
+      margin-bottom: 4px;
+    }
+
+    .offline-main p {
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+
+    .btn-gold-outline {
+      background: transparent;
+      border: 1px solid var(--titanium-gold);
+      color: var(--titanium-gold-light);
+      padding: 8px 18px;
+      font-size: 12px;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-gold-outline:hover {
+      background: var(--titanium-gold);
+      color: #000;
+    }
+
+    /* 瑞士画廊总控台 Hero (Master Switch) */
+    .master-gallery-deck {
+      background: var(--titanium-surface);
+      border: 1px solid var(--titanium-border);
+      padding: 32px 36px;
+      margin-bottom: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 30px;
+      position: relative;
+      transition: all 0.35s ease;
+    }
+
+    .master-gallery-deck.dormant {
+      opacity: 0.45;
+      background: #0d0e11;
+    }
+
+    .master-gallery-deck::before {
+      content: "00 / CORE MASTER";
+      position: absolute;
+      top: -10px;
+      left: 24px;
+      background: var(--titanium-bg);
+      padding: 0 8px;
+      font-size: 10.5px;
+      font-weight: 700;
+      letter-spacing: 0.15em;
+      color: var(--titanium-gold);
+    }
+
+    .deck-info-wrap {
+      flex: 1;
+    }
+
+    .deck-status-indicator {
+      font-size: 12px;
+      color: var(--titanium-gold);
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      margin-bottom: 6px;
+    }
+
+    .master-gallery-deck.dormant .deck-status-indicator {
+      color: var(--text-sub);
+    }
+
+    .deck-title {
+      font-size: 20px;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+      margin-bottom: 6px;
+    }
+
+    .deck-desc {
+      font-size: 13px;
+      color: var(--text-muted);
+      line-height: 1.55;
+      max-width: 580px;
+    }
+
+    /* 章节化排版容器 */
+    .gallery-sections {
+      display: flex;
+      flex-direction: column;
+      gap: 40px;
+      transition: all 0.4s ease;
+    }
+
+    .gallery-sections.master-dormant {
+      opacity: 0.3;
+      filter: grayscale(0.9);
+      pointer-events: none;
+      user-select: none;
+    }
+
+    .dormant-notice-line {
+      display: none;
+      border: 1px dashed rgba(212, 175, 55, 0.4);
+      padding: 12px 20px;
+      font-size: 12.5px;
+      color: var(--titanium-gold);
+      text-align: center;
+      letter-spacing: 0.05em;
+      margin-bottom: -10px;
+    }
+
+    .gallery-sections.master-dormant .dormant-notice-line {
+      display: block;
+    }
+
+    /* 章节标题 */
+    .section-chapter-label {
+      display: flex;
+      align-items: baseline;
+      gap: 12px;
+      margin-bottom: 16px;
+      border-bottom: 1px solid var(--titanium-border);
+      padding-bottom: 10px;
+    }
+
+    .chapter-number {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--titanium-gold);
+      letter-spacing: 0.05em;
+    }
+
+    .chapter-name {
+      font-size: 15px;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      text-transform: uppercase;
+    }
+
+    /* 条目列表行 */
+    .gallery-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 18px 8px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+      transition: background 0.2s;
+    }
+
+    .gallery-row:last-child {
+      border-bottom: none;
+    }
+
+    .gallery-row:hover {
+      background: rgba(255, 255, 255, 0.015);
+    }
+
+    .row-meta-content {
+      flex: 1;
+      padding-right: 30px;
+    }
+
+    .row-index-wrap {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 4px;
+    }
+
+    .row-index {
+      font-size: 11px;
+      color: var(--text-sub);
+      font-family: monospace;
+    }
+
+    .row-headline {
+      font-size: 14.5px;
+      font-weight: 600;
+      color: var(--text-pure);
+    }
+
+    .row-annotation {
+      font-size: 12.5px;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+
+    /* 联动子项排版 */
+    .gallery-sub-row {
+      margin: 6px 0 12px 30px;
+      padding: 12px 20px;
+      background: var(--titanium-surface);
+      border-left: 1px solid var(--titanium-gold);
+      transition: all 0.3s ease;
+    }
+
+    .gallery-sub-row.collapsed {
+      opacity: 0.25;
+      filter: grayscale(1);
+      pointer-events: none;
+    }
+
+    /* 钛金极简拨杆开关 (Titanium Minimal Switch) */
+    .titanium-switch {
+      position: relative;
+      display: inline-block;
+      width: 44px;
+      height: 22px;
+      flex-shrink: 0;
+    }
+
+    .titanium-switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .titanium-slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background-color: #20232a;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      transition: 0.3s cubic-bezier(0.2, 1, 0.3, 1);
+      border-radius: 2px;
+    }
+
+    .titanium-slider::before {
+      position: absolute;
+      content: "";
+      height: 16px;
+      width: 16px;
+      left: 2px;
+      bottom: 2px;
+      background-color: #8890a0;
+      transition: 0.3s cubic-bezier(0.2, 1, 0.3, 1);
+      border-radius: 1px;
+    }
+
+    input:checked + .titanium-slider {
+      background-color: #2a2517;
+      border-color: var(--titanium-gold);
+    }
+
+    input:checked + .titanium-slider::before {
+      transform: translateX(22px);
+      background-color: var(--titanium-gold);
+      box-shadow: 0 0 8px rgba(212, 175, 55, 0.6);
+    }
+
+    /* Hero 大开关 */
+    .hero-titanium-switch {
+      width: 56px;
+      height: 28px;
+    }
+
+    .hero-titanium-switch .titanium-slider::before {
+      height: 22px;
+      width: 22px;
+      left: 2px;
+      bottom: 2px;
+    }
+
+    .hero-titanium-switch input:checked + .titanium-slider::before {
+      transform: translateX(28px);
+    }
+
+    /* 底部极简画廊签名控制栏 */
+    .gallery-footer-dock {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: calc(100% - 48px);
+      max-width: 860px;
+      background: rgba(16, 18, 22, 0.95);
+      border: 1px solid var(--titanium-border);
+      padding: 14px 28px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      backdrop-filter: blur(20px);
+      z-index: 100;
+    }
+
+    .footer-stamp {
+      font-size: 12.5px;
+      color: var(--text-muted);
+      letter-spacing: 0.05em;
+    }
+
+    .footer-actions {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .btn-gallery {
+      background: transparent;
+      border: 1px solid var(--titanium-border);
+      color: var(--text-pure);
+      font-family: inherit;
+      font-size: 12.5px;
+      letter-spacing: 0.06em;
+      padding: 8px 20px;
+      cursor: pointer;
+      text-transform: uppercase;
+      transition: all 0.2s ease;
+    }
+
+    .btn-gallery:hover {
+      border-color: rgba(255, 255, 255, 0.3);
+      color: #fff;
+    }
+
+    .btn-gallery-commit {
+      background: var(--titanium-gold);
+      border-color: var(--titanium-gold);
+      color: #090a0c;
+      font-weight: 700;
+    }
+
+    .btn-gallery-commit:hover {
+      background: var(--titanium-gold-light);
+      border-color: var(--titanium-gold-light);
+      color: #000;
+    }
+
+    .btn-gallery-commit:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    /* Toast */
+    .gallery-toast {
+      position: fixed;
+      top: 30px;
+      left: 50%;
+      transform: translateX(-50%) translateY(-30px);
+      background: #15181e;
+      border: 1px solid var(--titanium-gold);
+      color: var(--titanium-gold-light);
+      padding: 10px 24px;
+      font-size: 13px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      opacity: 0;
+      pointer-events: none;
+      transition: all 0.25s ease;
+      z-index: 1000;
+    }
+
+    .gallery-toast.visible {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Toast -->
+  <div class="gallery-toast" id="toastMsg">
+    <span id="toastText">CONFIGURATION COMMITTED & DEPLOYED</span>
+  </div>
+
+  <div class="gallery-container">
+    
+    <!-- 顶部杂志级排版 -->
+    <header class="gallery-header">
+      <div class="header-left">
+        <div class="gallery-kicker">Antigravity Enhancer Control Suite</div>
+        <h1 class="gallery-title">控制中心 <strong>典藏版</strong></h1>
+        <p class="gallery-desc">
+          精细编排各项注入组件与操作系统守护进程。极简克制，毫秒级响应。
+        </p>
+      </div>
+
+      <div class="titanium-status-badge" id="connCapsule">
+        <span class="gold-dot"></span>
+        <span id="connLabel">守护服务握手已就绪</span>
+      </div>
+    </header>
+
+    <!-- 离线提示 -->
+    <div class="gallery-offline-card" id="offlineBanner">
+      <div class="offline-main">
+        <h4>需要启动后台守护服务</h4>
+        <p>受浏览器安全策略限制，请双击运行 <strong>install.bat</strong> 启动守护服务，即可点亮本界面。</p>
+      </div>
+      <button class="btn-gold-outline" id="retryConnBtn" type="button">检查状态</button>
+    </div>
+
+    <!-- 00 / 核心主控台 (Master Switch) -->
+    <div class="master-gallery-deck" id="heroMasterCard">
+      <div class="deck-info-wrap">
+        <div class="deck-status-indicator" id="heroMasterStatusTag">● 运行状态活跃</div>
+        <div class="deck-title">增强器全局总闸</div>
+        <div class="deck-desc" id="heroMasterDesc">
+          开启时全面激活各项底层注入；关闭时彻底休眠，客户端不挂载任何事件，100% 恢复官方原生纯净状态。
+        </div>
+      </div>
+      <label class="titanium-switch hero-titanium-switch">
+        <input type="checkbox" id="ENABLE_MASTER">
+        <span class="titanium-slider"></span>
+      </label>
+    </div>
+
+    <!-- 章节分组列表 -->
+    <div class="gallery-sections" id="featuresContainer">
+      <div class="dormant-notice-line">— 全局总闸已断电休眠，下方全部功能已停用 —</div>
+
+      <!-- 章节 01: 系统服务 -->
+      <div>
+        <div class="section-chapter-label">
+          <span class="chapter-number">01</span>
+          <span class="chapter-name">System & Background Services / 系统基底</span>
+        </div>
+
+        <div class="gallery-row">
+          <div class="row-meta-content">
+            <div class="row-index-wrap">
+              <span class="row-index">01.1</span>
+              <span class="row-headline">Windows 开机静默自启动</span>
+            </div>
+            <div class="row-annotation">自动向系统 Startup 目录增删静默快捷方式，实现随开机自动驻留后台。</div>
+          </div>
+          <label class="titanium-switch">
+            <input type="checkbox" id="ENABLE_AUTOSTART">
+            <span class="titanium-slider"></span>
+          </label>
+        </div>
+      </div>
+
+      <!-- 章节 02: 界面视觉与辅助工具 -->
+      <div>
+        <div class="section-chapter-label">
+          <span class="chapter-number">02</span>
+          <span class="chapter-name">Visual & Interaction Suite / 交互套件</span>
+        </div>
+
+        <div class="gallery-row">
+          <div class="row-meta-content">
+            <div class="row-index-wrap">
+              <span class="row-index">02.1</span>
+              <span class="row-headline">全局右键功能增强</span>
+            </div>
+            <div class="row-annotation">统一接管侧栏会话与项目、消息与代码块复制。关闭后彻底不拦截原生右键。</div>
+          </div>
+          <label class="titanium-switch">
+            <input type="checkbox" id="ENABLE_CONTEXT_MENU">
+            <span class="titanium-slider"></span>
+          </label>
+        </div>
+
+        <!-- 依附右键的划词子项 -->
+        <div class="gallery-sub-row" id="quotePopupSubPanel">
+          <div class="gallery-row" style="padding: 2px 0;">
+            <div class="row-meta-content">
+              <div class="row-index-wrap">
+                <span class="row-index">02.1a</span>
+                <span class="row-headline" style="font-size: 13.5px;">屏蔽划词选中文本时的 Quote 浮窗</span>
+              </div>
+              <div class="row-annotation" style="font-size: 12px;">选中文本时不再弹出官方 Quote (Ctrl+L) 气泡，杜绝卡顿。</div>
+            </div>
+            <label class="titanium-switch">
+              <input type="checkbox" id="ENABLE_BLOCK_QUOTE_POPUP">
+              <span class="titanium-slider"></span>
+            </label>
+          </div>
+        </div>
+
+        <div class="gallery-row">
+          <div class="row-meta-content">
+            <div class="row-index-wrap">
+              <span class="row-index">02.2</span>
+              <span class="row-headline">右上角常驻绿色运行指示点</span>
+            </div>
+            <div class="row-annotation">在客户端右上角提供极简微量绿点与启动微动效提示。</div>
+          </div>
+          <label class="titanium-switch">
+            <input type="checkbox" id="ENABLE_STATUS_INDICATOR">
+            <span class="titanium-slider"></span>
+          </label>
+        </div>
+
+        <div class="gallery-row">
+          <div class="row-meta-content">
+            <div class="row-index-wrap">
+              <span class="row-index">02.3</span>
+              <span class="row-headline">右下角常驻智能翻页双按钮</span>
+            </div>
+            <div class="row-annotation">长对话向上（↑）/向下（↓）智能翻阅，双击直达最新消息。</div>
+          </div>
+          <label class="titanium-switch">
+            <input type="checkbox" id="ENABLE_NAV_BUTTONS">
+            <span class="titanium-slider"></span>
+          </label>
+        </div>
+
+        <div class="gallery-row">
+          <div class="row-meta-content">
+            <div class="row-index-wrap">
+              <span class="row-index">02.4</span>
+              <span class="row-headline">左侧项目折叠与归档抽屉</span>
+            </div>
+            <div class="row-annotation">鼠标悬停一键收纳暂不处理的项目，并在侧栏提供专属归档抽屉。</div>
+          </div>
+          <label class="titanium-switch">
+            <input type="checkbox" id="ENABLE_PROJECT_ARCHIVER">
+            <span class="titanium-slider"></span>
+          </label>
+        </div>
+      </div>
+
+      <!-- 章节 03: 认知与阅读记忆 -->
+      <div>
+        <div class="section-chapter-label">
+          <span class="chapter-number">03</span>
+          <span class="chapter-name">Cognitive & Persistence / 阅读进度记忆</span>
+        </div>
+
+        <div class="gallery-row">
+          <div class="row-meta-content">
+            <div class="row-index-wrap">
+              <span class="row-index">03.1</span>
+              <span class="row-headline">多会话阅读进度记忆与自动回滚</span>
+            </div>
+            <div class="row-annotation">切换多会话时精确还原离开时的浏览位置，关停后停止滚动容器监听。</div>
+          </div>
+          <label class="titanium-switch">
+            <input type="checkbox" id="ENABLE_SCROLL_PERSISTENCE">
+            <span class="titanium-slider"></span>
+          </label>
+        </div>
+
+        <div class="gallery-row">
+          <div class="row-meta-content">
+            <div class="row-index-wrap">
+              <span class="row-index">03.2</span>
+              <span class="row-headline">智能未读/已读状态追踪</span>
+            </div>
+            <div class="row-annotation">长文阅读触底判定与侧栏圆点提示，关闭停止后台定时器以节约计算资源。</div>
+          </div>
+          <label class="titanium-switch">
+            <input type="checkbox" id="ENABLE_SMART_UNREAD">
+            <span class="titanium-slider"></span>
+          </label>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- 底部极简签名栏 -->
+    <footer class="gallery-footer-dock">
+      <div class="footer-stamp" id="dockInfo">
+        <span id="dockHint">READY TO COMMIT // 更改将即时生效</span>
+      </div>
+      <div class="footer-actions">
+        <button class="btn-gallery" id="resetBtn" type="button">恢复默认</button>
+        <button class="btn-gallery btn-gallery-commit" id="saveBtn" type="button">保存设置 (Save)</button>
+      </div>
+    </footer>
+
+  </div>
+
+  <script>
+    const API_BASE = (location.protocol === 'http:' || location.protocol === 'https:') 
+      ? '' 
+      : 'http://127.0.0.1:37210';
+
+    const SWITCH_KEYS = [
+      'ENABLE_MASTER',
+      'ENABLE_AUTOSTART',
+      'ENABLE_CONTEXT_MENU',
+      'ENABLE_BLOCK_QUOTE_POPUP',
+      'ENABLE_STATUS_INDICATOR',
+      'ENABLE_NAV_BUTTONS',
+      'ENABLE_PROJECT_ARCHIVER',
+      'ENABLE_SCROLL_PERSISTENCE',
+      'ENABLE_SMART_UNREAD'
+    ];
+
+    const DEFAULTS = {
+      ENABLE_MASTER: true,
+      ENABLE_AUTOSTART: true,
+      ENABLE_CONTEXT_MENU: true,
+      ENABLE_BLOCK_QUOTE_POPUP: true,
+      ENABLE_STATUS_INDICATOR: true,
+      ENABLE_NAV_BUTTONS: true,
+      ENABLE_PROJECT_ARCHIVER: true,
+      ENABLE_SCROLL_PERSISTENCE: true,
+      ENABLE_SMART_UNREAD: true
+    };
+
+    let isDirty = false;
+
+    function toast(text) {
+      const el = document.getElementById('toastMsg');
+      document.getElementById('toastText').textContent = text;
+      el.classList.add('visible');
+      setTimeout(() => el.classList.remove('visible'), 2800);
+    }
+
+    function markDirty() {
+      isDirty = true;
+      document.getElementById('dockHint').innerHTML = '<span style="color: var(--titanium-gold);">● MODIFIED // 存在未写入的修改</span>';
+    }
+
+    function updateHierarchyVisuals() {
+      const masterCheck = document.getElementById('ENABLE_MASTER').checked;
+      const heroCard = document.getElementById('heroMasterCard');
+      const heroStatusTag = document.getElementById('heroMasterStatusTag');
+      const heroDesc = document.getElementById('heroMasterDesc');
+      const featuresContainer = document.getElementById('featuresContainer');
+
+      if (masterCheck) {
+        heroCard.classList.remove('dormant');
+        heroStatusTag.textContent = '● 运行状态活跃';
+        heroDesc.textContent = '各项增强注入已全面激活，正在全速提供增强辅助支撑。';
+        featuresContainer.classList.remove('master-dormant');
+      } else {
+        heroCard.classList.add('dormant');
+        heroStatusTag.textContent = '○ 全面休眠断电';
+        heroDesc.textContent = '总闸已关闭。客户端内不挂载任何事件，100% 原生纯净运行。';
+        featuresContainer.classList.add('master-dormant');
+      }
+
+      // 右键联动划词 Quote
+      const ctxMenuCheck = document.getElementById('ENABLE_CONTEXT_MENU').checked;
+      const quoteSubPanel = document.getElementById('quotePopupSubPanel');
+      const blockQuoteCheck = document.getElementById('ENABLE_BLOCK_QUOTE_POPUP');
+      if (ctxMenuCheck && masterCheck) {
+        quoteSubPanel.classList.remove('collapsed');
+        blockQuoteCheck.disabled = false;
+      } else {
+        quoteSubPanel.classList.add('collapsed');
+        blockQuoteCheck.disabled = true;
+      }
+    }
+
+    SWITCH_KEYS.forEach(key => {
+      const el = document.getElementById(key);
+      if (el) {
+        el.addEventListener('change', () => {
+          markDirty();
+          updateHierarchyVisuals();
+        });
+      }
+    });
+
+    let offlineProbeTimer = null;
+
+    function stopOfflineProbe() {
+      if (offlineProbeTimer) {
+        clearInterval(offlineProbeTimer);
+        offlineProbeTimer = null;
+      }
+    }
+
+    function startOfflineProbe() {
+      if (offlineProbeTimer) return;
+      offlineProbeTimer = setInterval(async () => {
+        try {
+          const res = await fetch(`${API_BASE}/api/config?t=${Date.now()}`, { cache: 'no-store' });
+          if (res.ok) {
+            const data = await res.json();
+            if (data.success && data.config) {
+              stopOfflineProbe();
+              applyLiveConfig(data.config);
+              toast('SERVICE ONLINE // 守护进程就绪');
+            }
+          }
+        } catch (e) {}
+      }, 1800);
+    }
+
+    function applyLiveConfig(liveCfg) {
+      const capsule = document.getElementById('connCapsule');
+      const label = document.getElementById('connLabel');
+      const banner = document.getElementById('offlineBanner');
+
+      capsule.classList.remove('disconnected');
+      banner.classList.remove('active');
+      label.textContent = '守护服务已握手 (实时)';
+
+      SWITCH_KEYS.forEach(key => {
+        const el = document.getElementById(key);
+        if (el && typeof liveCfg[key] === 'boolean') {
+          el.checked = liveCfg[key];
+        }
+      });
+
+      if (!document.getElementById('ENABLE_CONTEXT_MENU').checked) {
+        document.getElementById('ENABLE_BLOCK_QUOTE_POPUP').checked = false;
+      }
+
+      isDirty = false;
+      updateHierarchyVisuals();
+      document.getElementById('dockHint').textContent = 'CONFIG IN SYNC // 配置已与磁盘同步';
+    }
+
+    async function fetchLiveConfig() {
+      const capsule = document.getElementById('connCapsule');
+      const label = document.getElementById('connLabel');
+      const banner = document.getElementById('offlineBanner');
+
+      try {
+        const res = await fetch(`${API_BASE}/api/config?t=${Date.now()}`, { cache: 'no-store' });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const data = await res.json();
+
+        if (data.success && data.config) {
+          stopOfflineProbe();
+          applyLiveConfig(data.config);
+        }
+      } catch (err) {
+        capsule.classList.add('disconnected');
+        label.textContent = '守护服务未启动 (请运行 install.bat)';
+        banner.classList.add('active');
+        document.getElementById('dockHint').textContent = '⚠️ 等待运行 install.bat 激活服务';
+        startOfflineProbe();
+      }
+    }
+
+    document.getElementById('ENABLE_CONTEXT_MENU').addEventListener('change', (e) => {
+      if (e.target.checked) {
+        document.getElementById('ENABLE_BLOCK_QUOTE_POPUP').checked = true;
+      } else {
+        document.getElementById('ENABLE_BLOCK_QUOTE_POPUP').checked = false;
+      }
+    });
+
+    async function handleSave() {
+      const saveBtn = document.getElementById('saveBtn');
+      saveBtn.disabled = true;
+
+      const payload = {};
+      SWITCH_KEYS.forEach(k => {
+        const el = document.getElementById(k);
+        if (el) payload[k] = el.checked;
+      });
+
+      if (!payload.ENABLE_CONTEXT_MENU) {
+        payload.ENABLE_BLOCK_QUOTE_POPUP = false;
+      }
+
+      try {
+        const res = await fetch(`${API_BASE}/api/config`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (data.success) {
+          isDirty = false;
+          toast('COMMITTED // 配置已成功保存热重载');
+          document.getElementById('dockHint').textContent = 'SAVED AT ' + new Date().toLocaleTimeString();
+        } else {
+          alert('保存失败: ' + (data.error || '未知错误'));
+        }
+      } catch (e) {
+        alert('无法保存：后台服务未响应，请先运行 install.bat 启动服务。');
+      } finally {
+        saveBtn.disabled = false;
+      }
+    }
+
+    function handleReset() {
+      if (!confirm('确定将所有设置恢复为推荐默认值吗？')) return;
+      SWITCH_KEYS.forEach(k => {
+        const el = document.getElementById(k);
+        if (el && typeof DEFAULTS[k] === 'boolean') {
+          el.checked = DEFAULTS[k];
+        }
+      });
+      markDirty();
+      updateHierarchyVisuals();
+      toast('RESET TO DEFAULTS // 已重置');
+    }
+
+    document.getElementById('saveBtn').addEventListener('click', handleSave);
+    document.getElementById('resetBtn').addEventListener('click', handleReset);
+    document.getElementById('retryConnBtn').addEventListener('click', fetchLiveConfig);
+
+    fetchLiveConfig();
+  </script>
+</body>
+</html>

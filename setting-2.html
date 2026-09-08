@@ -1,0 +1,1066 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Antigravity 增强器 - VisionOS 极光便当盒 (Aurora Bento)</title>
+  <style>
+    :root {
+      --bg-dark: #08090d;
+      --glass-base: rgba(25, 28, 41, 0.45);
+      --glass-hover: rgba(32, 36, 54, 0.6);
+      --glass-border: rgba(255, 255, 255, 0.12);
+      --glass-border-subtle: rgba(255, 255, 255, 0.06);
+      --glass-specular: rgba(255, 255, 255, 0.25);
+      
+      --accent-aurora: linear-gradient(135deg, #a855f7 0%, #3b82f6 50%, #06b6d4 100%);
+      --accent-emerald: #10b981;
+      --accent-cyan: #06b6d4;
+      --accent-rose: #f43f5e;
+      
+      --text-pri: #f8fafc;
+      --text-sec: #94a3b8;
+      --text-tri: #64748b;
+      
+      --radius-bento: 24px;
+      --radius-sm: 14px;
+      --shadow-glass: 0 16px 40px -10px rgba(0, 0, 0, 0.5), inset 0 1px 1px 0 rgba(255, 255, 255, 0.15);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-dark);
+      color: var(--text-pri);
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "PingFang SC", "Segoe UI", Roboto, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 30px 20px 130px;
+      position: relative;
+      overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* 动态极光画布背景 (Fluid Aurora Canvas) */
+    .aurora-background {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      pointer-events: none;
+      z-index: 0;
+      overflow: hidden;
+    }
+
+    .aurora-blob {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(80px);
+      opacity: 0.35;
+      mix-blend-mode: screen;
+      animation: auroraDrift 18s infinite alternate ease-in-out;
+    }
+
+    .blob-1 {
+      top: -10%;
+      left: 20%;
+      width: 50vw;
+      height: 45vh;
+      background: radial-gradient(circle, #7c3aed 0%, transparent 70%);
+    }
+
+    .blob-2 {
+      bottom: 10%;
+      right: 15%;
+      width: 55vw;
+      height: 50vh;
+      background: radial-gradient(circle, #0284c7 0%, transparent 70%);
+      animation-duration: 22s;
+    }
+
+    .blob-3 {
+      top: 40%;
+      left: -10%;
+      width: 40vw;
+      height: 40vh;
+      background: radial-gradient(circle, #059669 0%, transparent 70%);
+      animation-duration: 25s;
+    }
+
+    @keyframes auroraDrift {
+      0% { transform: translate(0, 0) scale(1); }
+      50% { transform: translate(40px, 30px) scale(1.08); }
+      100% { transform: translate(-30px, -20px) scale(0.95); }
+    }
+
+    /* 主容器 */
+    .vision-container {
+      width: 100%;
+      max-width: 1080px;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* VisionOS 顶部浮动毛玻璃状态岛 (Island Nav) */
+    .vision-nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 24px;
+      background: rgba(22, 25, 38, 0.55);
+      backdrop-filter: blur(28px);
+      -webkit-backdrop-filter: blur(28px);
+      border: 1px solid var(--glass-border);
+      border-radius: 100px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4), inset 0 1px 1px var(--glass-specular);
+      margin-bottom: 32px;
+    }
+
+    .nav-brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .nav-logo-capsule {
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      background: var(--accent-aurora);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 14px rgba(168, 85, 247, 0.4);
+      color: #fff;
+    }
+
+    .nav-title {
+      font-size: 16px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+
+    .nav-tag {
+      font-size: 11px;
+      padding: 3px 8px;
+      background: rgba(255, 255, 255, 0.08);
+      border-radius: 20px;
+      color: var(--text-sec);
+      font-weight: 500;
+    }
+
+    /* 状态胶囊 */
+    .conn-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 14px;
+      border-radius: 100px;
+      font-size: 12px;
+      font-weight: 500;
+      background: rgba(16, 185, 129, 0.12);
+      border: 1px solid rgba(16, 185, 129, 0.28);
+      color: #34d399;
+      transition: all 0.3s ease;
+    }
+
+    .conn-pill.disconnected {
+      background: rgba(244, 63, 94, 0.12);
+      border-color: rgba(244, 63, 94, 0.3);
+      color: var(--accent-rose);
+    }
+
+    .conn-indicator {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: currentColor;
+      box-shadow: 0 0 8px currentColor;
+    }
+
+    /* 离线通知横幅 */
+    .aurora-alert-box {
+      display: none;
+      background: rgba(30, 34, 52, 0.65);
+      border: 1px solid rgba(244, 63, 94, 0.4);
+      border-radius: var(--radius-bento);
+      backdrop-filter: blur(30px);
+      -webkit-backdrop-filter: blur(30px);
+      padding: 18px 24px;
+      margin-bottom: 24px;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+    }
+
+    .aurora-alert-box.active {
+      display: flex;
+    }
+
+    .alert-lead {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .alert-emoji {
+      font-size: 26px;
+    }
+
+    .alert-text h4 {
+      font-size: 15px;
+      font-weight: 600;
+      margin-bottom: 2px;
+    }
+
+    .alert-text p {
+      font-size: 13px;
+      color: var(--text-sec);
+    }
+
+    .alert-btn {
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      color: #fff;
+      padding: 7px 18px;
+      border-radius: 100px;
+      font-size: 12.5px;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.2s;
+    }
+
+    .alert-btn:hover {
+      background: rgba(255, 255, 255, 0.2);
+    }
+
+    /* Bento Grid (便当盒瀑布流架构) */
+    .bento-grid {
+      display: grid;
+      grid-template-columns: repeat(12, 1fr);
+      gap: 20px;
+    }
+
+    /* Bento 卡片基础样式 */
+    .bento-card {
+      background: var(--glass-base);
+      backdrop-filter: blur(32px);
+      -webkit-backdrop-filter: blur(32px);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius-bento);
+      padding: 24px;
+      box-shadow: var(--shadow-glass);
+      transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), background 0.3s, border-color 0.3s;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .bento-card:hover {
+      background: var(--glass-hover);
+      border-color: rgba(255, 255, 255, 0.2);
+      transform: translateY(-2px);
+    }
+
+    /* 卡片尺寸跨度 */
+    .col-span-12 { grid-column: span 12; }
+    .col-span-7  { grid-column: span 7; }
+    .col-span-5  { grid-column: span 5; }
+    .col-span-6  { grid-column: span 6; }
+    .col-span-4  { grid-column: span 4; }
+    .col-span-8  { grid-column: span 8; }
+
+    @media (max-width: 900px) {
+      .col-span-7, .col-span-5, .col-span-6, .col-span-4, .col-span-8 {
+        grid-column: span 12 !important;
+      }
+    }
+
+    /* 顶置 Hero 总开关 Bento 卡片 */
+    .bento-hero {
+      background: linear-gradient(135deg, rgba(35, 41, 64, 0.65) 0%, rgba(20, 24, 38, 0.6) 100%);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 24px;
+      padding: 30px 36px;
+      position: relative;
+    }
+
+    .bento-hero::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: var(--accent-aurora);
+      opacity: 0.9;
+      transition: opacity 0.3s;
+    }
+
+    .bento-hero.dormant::before {
+      background: var(--text-tri);
+      opacity: 0.3;
+    }
+
+    .hero-text-wrap {
+      flex: 1;
+    }
+
+    .hero-badge-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11.5px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #34d399;
+      margin-bottom: 8px;
+    }
+
+    .bento-hero.dormant .hero-badge-pill {
+      color: var(--text-tri);
+    }
+
+    .hero-headline {
+      font-size: 22px;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      margin-bottom: 6px;
+      background: linear-gradient(180deg, #ffffff 30%, #cbd5e1 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .hero-subtext {
+      font-size: 13.5px;
+      color: var(--text-sec);
+      line-height: 1.5;
+      max-width: 680px;
+    }
+
+    /* 卡片内部标题条 */
+    .bento-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+
+    .bento-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.2);
+    }
+
+    .bento-title {
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+    }
+
+    /* Bento 内部功能行 */
+    .bento-item-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 0;
+      border-bottom: 1px solid var(--glass-border-subtle);
+    }
+
+    .bento-item-row:last-child {
+      border-bottom: none;
+      padding-bottom: 0;
+    }
+
+    .bento-item-row:first-of-type {
+      padding-top: 0;
+    }
+
+    .bento-item-info {
+      padding-right: 18px;
+      flex: 1;
+    }
+
+    .bento-item-name {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-pri);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .bento-item-desc {
+      font-size: 12.5px;
+      color: var(--text-sec);
+      margin-top: 3px;
+      line-height: 1.45;
+    }
+
+    /* 子开关联动折叠抽屉 */
+    .bento-sub-tile {
+      margin: 8px 0 12px;
+      padding: 12px 16px;
+      background: rgba(14, 17, 27, 0.5);
+      border-radius: var(--radius-sm);
+      border-left: 3px solid #818cf8;
+      transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    .bento-sub-tile.collapsed {
+      opacity: 0.3;
+      filter: grayscale(1);
+      pointer-events: none;
+    }
+
+    /* VisionOS 物理弹簧阻尼开关 (Vision Switch) */
+    .vision-switch {
+      position: relative;
+      display: inline-block;
+      width: 48px;
+      height: 28px;
+      flex-shrink: 0;
+    }
+
+    .vision-switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .vision-slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background-color: rgba(255, 255, 255, 0.14);
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      transition: 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+      border-radius: 100px;
+    }
+
+    .vision-slider::before {
+      position: absolute;
+      content: "";
+      height: 22px;
+      width: 22px;
+      left: 2px;
+      bottom: 2px;
+      background-color: #ffffff;
+      border-radius: 50%;
+      box-shadow: 0 3px 8px rgba(0, 0, 0, 0.4);
+      transition: 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    input:checked + .vision-slider {
+      background: var(--accent-aurora);
+      border-color: rgba(255, 255, 255, 0.3);
+      box-shadow: 0 0 16px rgba(168, 85, 247, 0.45);
+    }
+
+    input:checked + .vision-slider::before {
+      transform: translateX(20px);
+    }
+
+    /* Hero 大开关尺寸 */
+    .hero-vision-switch {
+      width: 58px;
+      height: 32px;
+    }
+
+    .hero-vision-switch .vision-slider::before {
+      height: 26px;
+      width: 26px;
+      left: 2px;
+      bottom: 2px;
+    }
+
+    .hero-vision-switch input:checked + .vision-slider::before {
+      transform: translateX(26px);
+    }
+
+    /* 功能区域休眠联动 */
+    .features-bento-zone {
+      display: contents;
+      transition: all 0.4s ease;
+    }
+
+    .bento-dormant-mask {
+      display: none;
+      grid-column: span 12;
+      background: rgba(244, 63, 94, 0.15);
+      border: 1px solid rgba(244, 63, 94, 0.35);
+      border-radius: var(--radius-bento);
+      padding: 14px 20px;
+      text-align: center;
+      font-size: 13.5px;
+      font-weight: 600;
+      color: #fda4af;
+      margin-bottom: 4px;
+    }
+
+    .master-dormant-active .bento-dormant-mask {
+      display: block;
+    }
+
+    .master-dormant-active .bento-feature-card {
+      opacity: 0.35;
+      filter: grayscale(0.8);
+      pointer-events: none;
+      user-select: none;
+    }
+
+    /* macOS 悬浮 Dock 操作底栏 */
+    .vision-dock {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: calc(100% - 40px);
+      max-width: 640px;
+      background: rgba(24, 28, 43, 0.72);
+      backdrop-filter: blur(36px);
+      -webkit-backdrop-filter: blur(36px);
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      border-radius: 100px;
+      padding: 10px 18px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6), inset 0 1px 1px var(--glass-specular);
+      z-index: 99;
+    }
+
+    .dock-tips {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      color: var(--text-sec);
+    }
+
+    .dock-btn-wrap {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .btn-dock-item {
+      font-family: inherit;
+      border: none;
+      border-radius: 100px;
+      padding: 8px 20px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.22s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .btn-dock-reset {
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--text-pri);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .btn-dock-reset:hover {
+      background: rgba(255, 255, 255, 0.15);
+    }
+
+    .btn-dock-save {
+      background: var(--accent-aurora);
+      color: #ffffff;
+      box-shadow: 0 4px 20px rgba(168, 85, 247, 0.4);
+    }
+
+    .btn-dock-save:hover {
+      box-shadow: 0 6px 24px rgba(168, 85, 247, 0.6);
+      transform: translateY(-1px);
+    }
+
+    .btn-dock-save:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    /* VisionOS Toast 提示泡 */
+    .vision-toast {
+      position: fixed;
+      top: 30px;
+      left: 50%;
+      transform: translateX(-50%) translateY(-30px);
+      background: rgba(26, 31, 48, 0.85);
+      border: 1px solid rgba(16, 185, 129, 0.4);
+      color: #34d399;
+      padding: 10px 24px;
+      border-radius: 100px;
+      font-size: 13.5px;
+      font-weight: 500;
+      box-shadow: 0 16px 36px rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      opacity: 0;
+      pointer-events: none;
+      transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .vision-toast.visible {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- 极光背景画布 -->
+  <div class="aurora-background">
+    <div class="aurora-blob blob-1"></div>
+    <div class="aurora-blob blob-2"></div>
+    <div class="aurora-blob blob-3"></div>
+  </div>
+
+  <!-- 提示气泡 -->
+  <div class="vision-toast" id="toastMsg">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6L9 17l-5-5"/></svg>
+    <span id="toastText">配置已成功保存并即时热重载</span>
+  </div>
+
+  <div class="vision-container">
+
+    <!-- 顶部导航岛 -->
+    <nav class="vision-nav">
+      <div class="nav-brand">
+        <div class="nav-logo-capsule">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3">
+            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+          </svg>
+        </div>
+        <span class="nav-title">Antigravity 增强器</span>
+        <span class="nav-tag">Vision Bento 3.7</span>
+      </div>
+
+      <div class="conn-pill" id="connCapsule">
+        <span class="conn-indicator"></span>
+        <span id="connLabel">连接守护服务中...</span>
+      </div>
+    </nav>
+
+    <!-- 离线提示横幅 -->
+    <div class="aurora-alert-box" id="offlineBanner">
+      <div class="alert-lead">
+        <span class="alert-emoji">✨</span>
+        <div class="alert-text">
+          <h4>欢迎开启 Antigravity 增强中心</h4>
+          <p>受浏览器安全沙箱限制，请先双击运行 <strong>install.bat</strong> 启动后台守护服务，即可点亮所有设置。</p>
+        </div>
+      </div>
+      <button class="alert-btn" id="retryConnBtn" type="button">检查连接</button>
+    </div>
+
+    <!-- Bento 响应式网格 -->
+    <div class="bento-grid" id="featuresBentoContainer">
+
+      <!-- Bento 1: 全局总开关 (Master Hero Bento) -->
+      <div class="bento-card col-span-12 bento-hero" id="heroMasterCard">
+        <div class="hero-text-wrap">
+          <div class="hero-badge-pill">
+            <span id="heroMasterStatusTag">● 运行状态活跃</span>
+          </div>
+          <h2 class="hero-headline">增强器全局总开关</h2>
+          <p class="hero-subtext" id="heroMasterDesc">
+            开启时全面激活各项注入组件；关闭时彻底休眠，客户端不挂载任何拦截事件，100% 恢复官方原生纯净体验。
+          </p>
+        </div>
+        <label class="vision-switch hero-vision-switch">
+          <input type="checkbox" id="ENABLE_MASTER">
+          <span class="vision-slider"></span>
+        </label>
+      </div>
+
+      <!-- Bento 2: Windows 开机自启服务 -->
+      <div class="bento-card col-span-5 bento-feature-card">
+        <div class="bento-header">
+          <div class="bento-icon" style="color: #38bdf8;">💻</div>
+          <span class="bento-title">系统与自启服务</span>
+        </div>
+
+        <div class="bento-item-row">
+          <div class="bento-item-info">
+            <div class="bento-item-name">Windows 开机静默自启动</div>
+            <div class="bento-item-desc">根据系统 Startup 目录自动增删静默快捷方式，开机即随驻后台。</div>
+          </div>
+          <label class="vision-switch">
+            <input type="checkbox" id="ENABLE_AUTOSTART">
+            <span class="vision-slider"></span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Bento 3: 右键增强与划词拦截 -->
+      <div class="bento-card col-span-7 bento-feature-card">
+        <div class="bento-header">
+          <div class="bento-icon" style="color: #a78bfa;">🎯</div>
+          <span class="bento-title">全局右键与交互增强</span>
+        </div>
+
+        <div class="bento-item-row">
+          <div class="bento-item-info">
+            <div class="bento-item-name">全局右键功能接管</div>
+            <div class="bento-item-desc">统一接管侧栏会话与项目、消息与代码块复制。关闭后彻底不拦截原生右键。</div>
+          </div>
+          <label class="vision-switch">
+            <input type="checkbox" id="ENABLE_CONTEXT_MENU">
+            <span class="vision-slider"></span>
+          </label>
+        </div>
+
+        <!-- 依附右键的划词子项 -->
+        <div class="bento-sub-tile" id="quotePopupSubPanel">
+          <div class="bento-item-row">
+            <div class="bento-item-info">
+              <div class="bento-item-name" style="font-size: 13px;">屏蔽划词选中文本时的 Quote 浮窗</div>
+              <div class="bento-item-desc" style="font-size: 11.5px;">选中文本时不再弹出官方 Quote (Ctrl+L) 气泡，杜绝卡顿。</div>
+            </div>
+            <label class="vision-switch">
+              <input type="checkbox" id="ENABLE_BLOCK_QUOTE_POPUP">
+              <span class="vision-slider"></span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <!-- Bento 4: 视觉与常驻微工具 -->
+      <div class="bento-card col-span-6 bento-feature-card">
+        <div class="bento-header">
+          <div class="bento-icon" style="color: #34d399;">🎨</div>
+          <span class="bento-title">视觉指示与长文导航</span>
+        </div>
+
+        <div class="bento-item-row">
+          <div class="bento-item-info">
+            <div class="bento-item-name">右上角常驻运行指示小点</div>
+            <div class="bento-item-desc">在客户端右上角提供极简绿色呼吸指示点与状态展示。</div>
+          </div>
+          <label class="vision-switch">
+            <input type="checkbox" id="ENABLE_STATUS_INDICATOR">
+            <span class="vision-slider"></span>
+          </label>
+        </div>
+
+        <div class="bento-item-row">
+          <div class="bento-item-info">
+            <div class="bento-item-name">右下角常驻智能翻页双按钮</div>
+            <div class="bento-item-desc">长对话向上（↑）/向下（↓）智能滑动，双击直达最新消息。</div>
+          </div>
+          <label class="vision-switch">
+            <input type="checkbox" id="ENABLE_NAV_BUTTONS">
+            <span class="vision-slider"></span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Bento 5: 项目抽屉与记忆追踪 -->
+      <div class="bento-card col-span-6 bento-feature-card">
+        <div class="bento-header">
+          <div class="bento-icon" style="color: #fbbf24;">🧠</div>
+          <span class="bento-title">项目抽屉与阅读记忆</span>
+        </div>
+
+        <div class="bento-item-row">
+          <div class="bento-item-info">
+            <div class="bento-item-name">左侧项目折叠与归档抽屉</div>
+            <div class="bento-item-desc">鼠标悬停一键隐藏暂缓项目，侧栏旁边配备专用收纳抽屉。</div>
+          </div>
+          <label class="vision-switch">
+            <input type="checkbox" id="ENABLE_PROJECT_ARCHIVER">
+            <span class="vision-slider"></span>
+          </label>
+        </div>
+
+        <div class="bento-item-row">
+          <div class="bento-item-info">
+            <div class="bento-item-name">多会话阅读进度记忆与自动回滚</div>
+            <div class="bento-item-desc">切换会话时精确还原本次离开位置，停用可释放滚动监听。</div>
+          </div>
+          <label class="vision-switch">
+            <input type="checkbox" id="ENABLE_SCROLL_PERSISTENCE">
+            <span class="vision-slider"></span>
+          </label>
+        </div>
+
+        <div class="bento-item-row">
+          <div class="bento-item-info">
+            <div class="bento-item-name">智能未读/已读状态追踪</div>
+            <div class="bento-item-desc">长文阅读触底判定与侧栏圆点提示，关闭彻底停止后台定时器。</div>
+          </div>
+          <label class="vision-switch">
+            <input type="checkbox" id="ENABLE_SMART_UNREAD">
+            <span class="vision-slider"></span>
+          </label>
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+
+  <!-- macOS 悬浮 Dock 栏 -->
+  <div class="vision-dock">
+    <div class="dock-tips">
+      <span>✨</span>
+      <span id="dockHint">点击应用即可全量热重载生效</span>
+    </div>
+    <div class="dock-btn-wrap">
+      <button class="btn-dock-item btn-dock-reset" id="resetBtn" type="button">恢复默认</button>
+      <button class="btn-dock-item btn-dock-save" id="saveBtn" type="button">保存修改</button>
+    </div>
+  </div>
+
+  <script>
+    const API_BASE = (location.protocol === 'http:' || location.protocol === 'https:') 
+      ? '' 
+      : 'http://127.0.0.1:37210';
+
+    const SWITCH_KEYS = [
+      'ENABLE_MASTER',
+      'ENABLE_AUTOSTART',
+      'ENABLE_CONTEXT_MENU',
+      'ENABLE_BLOCK_QUOTE_POPUP',
+      'ENABLE_STATUS_INDICATOR',
+      'ENABLE_NAV_BUTTONS',
+      'ENABLE_PROJECT_ARCHIVER',
+      'ENABLE_SCROLL_PERSISTENCE',
+      'ENABLE_SMART_UNREAD'
+    ];
+
+    const DEFAULTS = {
+      ENABLE_MASTER: true,
+      ENABLE_AUTOSTART: true,
+      ENABLE_CONTEXT_MENU: true,
+      ENABLE_BLOCK_QUOTE_POPUP: true,
+      ENABLE_STATUS_INDICATOR: true,
+      ENABLE_NAV_BUTTONS: true,
+      ENABLE_PROJECT_ARCHIVER: true,
+      ENABLE_SCROLL_PERSISTENCE: true,
+      ENABLE_SMART_UNREAD: true
+    };
+
+    let isDirty = false;
+
+    function toast(text) {
+      const el = document.getElementById('toastMsg');
+      document.getElementById('toastText').textContent = text;
+      el.classList.add('visible');
+      setTimeout(() => el.classList.remove('visible'), 2800);
+    }
+
+    function markDirty() {
+      isDirty = true;
+      document.getElementById('dockHint').innerHTML = '<span style="color: #f59e0b;">● 存在未保存的修改</span>';
+    }
+
+    function updateHierarchyVisuals() {
+      const masterCheck = document.getElementById('ENABLE_MASTER').checked;
+      const heroCard = document.getElementById('heroMasterCard');
+      const heroStatusTag = document.getElementById('heroMasterStatusTag');
+      const heroDesc = document.getElementById('heroMasterDesc');
+      const bentoContainer = document.getElementById('featuresBentoContainer');
+
+      if (masterCheck) {
+        heroCard.classList.remove('dormant');
+        heroStatusTag.textContent = '● 运行状态活跃';
+        heroDesc.textContent = '各项增强注入已全面激活，根据各卡片参数即时协同。';
+        bentoContainer.classList.remove('master-dormant-active');
+      } else {
+        heroCard.classList.add('dormant');
+        heroStatusTag.textContent = '○ 全局总开关已关闭';
+        heroDesc.textContent = '总闸已关闭。客户端内不挂载任何事件，100% 官方原生纯净运行。';
+        bentoContainer.classList.add('master-dormant-active');
+      }
+
+      // 右键联动屏蔽划词
+      const ctxMenuCheck = document.getElementById('ENABLE_CONTEXT_MENU').checked;
+      const quoteSubPanel = document.getElementById('quotePopupSubPanel');
+      const blockQuoteCheck = document.getElementById('ENABLE_BLOCK_QUOTE_POPUP');
+      if (ctxMenuCheck && masterCheck) {
+        quoteSubPanel.classList.remove('collapsed');
+        blockQuoteCheck.disabled = false;
+      } else {
+        quoteSubPanel.classList.add('collapsed');
+        blockQuoteCheck.disabled = true;
+      }
+    }
+
+    SWITCH_KEYS.forEach(key => {
+      const el = document.getElementById(key);
+      if (el) {
+        el.addEventListener('change', () => {
+          markDirty();
+          updateHierarchyVisuals();
+        });
+      }
+    });
+
+    let offlineProbeTimer = null;
+
+    function stopOfflineProbe() {
+      if (offlineProbeTimer) {
+        clearInterval(offlineProbeTimer);
+        offlineProbeTimer = null;
+      }
+    }
+
+    function startOfflineProbe() {
+      if (offlineProbeTimer) return;
+      offlineProbeTimer = setInterval(async () => {
+        try {
+          const res = await fetch(`${API_BASE}/api/config?t=${Date.now()}`, { cache: 'no-store' });
+          if (res.ok) {
+            const data = await res.json();
+            if (data.success && data.config) {
+              stopOfflineProbe();
+              applyLiveConfig(data.config);
+              toast('✨ 服务已连接，配置已自动同步');
+            }
+          }
+        } catch (e) {}
+      }, 1800);
+    }
+
+    function applyLiveConfig(liveCfg) {
+      const capsule = document.getElementById('connCapsule');
+      const label = document.getElementById('connLabel');
+      const banner = document.getElementById('offlineBanner');
+
+      capsule.classList.remove('disconnected');
+      banner.classList.remove('active');
+      label.textContent = '守护服务活跃 (实时)';
+
+      SWITCH_KEYS.forEach(key => {
+        const el = document.getElementById(key);
+        if (el && typeof liveCfg[key] === 'boolean') {
+          el.checked = liveCfg[key];
+        }
+      });
+
+      if (!document.getElementById('ENABLE_CONTEXT_MENU').checked) {
+        document.getElementById('ENABLE_BLOCK_QUOTE_POPUP').checked = false;
+      }
+
+      isDirty = false;
+      updateHierarchyVisuals();
+      document.getElementById('dockHint').textContent = '已拉取本地实际最新配置';
+    }
+
+    async function fetchLiveConfig() {
+      const capsule = document.getElementById('connCapsule');
+      const label = document.getElementById('connLabel');
+      const banner = document.getElementById('offlineBanner');
+
+      try {
+        const res = await fetch(`${API_BASE}/api/config?t=${Date.now()}`, { cache: 'no-store' });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const data = await res.json();
+
+        if (data.success && data.config) {
+          stopOfflineProbe();
+          applyLiveConfig(data.config);
+        }
+      } catch (err) {
+        capsule.classList.add('disconnected');
+        label.textContent = '守护服务未启动 (请运行 install.bat)';
+        banner.classList.add('active');
+        document.getElementById('dockHint').textContent = '⚠️ 等待后台服务就绪';
+        startOfflineProbe();
+      }
+    }
+
+    document.getElementById('ENABLE_CONTEXT_MENU').addEventListener('change', (e) => {
+      if (e.target.checked) {
+        document.getElementById('ENABLE_BLOCK_QUOTE_POPUP').checked = true;
+      } else {
+        document.getElementById('ENABLE_BLOCK_QUOTE_POPUP').checked = false;
+      }
+    });
+
+    async function handleSave() {
+      const saveBtn = document.getElementById('saveBtn');
+      saveBtn.disabled = true;
+
+      const payload = {};
+      SWITCH_KEYS.forEach(k => {
+        const el = document.getElementById(k);
+        if (el) payload[k] = el.checked;
+      });
+
+      if (!payload.ENABLE_CONTEXT_MENU) {
+        payload.ENABLE_BLOCK_QUOTE_POPUP = false;
+      }
+
+      try {
+        const res = await fetch(`${API_BASE}/api/config`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (data.success) {
+          isDirty = false;
+          toast('✅ 配置已安全保存并完成热重载！');
+          document.getElementById('dockHint').textContent = '已保存于 ' + new Date().toLocaleTimeString();
+        } else {
+          alert('保存失败: ' + (data.error || '未知错误'));
+        }
+      } catch (e) {
+        alert('无法保存：后台守护服务未响应，请先运行 install.bat 启动服务。');
+      } finally {
+        saveBtn.disabled = false;
+      }
+    }
+
+    function handleReset() {
+      if (!confirm('确定将所有设置恢复为默认推荐参数吗？')) return;
+      SWITCH_KEYS.forEach(k => {
+        const el = document.getElementById(k);
+        if (el && typeof DEFAULTS[k] === 'boolean') {
+          el.checked = DEFAULTS[k];
+        }
+      });
+      markDirty();
+      updateHierarchyVisuals();
+      toast('已恢复为默认推荐值（点击保存生效）');
+    }
+
+    document.getElementById('saveBtn').addEventListener('click', handleSave);
+    document.getElementById('resetBtn').addEventListener('click', handleReset);
+    document.getElementById('retryConnBtn').addEventListener('click', fetchLiveConfig);
+
+    fetchLiveConfig();
+  </script>
+</body>
+</html>
