@@ -880,10 +880,6 @@
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
         保存设置
       </button>
-      <button class="btn-action btn-reset" id="saveExitBtn" type="button" title="保存当前配置并立即停止后台服务进程，释放全部资源">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"></path><line x1="12" y1="2" x2="12" y2="12"></line></svg>
-        保存并退出
-      </button>
     </div>
   </div>
 
@@ -1061,11 +1057,10 @@
     }
 
     // 保存配置
-    async function handleSave(andExit = false) {
+    // 保存配置
+    async function handleSave() {
       const saveBtn = document.getElementById('saveBtn');
-      const saveExitBtn = document.getElementById('saveExitBtn');
       saveBtn.disabled = true;
-      saveExitBtn.disabled = true;
 
       const payload = {};
       SWITCH_KEYS.forEach(k => {
@@ -1082,18 +1077,8 @@
         const data = await res.json();
         if (data.success) {
           isDirty = false;
-          if (andExit) {
-            toast('✅ 配置已保存！正在安全关闭设置服务...');
-            document.getElementById('dockHint').textContent = '设置服务已关闭，已释放全部资源';
-            await fetch(`${API_BASE}/api/exit`, { method: 'POST' }).catch(() => {});
-            setTimeout(() => {
-              document.getElementById('connCapsule').classList.add('disconnected');
-              document.getElementById('connLabel').textContent = '服务已安全退出 (0 资源占用)';
-            }, 600);
-          } else {
-            toast('✅ 配置已成功保存！');
-            document.getElementById('dockHint').textContent = '最近保存于 ' + new Date().toLocaleTimeString();
-          }
+          toast('✅ 配置已保存并即时生效！您可以直接关闭本页面');
+          document.getElementById('dockHint').textContent = '最近保存于 ' + new Date().toLocaleTimeString();
         } else {
           alert('保存失败: ' + (data.error || '未知错误'));
         }
@@ -1101,7 +1086,6 @@
         alert('无法保存：后台服务未响应，请先运行 install.bat 启动服务。');
       } finally {
         saveBtn.disabled = false;
-        saveExitBtn.disabled = false;
       }
     }
 
@@ -1119,10 +1103,18 @@
       toast('已重置为推荐默认值（点击保存生效）');
     }
 
-    document.getElementById('saveBtn').addEventListener('click', () => handleSave(false));
-    document.getElementById('saveExitBtn').addEventListener('click', () => handleSave(true));
+    document.getElementById('saveBtn').addEventListener('click', handleSave);
     document.getElementById('resetBtn').addEventListener('click', handleReset);
     document.getElementById('retryConnBtn').addEventListener('click', fetchLiveConfig);
+
+    // 当用户关闭或离开网页时，静默通知后台设置微服务退出，自动释放 37210 端口
+    window.addEventListener('pagehide', () => {
+      try {
+        if (navigator.sendBeacon) {
+          navigator.sendBeacon(`${API_BASE}/api/exit`);
+        }
+      } catch (e) {}
+    });
 
     // 页面初次加载时读取一次实际配置，彻底没有任何后台定时器循环执行！
     fetchLiveConfig();
