@@ -11,8 +11,6 @@
 // @run-at       document-idle
 // ==/UserScript==
 
-window.__AGY_BRANCH_TAG__ = " (branch)";
-window.__AGY_BRANCH_NAME__ = "local_web_settings_dashboard";
 /**
  * Antigravity 增强器 (agy-enhancer enhancer)
  * 
