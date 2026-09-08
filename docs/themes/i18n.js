@@ -55,6 +55,7 @@ const I18N_DICT = {
     'sw_nav_buttons_desc': 'Smart scroll up (↑) and down (↓) in long chats. Double-click jumps to newest message.',
     'sw_project_archiver_title': 'Left Sidebar Project Archiving Drawer',
     'sw_project_archiver_desc': 'Hover to collapse postponed projects and provides a dedicated archive drawer next to Projects.',
+    'sw_project_archiver_warn': '⚠️ Note: Disabling will not restore archived projects (kept hidden). Re-enable to retrieve.',
 
     // Section 3: Memory & State Tracking
     'sec_memory_title': 'Reading Progress & State Tracking',
@@ -136,6 +137,7 @@ const I18N_DICT = {
     'sw_nav_buttons_desc': '向上（↑）/向下（↓）智能翻阅长对话，双击直达全页最新消息。',
     'sw_project_archiver_title': '左侧项目折叠与归档抽屉',
     'sw_project_archiver_desc': '鼠标悬停一键隐藏暂缓项目，并在侧栏 Projects 旁提供专属收纳抽屉。',
+    'sw_project_archiver_warn': '⚠️ 注意：关闭不会还原已归档项目（仍保持隐藏），重新开启即可找回。',
 
     'sec_memory_title': '阅读进度记忆与状态追踪',
     'sec_memory_tag': '性能关键',
@@ -213,6 +215,7 @@ const I18N_DICT = {
     'sw_nav_buttons_desc': '向上（↑）/向下（↓）智慧捲動長篇對話，按兩下直達最新訊息。',
     'sw_project_archiver_title': '左側專案摺疊與封存抽屜',
     'sw_project_archiver_desc': '滑鼠懸停一鍵隱藏暫緩專案，並於側邊欄 Projects 旁提供專屬收納抽屜。',
+    'sw_project_archiver_warn': '⚠️ 注意：關閉不會還原已歸檔專案（仍保持隱藏），重新開啟即可找回。',
 
     'sec_memory_title': '閱讀進度記憶與狀態追蹤',
     'sec_memory_tag': '效能關鍵',

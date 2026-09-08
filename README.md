@@ -1,4 +1,4 @@
-﻿# Antigravity Dialogue & Navigation Enhancer (`agy-enhancer`)
+# Antigravity Dialogue & Navigation Enhancer (`agy-enhancer`)
 
 [English](README.md) | [简体中文](docs/README.zh-CN.md) | [繁體中文](docs/README.zh-TW.md)
 
@@ -125,6 +125,9 @@ No cluttered or cumbersome configuration modal inside the Antigravity UI.
   2. **View & Restore**: Click the **`Archive`** button in the `Projects` header (with badge count) to open the archived drawer, then click **`Restore`** or use the context menu to bring it back;
   3. **Auto Unarchive on Activity**: Starting a new prompt or sending messages in an archived project automatically unarchives it back to the active list;
   4. **Native Theme Adaptive**: Perfectly matched with Antigravity's native Tailwind & CSS variables in both dark and light modes.
+
+> [!WARNING]
+> ⚠️ **Note**: Disabling will not restore archived projects (kept hidden). Re-enable to retrieve.
 
 > 📷 **Demo Screenshot / Video**:
 >
