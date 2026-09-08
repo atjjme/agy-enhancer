@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Antigravity 增强器 - 设置中心</title>
+  <style>
+    :root {
+      --bg: #121214;
+      --card-bg: #1a1a1e;
+      --card-border: #27272a;
+      --text: #f4f4f5;
+      --text-muted: #a1a1aa;
+      --primary: #10b981;
+      --primary-hover: #059669;
+      --primary-glow: rgba(16, 185, 129, 0.25);
+      --danger: #ef4444;
+      --toggle-off: #3f3f46;
+      --radius: 12px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      line-height: 1.5;
+      padding: 32px 20px 80px;
+      display: flex;
+      justify-content: center;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 680px;
+    }
+
+    /* 头部 */
+    .header {
+      margin-bottom: 24px;
+    }
+
+    .header-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 8px;
+    }
+
+    .header h1 {
+      font-size: 22px;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+    }
+
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 9999px;
+      font-size: 12px;
+      font-weight: 500;
+      background: rgba(16, 185, 129, 0.12);
+      color: var(--primary);
+      border: 1px solid rgba(16, 185, 129, 0.25);
+    }
+
+    .status-badge.disconnected {
+      background: rgba(239, 68, 68, 0.12);
+      color: var(--danger);
+      border-color: rgba(239, 68, 68, 0.25);
+    }
+
+    .status-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: currentColor;
+    }
+
+    .header-desc {
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+
+    /* 卡片组 */
+    .section {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: var(--radius);
+      padding: 16px 20px;
+      margin-bottom: 18px;
+    }
+
+    .section-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    /* 单个开关行 */
+    .item-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .item-row:last-child {
+      border-bottom: none;
+      padding-bottom: 4px;
+    }
+
+    .item-row:first-of-type {
+      padding-top: 4px;
+    }
+
+    .item-info {
+      padding-right: 16px;
+      flex: 1;
+    }
+
+    .item-label {
+      font-size: 15px;
+      font-weight: 500;
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .item-desc {
+      font-size: 12.5px;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    /* 子开关缩进组 */
+    .sub-items {
+      margin-left: 20px;
+      padding-left: 12px;
+      border-left: 2px solid rgba(255, 255, 255, 0.08);
+      transition: opacity 0.2s, max-height 0.2s;
+    }
+
+    .sub-items.disabled {
+      opacity: 0.35;
+      pointer-events: none;
+    }
+
+    .sub-item-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 0;
+    }
+
+    .sub-item-label {
+      font-size: 13.5px;
+      color: #e4e4e7;
+    }
+
+    /* 开关控件 (Switch) */
+    .switch {
+      position: relative;
+      display: inline-block;
+      width: 44px;
+      height: 24px;
+      flex-shrink: 0;
+    }
+
+    .switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: var(--toggle-off);
+      transition: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      border-radius: 24px;
+    }
+
+    .slider:before {
+      position: absolute;
+      content: "";
+      height: 18px;
+      width: 18px;
+      left: 3px;
+      bottom: 3px;
+      background-color: #ffffff;
+      transition: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      border-radius: 50%;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+    }
+
+    input:checked + .slider {
+      background-color: var(--primary);
+    }
+
+    input:checked + .slider:before {
+      transform: translateX(20px);
+    }
+
+    /* 子复选框样式 */
+    .checkbox-switch {
+      width: 36px;
+      height: 20px;
+    }
+
+    .checkbox-switch .slider:before {
+      height: 14px;
+      width: 14px;
+      left: 3px;
+      bottom: 3px;
+    }
+
+    .checkbox-switch input:checked + .slider:before {
+      transform: translateX(16px);
+    }
+
+    /* 底部固定操作栏 */
+    .footer-bar {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: rgba(18, 18, 20, 0.88);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-top: 1px solid var(--card-border);
+      padding: 12px 20px;
+      display: flex;
+      justify-content: center;
+      z-index: 99;
+    }
+
+    .footer-inner {
+      width: 100%;
+      max-width: 680px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .btn-group {
+      display: flex;
+      gap: 10px;
+    }
+
+    button {
+      font-family: inherit;
+      border: none;
+      border-radius: 8px;
+      padding: 8px 18px;
+      font-size: 13.5px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-primary {
+      background: var(--primary);
+      color: #052e16;
+      font-weight: 600;
+    }
+
+    .btn-primary:hover {
+      background: var(--primary-hover);
+      color: #fff;
+      box-shadow: 0 0 12px var(--primary-glow);
+    }
+
+    .btn-secondary {
+      background: #27272a;
+      color: #d4d4d8;
+    }
+
+    .btn-secondary:hover {
+      background: #3f3f46;
+      color: #fff;
+    }
+
+    /* 保存成功提示 Toast */
+    .toast {
+      position: fixed;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%) translateY(-20px);
+      background: #18181b;
+      color: #10b981;
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      padding: 10px 18px;
+      border-radius: 9999px;
+      font-size: 13px;
+      font-weight: 500;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+      opacity: 0;
+      pointer-events: none;
+      transition: all 0.25s ease-out;
+      z-index: 999;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+  </style>
+</head>
+<body>
+
+  <div class="toast" id="toast">✅ 配置已成功保存并即时生效</div>
+
+  <div class="container">
+    <!-- 头部 -->
+    <div class="header">
+      <div class="header-top">
+        <h1>Antigravity 增强器设置</h1>
+        <div class="status-badge" id="statusBadge">
+          <span class="status-dot"></span>
+          <span id="statusText">正在连接...</span>
+        </div>
+      </div>
+      <p class="header-desc">设置将自动保存到本地，无需重启 Antigravity 客户端即可秒级热重载生效。</p>
+    </div>
+
+    <!-- 1. 系统与全局总控 -->
+    <div class="section">
+      <div class="section-title">⚙️ 系统与总控</div>
+      
+      <div class="item-row">
+        <div class="item-info">
+          <div class="item-label">增强器全局总开关</div>
+          <div class="item-desc">一键激活或彻底休眠增强器。关闭后客户端不注入任何组件，彻底恢复官方原生状态。</div>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="ENABLE_MASTER" checked>
+          <span class="slider"></span>
+        </label>
+      </div>
+
+      <div class="item-row">
+        <div class="item-info">
+          <div class="item-label">Windows 开机自启动</div>
+          <div class="item-desc">随 Windows 开机静默后台启动守护服务（自动维护 Startup 启动快捷方式）。</div>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="ENABLE_AUTOSTART" checked>
+          <span class="slider"></span>
+        </label>
+      </div>
+
+      <div class="item-row">
+        <div class="item-info">
+          <div class="item-label">右上角绿色状态指示点</div>
+          <div class="item-desc">在 Antigravity 客户端右上角显示运行指示绿点与就绪提示气泡。</div>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="ENABLE_STATUS_INDICATOR" checked>
+          <span class="slider"></span>
+        </label>
+      </div>
+    </div>
+
+    <!-- 2. 全局右键功能增强 -->
+    <div class="section">
+      <div class="section-title">🖱️ 全局右键功能增强</div>
+
+      <div class="item-row">
+        <div class="item-info">
+          <div class="item-label">启用右键功能增强（大开关）</div>
+          <div class="item-desc">关闭后彻底停用所有右键劫持与菜单探测，100% 恢复系统与客户端默认右键。</div>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="ENABLE_CONTEXT_MENU" checked>
+          <span class="slider"></span>
+        </label>
+      </div>
+
+      <!-- 右键子选项 -->
+      <div class="sub-items" id="subContextMenu">
+        <div class="sub-item-row">
+          <div class="sub-item-label">侧边栏会话与项目右键菜单（快速重命名、删除、归档）</div>
+          <label class="switch checkbox-switch">
+            <input type="checkbox" id="ENABLE_CONTEXT_MENU_SIDEBAR" checked>
+            <span class="slider"></span>
+          </label>
+        </div>
+        <div class="sub-item-row">
+          <div class="sub-item-label">对话消息与代码块右键（复制 Markdown 原文、纯文本、代码）</div>
+          <label class="switch checkbox-switch">
+            <input type="checkbox" id="ENABLE_CONTEXT_MENU_MESSAGES" checked>
+            <span class="slider"></span>
+          </label>
+        </div>
+        <div class="sub-item-row">
+          <div class="sub-item-label">媒体图片与生成物右键（复制图片到剪贴板、在资源管理器中定位）</div>
+          <label class="switch checkbox-switch">
+            <input type="checkbox" id="ENABLE_CONTEXT_MENU_MEDIA" checked>
+            <span class="slider"></span>
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3. 界面视觉与辅助工具 -->
+    <div class="section">
+      <div class="section-title">📄 界面视觉与辅助工具</div>
+
+      <div class="item-row">
+        <div class="item-info">
+          <div class="item-label">右下角智能翻页双按钮</div>
+          <div class="item-desc">右下角常驻向上（↑）/向下（↓）智能定位与双击直达底部翻页按钮。</div>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="ENABLE_NAV_BUTTONS" checked>
+          <span class="slider"></span>
+        </label>
+      </div>
+
+      <div class="sub-items" id="subNavButtons">
+        <div class="sub-item-row">
+          <div class="sub-item-label">保留官方原生的居中向下滚动按钮（默认由双按钮接管）</div>
+          <label class="switch checkbox-switch">
+            <input type="checkbox" id="ENABLE_CENTER_BOTTOM_BUTTON">
+            <span class="slider"></span>
+          </label>
+        </div>
+      </div>
+
+      <div class="item-row">
+        <div class="item-info">
+          <div class="item-label">左侧项目折叠与归档抽屉</div>
+          <div class="item-desc">鼠标悬停一键归档项目，并在侧栏 Projects 标题旁提供 Archive 折叠抽屉。</div>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="ENABLE_PROJECT_ARCHIVER" checked>
+          <span class="slider"></span>
+        </label>
+      </div>
+
+      <div class="item-row">
+        <div class="item-info">
+          <div class="item-label">屏蔽划词 Quote 引用浮窗</div>
+          <div class="item-desc">选中文本时屏蔽官方弹出的 Quote (Ctrl+L) 气泡，避免干扰阅读与操作。</div>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="ENABLE_BLOCK_QUOTE_POPUP" checked>
+          <span class="slider"></span>
+        </label>
+      </div>
+    </div>
+
+    <!-- 4. 记忆与状态追踪 -->
+    <div class="section">
+      <div class="section-title">🧠 记忆与状态追踪（性能关联）</div>
+
+      <div class="item-row">
+        <div class="item-info">
+          <div class="item-label">多会话阅读进度记忆</div>
+          <div class="item-desc">在不同会话间切换时，自动精确恢复到每个会话上次离开时的滚动浏览位置。</div>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="ENABLE_SCROLL_PERSISTENCE" checked>
+          <span class="slider"></span>
+        </label>
+      </div>
+
+      <div class="item-row">
+        <div class="item-info">
+          <div class="item-label">智能未读/已读状态追踪</div>
+          <div class="item-desc">真实触底阅读检测与侧栏提示点。关闭后停止后台未读轮询，有助于大幅提升极低配置环境流畅度。</div>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="ENABLE_SMART_UNREAD" checked>
+          <span class="slider"></span>
+        </label>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- 底部固定操作栏 -->
+  <div class="footer-bar">
+    <div class="footer-inner">
+      <div style="font-size: 12.5px; color: var(--text-muted);" id="tipMsg">修改后点击保存即可立即生效</div>
+      <div class="btn-group">
+        <button class="btn-secondary" id="resetBtn" type="button">重置为默认</button>
+        <button class="btn-primary" id="saveBtn" type="button">保存并应用设置</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // 确定 API 基础地址（支持直接双击 HTML 打开 file:// 时，自动回退到 127.0.0.1:37210）
+    const API_BASE = (location.protocol === 'http:' || location.protocol === 'https:') 
+      ? '' 
+      : 'http://127.0.0.1:37210';
+
+    const KEYS = [
+      'ENABLE_MASTER',
+      'ENABLE_AUTOSTART',
+      'ENABLE_STATUS_INDICATOR',
+      'ENABLE_CONTEXT_MENU',
+      'ENABLE_CONTEXT_MENU_SIDEBAR',
+      'ENABLE_CONTEXT_MENU_MESSAGES',
+      'ENABLE_CONTEXT_MENU_MEDIA',
+      'ENABLE_NAV_BUTTONS',
+      'ENABLE_CENTER_BOTTOM_BUTTON',
+      'ENABLE_PROJECT_ARCHIVER',
+      'ENABLE_BLOCK_QUOTE_POPUP',
+      'ENABLE_SCROLL_PERSISTENCE',
+      'ENABLE_SMART_UNREAD'
+    ];
+
+    const DEFAULT_VALS = {
+      ENABLE_MASTER: true,
+      ENABLE_AUTOSTART: true,
+      ENABLE_STATUS_INDICATOR: true,
+      ENABLE_CONTEXT_MENU: true,
+      ENABLE_CONTEXT_MENU_SIDEBAR: true,
+      ENABLE_CONTEXT_MENU_MESSAGES: true,
+      ENABLE_CONTEXT_MENU_MEDIA: true,
+      ENABLE_NAV_BUTTONS: true,
+      ENABLE_CENTER_BOTTOM_BUTTON: false,
+      ENABLE_PROJECT_ARCHIVER: true,
+      ENABLE_BLOCK_QUOTE_POPUP: true,
+      ENABLE_SCROLL_PERSISTENCE: true,
+      ENABLE_SMART_UNREAD: true
+    };
+
+    function showToast(msg) {
+      const toast = document.getElementById('toast');
+      toast.textContent = msg;
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 2400);
+    }
+
+    function syncSubItemsState() {
+      const ctxMenu = document.getElementById('ENABLE_CONTEXT_MENU').checked;
+      const subCtx = document.getElementById('subContextMenu');
+      if (ctxMenu) {
+        subCtx.classList.remove('disabled');
+      } else {
+        subCtx.classList.add('disabled');
+      }
+
+      const navBtn = document.getElementById('ENABLE_NAV_BUTTONS').checked;
+      const subNav = document.getElementById('subNavButtons');
+      if (navBtn) {
+        subNav.classList.remove('disabled');
+      } else {
+        subNav.classList.add('disabled');
+      }
+    }
+
+    document.getElementById('ENABLE_CONTEXT_MENU').addEventListener('change', syncSubItemsState);
+    document.getElementById('ENABLE_NAV_BUTTONS').addEventListener('change', syncSubItemsState);
+
+    async function loadConfig() {
+      const badge = document.getElementById('statusBadge');
+      const statusText = document.getElementById('statusText');
+      try {
+        const res = await fetch(`${API_BASE}/api/config`, { cache: 'no-store' });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const data = await res.json();
+        if (data.success && data.config) {
+          const cfg = data.config;
+          KEYS.forEach(k => {
+            const el = document.getElementById(k);
+            if (el && typeof cfg[k] === 'boolean') {
+              el.checked = cfg[k];
+            }
+          });
+          syncSubItemsState();
+
+          badge.classList.remove('disconnected');
+          const isConnected = data.status?.connected;
+          statusText.textContent = isConnected ? '已连接客户端 (热重载就绪)' : '后台服务就绪 (等待客户端连接)';
+        }
+      } catch (e) {
+        badge.classList.add('disconnected');
+        statusText.textContent = '后台服务未运行 (请运行 start-enhancer.bat)';
+      }
+    }
+
+    async function saveConfig() {
+      const payload = {};
+      KEYS.forEach(k => {
+        const el = document.getElementById(k);
+        if (el) payload[k] = el.checked;
+      });
+
+      const saveBtn = document.getElementById('saveBtn');
+      saveBtn.disabled = true;
+      saveBtn.textContent = '正在保存...';
+
+      try {
+        const res = await fetch(`${API_BASE}/api/config`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (data.success) {
+          showToast('✅ 配置已保存，客户端已即时生效！');
+          loadConfig();
+        } else {
+          alert('保存失败: ' + (data.error || '未知错误'));
+        }
+      } catch (e) {
+        alert('无法连接到设置服务，请确认后台守护服务正常运行 (可在终端执行 node scripts/loader.js 检查)');
+      } finally {
+        saveBtn.disabled = false;
+        saveBtn.textContent = '保存并应用设置';
+      }
+    }
+
+    function resetDefaults() {
+      if (!confirm('确定将所有设置恢复为默认值吗？')) return;
+      KEYS.forEach(k => {
+        const el = document.getElementById(k);
+        if (el && typeof DEFAULT_VALS[k] === 'boolean') {
+          el.checked = DEFAULT_VALS[k];
+        }
+      });
+      syncSubItemsState();
+    }
+
+    document.getElementById('saveBtn').addEventListener('click', saveConfig);
+    document.getElementById('resetBtn').addEventListener('click', resetDefaults);
+
+    loadConfig();
+  </script>
+</body>
+</html>

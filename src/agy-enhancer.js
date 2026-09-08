@@ -12,7 +12,39 @@
   'use strict';
 
   // ==================== 0. 用户自定义配置区 ====================
-  const USER_CONFIG = {
+  const INJECTED_CONFIG = (typeof window.__AGY_CONFIG__ === 'object' && window.__AGY_CONFIG__) ? window.__AGY_CONFIG__ : {};
+
+  const USER_CONFIG = Object.assign({
+    // 【总控开关】增强器全局总开关
+    ENABLE_MASTER: true,
+
+    // 【状态指示】右上角状态指示小圆点与启动 Toast
+    ENABLE_STATUS_INDICATOR: true,
+
+    // 【右键增强】全局右键菜单总开关与子分类开关
+    ENABLE_CONTEXT_MENU: true,
+    ENABLE_CONTEXT_MENU_SIDEBAR: true,
+    ENABLE_CONTEXT_MENU_MESSAGES: true,
+    ENABLE_CONTEXT_MENU_MEDIA: true,
+
+    // 【翻页导航】右侧常驻智能翻页双按钮
+    ENABLE_NAV_BUTTONS: true,
+
+    // 是否开启居中原有的向下按钮（默认 false，由右侧翻页按钮组接管）
+    ENABLE_CENTER_BOTTOM_BUTTON: false,
+
+    // 【项目归档】左侧项目折叠与归档抽屉
+    ENABLE_PROJECT_ARCHIVER: true,
+
+    // 【选词弹窗】是否屏蔽划词选中文本时弹出的 Quote (Ctrl+L) 浮窗
+    ENABLE_BLOCK_QUOTE_POPUP: true,
+
+    // 【阅读记忆】是否开启多对话滚动位置记忆与恢复
+    ENABLE_SCROLL_POSITION_PERSISTENCE: true,
+
+    // 【智能未读】是否开启智能已读/未读状态追踪与提醒
+    ENABLE_SMART_UNREAD: true,
+
     // 导航按钮组距离窗口右边缘的距离（像素，建议 16~24px 贴近滚动条左侧）
     NAV_RIGHT: 20,
 
@@ -34,17 +66,8 @@
     // 判定到达页头/页脚的灵敏度阈值（像素，默认 45px）
     PAGE_EDGE_THRESHOLD: 45,
 
-    // 是否开启居中原有的向下按钮（默认 false，全由右侧翻页按钮组接管）
-    ENABLE_CENTER_BOTTOM_BUTTON: false,
-
     // 右上角提示收折时长（毫秒，默认 3500ms 即 3.5 秒）
     TOAST_EXPAND_DURATION_MS: 3500,
-
-    // 是否开启多对话滚动位置记忆与恢复（默认开启）
-    ENABLE_SCROLL_POSITION_PERSISTENCE: true,
-
-    // 是否开启智能已读/未读状态追踪与提醒（默认开启）
-    ENABLE_SMART_UNREAD: true,
 
     // 短文自动已读停留时长（毫秒，默认 10000 即 10 秒）
     SHORT_TEXT_VIEW_DURATION_MS: 10000,
@@ -60,10 +83,12 @@
 
     // 离开底部判定阈值（向上翻阅超过 160px 判定离开底部，保留 60px 防抖区间）
     LEAVE_BOTTOM_THRESHOLD: 160,
+  }, INJECTED_CONFIG);
 
-    // 是否屏蔽划词选中文本时弹出的 "Quote (Ctrl+L)" 引用浮窗（放行右侧栏评论浮窗）
-    ENABLE_BLOCK_QUOTE_POPUP: true,
-  };
+  // 兼容参数别名
+  if (typeof INJECTED_CONFIG.ENABLE_SCROLL_PERSISTENCE === 'boolean') {
+    USER_CONFIG.ENABLE_SCROLL_POSITION_PERSISTENCE = INJECTED_CONFIG.ENABLE_SCROLL_PERSISTENCE;
+  }
 
   // ==================== 1. 全局清理与定时器安全管理机制 ====================
   if (typeof window.__AGY_ENHANCER_CLEANUP__ === 'function') {
@@ -263,8 +288,9 @@
     document.getElementById('agy-enhancer-styles')?.remove();
     document.getElementById('agy-page-nav-group')?.remove();
     document.getElementById('agy-scroll-bottom-btn')?.remove();
-    // 保留 #agy-enhancer-toast 单例，避免清理重建时反复重置并重新展开
-    // document.getElementById('agy-enhancer-toast')?.remove();
+    if (USER_CONFIG.ENABLE_MASTER === false || USER_CONFIG.ENABLE_STATUS_INDICATOR === false) {
+      document.getElementById('agy-enhancer-toast')?.remove();
+    }
     document.getElementById('agy-archive-header-btn')?.remove();
     document.getElementById('agy-archive-panel')?.remove();
     document.getElementById('agy-project-options-dropdown')?.remove();
@@ -290,6 +316,13 @@
   }
 
   function initEnhancer() {
+    if (USER_CONFIG.ENABLE_MASTER === false) {
+      console.log('[agy-enhancer] Master switch is OFF, enhancer is completely dormant.');
+      document.getElementById('agy-enhancer-toast')?.remove();
+      window.__AGY_ENHANCER_LOADED__ = false;
+      return;
+    }
+
     window.__AGY_ENHANCER_LOADED__ = true;
 
     // ==================== 1. 注入专用样式 ====================
@@ -987,7 +1020,11 @@
       };
     }
 
-    createToast();
+    if (USER_CONFIG.ENABLE_STATUS_INDICATOR !== false) {
+      createToast();
+    } else {
+      document.getElementById('agy-enhancer-toast')?.remove();
+    }
 
     // ==================== 3. 核心容器与纸张坐标算法 ====================
 
@@ -1226,7 +1263,11 @@
       return group;
     }
 
-    createPageNavButtons();
+    if (USER_CONFIG.ENABLE_NAV_BUTTONS !== false) {
+      createPageNavButtons();
+    } else {
+      document.getElementById('agy-page-nav-group')?.remove();
+    }
 
     // ==================== 项目与对话底层数据及文件夹工具 (Core Helpers) ====================
     function getPM() {
@@ -2537,6 +2578,8 @@
 
       // ==================== 7. 原生侧边栏未归档对话菜单增强 ====================
       function initNativeConvoMenuEnhancer() {
+        if (USER_CONFIG.ENABLE_CONTEXT_MENU === false || USER_CONFIG.ENABLE_CONTEXT_MENU_SIDEBAR === false) return;
+
         if (nativeMenuPointerDownHandler) {
           document.removeEventListener('pointerdown', nativeMenuPointerDownHandler, true);
         }
@@ -2970,6 +3013,8 @@
 
     // ==================== 8. 全局右键上下文菜单系统 (Universal Context Menu) ====================
     function initContextMenuSupport() {
+      if (USER_CONFIG.ENABLE_CONTEXT_MENU === false) return;
+
       if (contextMenuHandler) {
         document.removeEventListener('contextmenu', contextMenuHandler, true);
       }
@@ -3950,66 +3995,68 @@
         }
 
         // ------------------ 原有侧边栏会话与项目右键（高优先级保留） ------------------
-        const convoRow = e.target?.closest?.('[data-testid="conversation-row-sidebar"]');
-        if (convoRow) {
-          const btn = convoRow.querySelector('button[aria-label="More options"]');
-          if (btn) {
-            e.preventDefault();
-            e.stopPropagation();
-            dismissUniversalContextMenu();
-            lastContextMenuPos = { x: e.clientX, y: e.clientY, time: Date.now() };
-            activeNativeConvoId = convoRow.getAttribute('data-cascade-id');
-            activeNativeProjectObj = null;
-            activeNativeProjectId = null;
-            lastProjectActionTime = 0;
-            btn.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true }));
-            btn.click();
-            return;
+        if (USER_CONFIG.ENABLE_CONTEXT_MENU_SIDEBAR !== false) {
+          const convoRow = e.target?.closest?.('[data-testid="conversation-row-sidebar"]');
+          if (convoRow) {
+            const btn = convoRow.querySelector('button[aria-label="More options"]');
+            if (btn) {
+              e.preventDefault();
+              e.stopPropagation();
+              dismissUniversalContextMenu();
+              lastContextMenuPos = { x: e.clientX, y: e.clientY, time: Date.now() };
+              activeNativeConvoId = convoRow.getAttribute('data-cascade-id');
+              activeNativeProjectObj = null;
+              activeNativeProjectId = null;
+              lastProjectActionTime = 0;
+              btn.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true }));
+              btn.click();
+              return;
+            }
           }
-        }
 
-        const projectCard = e.target?.closest?.('button[data-project-card="true"], .group\\/header');
-        if (projectCard) {
-          const container = projectCard.closest('.group\\/header') || projectCard.parentElement?.parentElement;
-          const btn = container?.querySelector('button[aria-label="Project options"]');
-          if (btn) {
-            e.preventDefault();
-            e.stopPropagation();
-            dismissUniversalContextMenu();
-            lastContextMenuPos = { x: e.clientX, y: e.clientY, time: Date.now() };
-            activeNativeProjectObj = resolveProjectFromElement(projectCard) || resolveProjectFromElement(btn);
-            activeNativeProjectId = activeNativeProjectObj?.id || null;
-            activeNativeConvoId = null;
-            lastProjectActionTime = Date.now();
-            btn.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true }));
-            btn.click();
-            return;
+          const projectCard = e.target?.closest?.('button[data-project-card="true"], .group\\/header');
+          if (projectCard) {
+            const container = projectCard.closest('.group\\/header') || projectCard.parentElement?.parentElement;
+            const btn = container?.querySelector('button[aria-label="Project options"]');
+            if (btn) {
+              e.preventDefault();
+              e.stopPropagation();
+              dismissUniversalContextMenu();
+              lastContextMenuPos = { x: e.clientX, y: e.clientY, time: Date.now() };
+              activeNativeProjectObj = resolveProjectFromElement(projectCard) || resolveProjectFromElement(btn);
+              activeNativeProjectId = activeNativeProjectObj?.id || null;
+              activeNativeConvoId = null;
+              lastProjectActionTime = Date.now();
+              btn.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true }));
+              btn.click();
+              return;
+            }
           }
-        }
 
-        const archiveProject = e.target?.closest?.('.agy-archive-item-header');
-        if (archiveProject) {
-          const btn = archiveProject.querySelector('.agy-quick-options-btn');
-          if (btn) {
-            e.preventDefault();
-            e.stopPropagation();
-            dismissUniversalContextMenu();
-            lastContextMenuPos = { x: e.clientX, y: e.clientY, time: Date.now() };
-            btn.click();
-            return;
+          const archiveProject = e.target?.closest?.('.agy-archive-item-header');
+          if (archiveProject) {
+            const btn = archiveProject.querySelector('.agy-quick-options-btn');
+            if (btn) {
+              e.preventDefault();
+              e.stopPropagation();
+              dismissUniversalContextMenu();
+              lastContextMenuPos = { x: e.clientX, y: e.clientY, time: Date.now() };
+              btn.click();
+              return;
+            }
           }
-        }
 
-        const archiveConvo = e.target?.closest?.('.agy-convo-item');
-        if (archiveConvo) {
-          const btn = archiveConvo.querySelector('.agy-convo-options-btn');
-          if (btn) {
-            e.preventDefault();
-            e.stopPropagation();
-            dismissUniversalContextMenu();
-            lastContextMenuPos = { x: e.clientX, y: e.clientY, time: Date.now() };
-            btn.click();
-            return;
+          const archiveConvo = e.target?.closest?.('.agy-convo-item');
+          if (archiveConvo) {
+            const btn = archiveConvo.querySelector('.agy-convo-options-btn');
+            if (btn) {
+              e.preventDefault();
+              e.stopPropagation();
+              dismissUniversalContextMenu();
+              lastContextMenuPos = { x: e.clientX, y: e.clientY, time: Date.now() };
+              btn.click();
+              return;
+            }
           }
         }
 
@@ -4022,29 +4069,31 @@
         const inSidebar = isRightSidebar(target) || !!target.closest('[data-aux-pane-open="true"]');
 
         // 目标 1: 图片 (Image)
-        const imgEl = target.closest('img');
-        if (imgEl && !selectedText) {
-          e.preventDefault();
-          e.stopPropagation();
-          const imgDiskPath = resolveImageDiskPath(imgEl);
-          const items = [
-            { label: 'Copy Image', icon: 'image', action: () => copyImageBlob(imgEl) }
-          ];
+        if (USER_CONFIG.ENABLE_CONTEXT_MENU_MEDIA !== false) {
+          const imgEl = target.closest('img');
+          if (imgEl && !selectedText) {
+            e.preventDefault();
+            e.stopPropagation();
+            const imgDiskPath = resolveImageDiskPath(imgEl);
+            const items = [
+              { label: 'Copy Image', icon: 'image', action: () => copyImageBlob(imgEl) }
+            ];
 
-          // 仅当图片在本地磁盘上存在（已落盘/已上传/本地文件）时才提供“打开所在目录”与“复制路径”
-          if (imgDiskPath) {
-            items.push({ label: 'Reveal in Explorer', icon: 'folder', action: () => revealPath(imgDiskPath) });
-            items.push({ label: 'Copy Path', icon: 'copy', action: () => {
-              copyText(getDirectoryPath(imgDiskPath));
-              showNotification?.('已复制所在目录');
-            }});
+            // 仅当图片在本地磁盘上存在（已落盘/已上传/本地文件）时才提供“打开所在目录”与“复制路径”
+            if (imgDiskPath) {
+              items.push({ label: 'Reveal in Explorer', icon: 'folder', action: () => revealPath(imgDiskPath) });
+              items.push({ label: 'Copy Path', icon: 'copy', action: () => {
+                copyText(getDirectoryPath(imgDiskPath));
+                showNotification?.('已复制所在目录');
+              }});
+            }
+
+            // 另存为：自动生成或沿用 media_时间戳.png 命名，免去手动输入
+            items.push({ label: 'Save Image As...', icon: 'save', action: () => saveImageLocally(imgEl) });
+
+            renderMenu(items, e.clientX, e.clientY);
+            return;
           }
-
-          // 另存为：自动生成或沿用 media_时间戳.png 命名，免去手动输入
-          items.push({ label: 'Save Image As...', icon: 'save', action: () => saveImageLocally(imgEl) });
-
-          renderMenu(items, e.clientX, e.clientY);
-          return;
         }
 
         // 目标 2: 超链接 (Hyperlink / URL - a标签、行内代码或纯文本网址)
@@ -4104,7 +4153,7 @@
         }
 
         // 目标 5: 选中文本 / 代码行 (Selected Text / Code Line)
-        if (selectedText) {
+        if (USER_CONFIG.ENABLE_CONTEXT_MENU_MESSAGES !== false && selectedText) {
           e.preventDefault();
           e.stopPropagation();
           let items = [];
@@ -4149,37 +4198,39 @@
         }
 
         // 目标 6: 代码块 (未划选文字)
-        const codeInfo = resolveCodeInfo(target);
-        if (codeInfo) {
-          e.preventDefault();
-          e.stopPropagation();
-          const nativeCopyCodeBtn = target.closest('pre, code, .code-block, .monaco-editor')?.querySelector?.('button[aria-label="Copy code"]');
-          const items = [
-            { label: 'Copy Code', icon: 'code', action: () => {
-                if (nativeCopyCodeBtn) {
-                  nativeCopyCodeBtn.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true }));
-                  nativeCopyCodeBtn.click();
-                } else {
-                  copyText(codeInfo.codeText);
+        if (USER_CONFIG.ENABLE_CONTEXT_MENU_MESSAGES !== false) {
+          const codeInfo = resolveCodeInfo(target);
+          if (codeInfo) {
+            e.preventDefault();
+            e.stopPropagation();
+            const nativeCopyCodeBtn = target.closest('pre, code, .code-block, .monaco-editor')?.querySelector?.('button[aria-label="Copy code"]');
+            const items = [
+              { label: 'Copy Code', icon: 'code', action: () => {
+                  if (nativeCopyCodeBtn) {
+                    nativeCopyCodeBtn.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true }));
+                    nativeCopyCodeBtn.click();
+                  } else {
+                    copyText(codeInfo.codeText);
+                  }
                 }
               }
+            ];
+            // 如果该代码块位于已打开的 Artifact Viewer 或右侧栏中，补充 Reveal in Explorer 与纯所在目录 Copy Path
+            const inArtifactViewer = target.closest('[aria-label="Artifact Viewer"], [role="region"][aria-label="Artifact Viewer"], #artifact-container, .artifact-view, [data-aux-pane-open="true"]') || isRightSidebar(target);
+            if (inArtifactViewer) {
+              const activePath = getActiveArtifactPath(target);
+              if (activePath) {
+                items.push({ label: 'Reveal in Explorer', icon: 'folder', action: () => revealPath(activePath) });
+                items.push({ label: 'Copy Path', icon: 'copy', action: () => {
+                  copyText(getDirectoryPath(activePath));
+                  showNotification?.('已复制所在目录');
+                }});
+              }
             }
-          ];
-          // 如果该代码块位于已打开的 Artifact Viewer 或右侧栏中，补充 Reveal in Explorer 与纯所在目录 Copy Path
-          const inArtifactViewer = target.closest('[aria-label="Artifact Viewer"], [role="region"][aria-label="Artifact Viewer"], #artifact-container, .artifact-view, [data-aux-pane-open="true"]') || isRightSidebar(target);
-          if (inArtifactViewer) {
-            const activePath = getActiveArtifactPath(target);
-            if (activePath) {
-              items.push({ label: 'Reveal in Explorer', icon: 'folder', action: () => revealPath(activePath) });
-              items.push({ label: 'Copy Path', icon: 'copy', action: () => {
-                copyText(getDirectoryPath(activePath));
-                showNotification?.('已复制所在目录');
-              }});
-            }
+            items.push({ label: 'Save As...', icon: 'save', action: () => saveFileLocally(codeInfo.codeText, codeInfo.filename) });
+            renderMenu(items, e.clientX, e.clientY);
+            return;
           }
-          items.push({ label: 'Save As...', icon: 'save', action: () => saveFileLocally(codeInfo.codeText, codeInfo.filename) });
-          renderMenu(items, e.clientX, e.clientY);
-          return;
         }
 
         // 目标 7: 右侧栏空白处 (Right Sidebar Blank Area - 打开所在目录 / 复制所在目录路径)
@@ -5343,11 +5394,11 @@
       });
     }
 
-    initProjectArchiver();
-    initContextMenuSupport();
-    initConversationScrollPersistence();
-    initSmartUnreadTracker();
-    initQuotePopupInterceptor();
+    if (USER_CONFIG.ENABLE_PROJECT_ARCHIVER !== false) initProjectArchiver();
+    if (USER_CONFIG.ENABLE_CONTEXT_MENU !== false) initContextMenuSupport();
+    if (USER_CONFIG.ENABLE_SCROLL_POSITION_PERSISTENCE !== false) initConversationScrollPersistence();
+    if (USER_CONFIG.ENABLE_SMART_UNREAD !== false) initSmartUnreadTracker();
+    if (USER_CONFIG.ENABLE_BLOCK_QUOTE_POPUP !== false) initQuotePopupInterceptor();
 
     // ==================== 12. 全局统一后台心跳调度器 (Unified Heartbeat Dispatcher) ====================
     let heartbeatTickCount = 0;

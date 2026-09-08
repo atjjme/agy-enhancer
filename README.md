@@ -40,7 +40,10 @@ Double-click in the root directory:
 - **`stop-service.bat`**: Stops and terminates the background daemon.
 - **`start-enhancer.bat`**: Starts in debug console mode (shows terminal window for real-time connection and interaction logs).
 
-#### 5. Uninstallation
+#### 5. Web Settings Dashboard
+- **`settings.bat`** (or open **`settings.html`**): Opens the lightweight local web settings dashboard (`http://127.0.0.1:37210`), enabling or disabling context menu enhancements, navigation buttons, project archiver, scroll memory, smart unread tracking, autostart, and master switch with instant hot-reload.
+
+#### 6. Uninstallation
 Double-click:
 👉 **`uninstall.bat`**
 - Automatically removes the Windows startup shortcut and stops the background service immediately.
