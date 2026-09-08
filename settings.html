@@ -722,19 +722,20 @@
         已随全局总开关全面休眠停用
       </span>
 
-      <!-- 2. 全局右键功能增强 -->
+      <!-- 2. 界面视觉与辅助工具 -->
       <div class="section-card">
         <div class="card-header-bar">
           <div class="card-title-group">
-            <div class="card-icon" style="color: #a78bfa;">🖱️</div>
-            <span class="card-title">全局右键功能增强</span>
+            <div class="card-icon" style="color: #38bdf8;">🎨</div>
+            <span class="card-title">界面视觉与辅助工具</span>
           </div>
         </div>
 
+        <!-- 全局右键总开关 -->
         <div class="control-row">
           <div class="control-text">
-            <div class="control-label">启用全局右键功能增强（大开关）</div>
-            <div class="control-subtext">关闭后彻底不拦截右键事件，完全恢复 Chromium / Antigravity 官方原生右键。</div>
+            <div class="control-label">全局右键功能增强</div>
+            <div class="control-subtext">统一接管侧边栏会话与项目管理、消息与代码块复制及媒体图片快捷操作。关闭后彻底不拦截，完全恢复 Chromium / Antigravity 官方原生右键。</div>
           </div>
           <label class="switch-ui">
             <input type="checkbox" id="ENABLE_CONTEXT_MENU">
@@ -742,38 +743,17 @@
           </label>
         </div>
 
-        <!-- 细分子开关 -->
-        <div class="sub-tree-panel" id="contextMenuSubPanel">
+        <!-- 依附于右键总开关的联动子项：屏蔽划词 Quote 浮窗 -->
+        <div class="sub-tree-panel" id="quotePopupSubPanel">
           <div class="sub-control-row">
-            <div class="sub-control-label">侧边栏会话与项目右键菜单（快速重命名、删除、归档）</div>
+            <div class="control-text" style="padding-right: 12px;">
+              <div class="sub-control-label" style="font-weight: 500;">屏蔽划词选中文本时的 Quote 浮窗</div>
+              <div class="control-subtext" style="font-size: 11.5px; margin-top: 2px;">选中文本时不再弹出官方 Quote (Ctrl+L) 气泡，彻底杜绝输入卡顿。此项依附于右键总开关：右键关闭时自动一并关闭；右键开启时可自主选择开启或关闭。</div>
+            </div>
             <label class="switch-ui mini-switch">
-              <input type="checkbox" id="ENABLE_CONTEXT_MENU_SIDEBAR">
+              <input type="checkbox" id="ENABLE_BLOCK_QUOTE_POPUP">
               <span class="switch-slider"></span>
             </label>
-          </div>
-          <div class="sub-control-row">
-            <div class="sub-control-label">对话消息与代码块右键（复制 Markdown 原文、纯文本、代码）</div>
-            <label class="switch-ui mini-switch">
-              <input type="checkbox" id="ENABLE_CONTEXT_MENU_MESSAGES">
-              <span class="switch-slider"></span>
-            </label>
-          </div>
-          <div class="sub-control-row">
-            <div class="sub-control-label">媒体图片与生成物右键（复制图片到剪贴板、在资源管理器中定位）</div>
-            <label class="switch-ui mini-switch">
-              <input type="checkbox" id="ENABLE_CONTEXT_MENU_MEDIA">
-              <span class="switch-slider"></span>
-            </label>
-          </div>
-        </div>
-      </div>
-
-      <!-- 3. 界面视觉与辅助工具 -->
-      <div class="section-card">
-        <div class="card-header-bar">
-          <div class="card-title-group">
-            <div class="card-icon" style="color: #38bdf8;">📄</div>
-            <span class="card-title">界面视觉与辅助工具</span>
           </div>
         </div>
 
@@ -806,17 +786,6 @@
           </div>
           <label class="switch-ui">
             <input type="checkbox" id="ENABLE_PROJECT_ARCHIVER">
-            <span class="switch-slider"></span>
-          </label>
-        </div>
-
-        <div class="control-row">
-          <div class="control-text">
-            <div class="control-label">屏蔽划词选中文本时的 Quote 浮窗</div>
-            <div class="control-subtext">选中文本时不再弹出官方 Quote (Ctrl+L) 气泡，彻底杜绝输入卡顿与阅读干扰。</div>
-          </div>
-          <label class="switch-ui">
-            <input type="checkbox" id="ENABLE_BLOCK_QUOTE_POPUP">
             <span class="switch-slider"></span>
           </label>
         </div>
@@ -881,14 +850,11 @@
     const SWITCH_KEYS = [
       'ENABLE_MASTER',
       'ENABLE_AUTOSTART',
-      'ENABLE_STATUS_INDICATOR',
       'ENABLE_CONTEXT_MENU',
-      'ENABLE_CONTEXT_MENU_SIDEBAR',
-      'ENABLE_CONTEXT_MENU_MESSAGES',
-      'ENABLE_CONTEXT_MENU_MEDIA',
+      'ENABLE_BLOCK_QUOTE_POPUP',
+      'ENABLE_STATUS_INDICATOR',
       'ENABLE_NAV_BUTTONS',
       'ENABLE_PROJECT_ARCHIVER',
-      'ENABLE_BLOCK_QUOTE_POPUP',
       'ENABLE_SCROLL_PERSISTENCE',
       'ENABLE_SMART_UNREAD'
     ];
@@ -896,14 +862,11 @@
     const DEFAULTS = {
       ENABLE_MASTER: true,
       ENABLE_AUTOSTART: false,
-      ENABLE_STATUS_INDICATOR: true,
       ENABLE_CONTEXT_MENU: true,
-      ENABLE_CONTEXT_MENU_SIDEBAR: true,
-      ENABLE_CONTEXT_MENU_MESSAGES: true,
-      ENABLE_CONTEXT_MENU_MEDIA: true,
+      ENABLE_BLOCK_QUOTE_POPUP: true,
+      ENABLE_STATUS_INDICATOR: true,
       ENABLE_NAV_BUTTONS: true,
       ENABLE_PROJECT_ARCHIVER: true,
-      ENABLE_BLOCK_QUOTE_POPUP: true,
       ENABLE_SCROLL_PERSISTENCE: true,
       ENABLE_SMART_UNREAD: true
     };
@@ -942,13 +905,16 @@
         featuresContainer.classList.add('master-dormant');
       }
 
-      // 右键子面板联动
+      // 右键开关联动下级“屏蔽划词 Quote 浮窗”
       const ctxMenuCheck = document.getElementById('ENABLE_CONTEXT_MENU').checked;
-      const ctxSubPanel = document.getElementById('contextMenuSubPanel');
+      const quoteSubPanel = document.getElementById('quotePopupSubPanel');
+      const blockQuoteCheck = document.getElementById('ENABLE_BLOCK_QUOTE_POPUP');
       if (ctxMenuCheck && masterCheck) {
-        ctxSubPanel.classList.remove('collapsed');
+        quoteSubPanel.classList.remove('collapsed');
+        blockQuoteCheck.disabled = false;
       } else {
-        ctxSubPanel.classList.add('collapsed');
+        quoteSubPanel.classList.add('collapsed');
+        blockQuoteCheck.disabled = true;
       }
     }
 
@@ -1006,6 +972,11 @@
         }
       });
 
+      // 联动保障：若右键未开启，屏蔽划词一并关闭
+      if (!document.getElementById('ENABLE_CONTEXT_MENU').checked) {
+        document.getElementById('ENABLE_BLOCK_QUOTE_POPUP').checked = false;
+      }
+
       isDirty = false;
       updateHierarchyVisuals();
       document.getElementById('dockHint').textContent = '已同步当前系统实际配置';
@@ -1035,7 +1006,13 @@
       }
     }
 
-    // 保存配置
+    // 监听右键总开关：当关闭右键时，自动关闭屏蔽划词
+    document.getElementById('ENABLE_CONTEXT_MENU').addEventListener('change', (e) => {
+      if (!e.target.checked) {
+        document.getElementById('ENABLE_BLOCK_QUOTE_POPUP').checked = false;
+      }
+    });
+
     // 保存配置
     async function handleSave() {
       const saveBtn = document.getElementById('saveBtn');
@@ -1046,6 +1023,11 @@
         const el = document.getElementById(k);
         if (el) payload[k] = el.checked;
       });
+
+      // 联动保障：若右键总开关已关闭，屏蔽划词也强制为 false 保存
+      if (!payload.ENABLE_CONTEXT_MENU) {
+        payload.ENABLE_BLOCK_QUOTE_POPUP = false;
+      }
 
       try {
         const res = await fetch(`${API_BASE}/api/config`, {
