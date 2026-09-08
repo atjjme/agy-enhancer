@@ -1,159 +1,107 @@
-# Antigravity 对话与导航增强套件 (`agy-enhancer`)
+# Antigravity Dialogue & Navigation Enhancer (`agy-enhancer`)
 
-[简体中文](README.md) | [English](docs/README.en.md) | [繁體中文](docs/README.zh-TW.md)
+[English](README.md) | [简体中文](docs/README.zh-CN.md) | [繁體中文](docs/README.zh-TW.md)
 
 ---
 
 <a id="quick-nav"></a>
-### 📌 快速导航
-[🚀 极简上手与安装](#setup) · [📂 目录文件与脚本说明](#files-guide) · [✨ 核心功能](#features) · [🎛️ 设置中心与功能开关](#settings-guide) · [📜 油猴脚本](#userscript) · [❓ 常见问题 FAQ](#faq) · [📦 立即下载](https://github.com/atjjme/agy-enhancer/releases/latest)
+### 📌 Quick Navigation
+[🚀 Prerequisites & Setup](#setup) · [✨ Core Features](#features) · [🎨 Customization](#customization) · [📜 Userscript](#userscript) · [❓ FAQ](#faq) · [📦 Download Now](https://github.com/atjjme/agy-enhancer/releases/latest)
 
 ---
 
-### ✨ 期望
+### ✨ Vision
 
-随着 Antigravity 版本的更新，本项目慢慢消失。
+As Antigravity updates and evolves, may this project gradually fade into the background.
 
 ---
 
 <a id="setup"></a>
-### 🚀 极简上手与安装
+### 🚀 Prerequisites & Setup
 
-#### 1. 前置环境要求
-- **操作系统**：Windows 10 / Windows 11
-- **软件环境**：
-  - **Antigravity 2.0 桌面客户端**（支持所有最新版本）；
-  - **[Node.js](https://nodejs.org/)** 环境（推荐 LTS 版本，Node.js 16+ 均可，用于运行本地轻量守护服务。可在终端输入 `node -v` 验证是否已安装）。
+#### 1. System Requirements
+- **Operating System**: Windows 10 / Windows 11
+- **Software Dependencies**:
+  - **Antigravity 2.0 Desktop Client** (compatible with all recent builds);
+  - **[Node.js](https://nodejs.org/)** runtime (LTS version recommended, v16+; used for running the lightweight background daemon. Run `node -v` in terminal to verify installation).
 
-#### 2. 下载安装包
-👉 **[点击前往 Releases 下载最新版本 ZIP 压缩包](https://github.com/atjjme/agy-enhancer/releases/latest)** 并解压至任意文件夹。
+#### 2. Download Package
+👉 **[Click here to download the latest Release ZIP](https://github.com/atjjme/agy-enhancer/releases/latest)** and extract it to any local directory.
 
-#### 3. 一键初始化与开机自启
-解压后，根目录极其精简纯净，仅包含 3 个文件。直接双击运行：
-👉 **`install.bat`**
-- **全自动环境检测**：自动检测 Node.js 运行环境；
-- **配置开机静默自启**：随 Windows 登录全自动静默驻留后台；
-- **静默拉起守护服务**：后台无感知注入 Antigravity 客户端（无黑框弹窗；注入成功后 Antigravity 界面右上角会有绿色状态圆点指示）；
-- **自动点亮设置中心**：全自动唤起并打开 **`settings.html`**，您可以即刻在网页中按需开启或关闭各项功能！
+#### 3. One-Click Setup & Autostart (Recommended)
+Double-click in the root directory:
+👉 **`install.bat`** (or **`setup-autostart.bat`**)
+- **`install.bat`** is the friendly installer name for general users;
+- **`setup-autostart.bat`** reflects the core mechanism;
+- Both execute identical logic: automatically configures Windows startup and launches the daemon silently in background (runs without popup console windows; a green status indicator dot will appear at the top-right corner of the Antigravity client upon successful injection).
 
----
+#### 4. Manual Controls
+- **`start-service-silent.vbs`**: Starts the daemon silently in the background (no console window).
+- **`stop-service.bat`**: Stops and terminates the background daemon.
+- **`start-enhancer.bat`**: Starts in debug console mode (shows terminal window for real-time connection and interaction logs).
 
-<a id="files-guide"></a>
-### 📂 目录结构与各脚本功能说明
-
-解压后的根目录经过精心极致优化，**根目录仅保留 3 个核心文件**，所有内部管理工具均归集于 `scripts/` 目录：
-
-```text
-agy-enhancer/
-├── 📄 install.bat                # 【核心入口】一键安装、启动后台并打开设置中心
-├── 📄 settings.html               # 【设置中心】轻量可视化功能开关控制台
-├── 📄 README.md                   # 【使用说明】使用指南、功能详解与内部脚本说明
-│
-├── 📁 scripts/                    # 【内部脚本与管理工具】
-│   ├── start-service-silent.vbs   # 后台静默启动守护服务（无弹窗黑框，开机自启调用）
-│   ├── stop-service.bat           # 一键停止后台守护进程与设置服务
-│   ├── settings.bat               # 辅助唤起设置中心网页（日常直接双击 settings.html 即可）
-│   ├── start-enhancer.bat         # 终端前台调试模式（显示黑框终端，实时查看 CDP 注入与热更新日志）
-│   ├── setup-autostart.bat        # 单独配置 Windows 开机静默自启快捷方式
-│   ├── remove-autostart.bat       # 单独移除 Windows 开机自启快捷方式
-│   ├── uninstall.bat              # 一键彻底卸载（移除开机自启 + 终止后台服务）
-│   ├── loader.js                  # 核心守护进程（集成 CDP 客户端热注入与轻量设置服务）
-│   ├── agy-enhancer-config.json   # 本地开关配置模板
-│   ├── agy-enhancer.user.js       # 打包好的油猴 (Tampermonkey) 用户脚本版本
-│   └── build-userscript.js        # 油猴脚本打包构建工具
-│
-├── 📁 src/                        # 核心前端注入源码 (agy-enhancer.js)
-├── 📁 assets/                     # 演示图片与动画资源
-└── 📁 docs/                       # 多语言文档目录 (README.en.md, README.zh-TW.md)
-```
-
-#### 内部维护脚本具体用途：
-
-| 脚本文件 | 存放路径 | 核心用途与使用场景 |
-| :--- | :--- | :--- |
-| **`start-service-silent.vbs`** | `scripts/` | **后台静默启动**：通过 Windows 脚本宿主在完全隐藏窗口的状态下启动 `loader.js`。Windows 启动文件夹中的快捷方式就是指向该脚本。 |
-| **`stop-service.bat`** | `scripts/` | **停止后台服务**：一键安全终止正在运行的 Node.js 守护注入进程，立刻释放所有资源。 |
-| **`settings.bat`** | `scripts/` | **辅助调出设置**：确保守护服务运行并打开浏览器（日常使用直接双击根目录 `settings.html` 即可）。 |
-| **`start-enhancer.bat`** | `scripts/` | **前台调试排错**：如果遇到注入问题或想观察代码热更新过程，双击此脚本会弹出控制台黑框，实时输出 CDP 端口检测、窗口挂载与控制台交互日志。 |
-| **`setup-autostart.bat`** | `scripts/` | **单独配置自启**：无需打开设置中心，单独向 Windows Startup 目录添加或更新静默自启快捷方式。 |
-| **`remove-autostart.bat`** | `scripts/` | **单独清理自启**：仅从系统 Startup 目录删除快捷方式，不影响当前正在运行的进程。 |
-| **`uninstall.bat`** | `scripts/` | **一键彻底卸载**：清理开机自启动项，并同步杀掉后台正在运行的守护进程。 |
-
----
-
-<a id="settings-guide"></a>
-### 🎛️ 设置中心与功能开关 (`settings.html`)
-
-#### 1. 为什么设计 `settings.html`？
-无需在 Antigravity 界面内塞入繁杂难用的设置弹窗。
-- **一体化架构，极致轻巧**：设置服务原生整合于后台主守护进程 (`loader.js`) 中，**电脑后台永远只有 1 个超轻量 Node 进程**，未操作设置时 CPU 处于内核休眠挂起状态（**0.00% CPU 占用**），且严格仅绑定本机 `127.0.0.1` 环回接口，零外网风险；
-- **随开随用，无需二次安装**：
-  - 用户只需在首次解压时运行一次 **`install.bat`** 完成自启与守护部署；
-  - 后续日常使用中，**随时双击根目录的 `settings.html` 即可秒开秒连**，页面瞬间点亮，无需再去按“安装”；
-  - 若新用户尚未运行后台，页面友好提示双击 `install.bat`，并在启动后全自动点亮同步配置。
-- **分层级联动控制**：
-  - **顶级总闸开关**：关闭时，整个功能区断电置灰休眠，客户端不挂载任何增强事件，100% 恢复官方原生纯净状态；
-  - **右键增强与划词浮窗联动**：右键统一为一个极简总开关，屏蔽划词选中文本时的 Quote 浮窗依附于右键开关（右键关闭时划词屏蔽一并关闭，右键开启时可自主选择开或关）；
-  - **状态指示、导航定位、项目归档、阅读记忆、智能未读、开机自启**均具备独立控制开关。
-- **保存即刻热生效**：点击“保存设置”后，守护进程直接在内存中向 Antigravity 客户端热推送重载，0 毫秒即刻生效，无需重启客户端！改完直接关闭网页即可。
+#### 5. Uninstallation
+Double-click:
+👉 **`uninstall.bat`**
+- Automatically removes the Windows startup shortcut and stops the background service immediately.
 
 ---
 
 <a id="features"></a>
-### ✨ 核心功能与操作
+### ✨ Core Features & Operations
 
-1. [脚本生效：在 Antigravity 2.0 界面右上角显示绿点指示](#feature-1)
-2. [快速定位：界面右下角显示“向上”“向下”按钮](#feature-2)
-3. [项目归档：未完成暂时不处理的项目可以一键归档](#feature-3)
-4. [右键菜单：操作界面全面添加右键功能](#feature-4)
-5. [会话阅读记忆：记住每个会话阅读的进度](#feature-5)
-6. [智能未读判定：真实阅读完输出信息后再标记为已读](#feature-6)
+1. [Status Indicator: Top-right green dot shows active injection status](#feature-1)
+2. [Quick Navigation: Up/Down floating buttons in bottom-right corner](#feature-2)
+3. [Project Archive: One-click archive & restore workspace projects](#feature-3)
+4. [Context Menu Overhaul: Comprehensive right-click actions across the UI](#feature-4)
+5. [Conversation Reading Memory: Automatically remembers scroll position per chat](#feature-5)
+6. [Smart Unread Detection: Marks as read only after genuine viewing](#feature-6)
 
 ---
 
-#### <a id="feature-1"></a> 1. 脚本生效：在 Antigravity 2.0 界面右上角显示绿点指示
+#### <a id="feature-1"></a> 1. Status Indicator: Top-right green dot shows active injection status
 
-- **说明**：脚本成功启动并注入后，Antigravity 客户端右上角会出现一个绿色圆点指示器，直观标识增强功能已就绪生效。
+- **Description**: Once the enhancer service launches and successfully injects into the client, a discreet green indicator dot appears in the top-right corner of Antigravity, confirming that all enhancements are active and ready.
 
-> 📷 **功能演示视频 / 图片**：
+> 📷 **Demo Screenshot / Video**:
 >
 > <img src="./assets/2026-09-07_10-02-10.png" width="100%" />
 
-[↑ 返回核心功能导航](#features)
+[↑ Back to Features](#features)
 
 ---
 
-#### <a id="feature-2"></a> 2. 快速定位：界面右下角显示“向上”“向下”按钮
+#### <a id="feature-2"></a> 2. Quick Navigation: Up/Down floating buttons in bottom-right corner
 
-- **原因**：原生客户端在 AI 输出完成长篇回答后，页面会停留在最底部。用户若想从头阅读，需要频繁手动向上滑动翻阅，既耗费时间且难以精准定位。
-- **效果**：
-  1. **点击【向上 (↑)】**：平滑滚动到当前提示词（Prompt）的顶端；若已在顶端，可连续点击切换到上一轮提示词。在首个提问处点击则直达对话顶部；
-  2. **点击【向下 (↓)】**：平滑滚动到当前回答（Response）的尾部；若已在尾部，连续点击可跳至下一轮回答尾部；
-  3. **双击【向下 (↓)】**：直接平滑滚至整个对话的最底部。
+- **The Problem**: In native Antigravity, long AI responses automatically leave the viewport pinned at the very bottom. Navigating back up requires tedious manual scrolling and often overshoots target prompts.
+- **Solution & Experience**:
+  1. **Click Up (↑)**: Smoothly scrolls to the header of the current prompt. If already near the top, sequential clicks jump to previous turn headers. At the earliest turn, jumps directly to the conversation start;
+  2. **Click Down (↓)**: Smoothly scrolls down to the footer of the current AI response. If already near the bottom, sequential clicks advance to the next turn;
+  3. **Double Click Down (↓)**: Instantly scrolls smoothly to the very latest bottom of the conversation.
 
-> 📷 **功能演示视频 / 图片**：
+> 📷 **Demo Screenshot / Video**:
 >
 > <table>
 >   <tr>
->     <td align="center" width="50%"><strong>静态预览</strong><br><img src="./assets/2026-09-07_10-05-46.png" /></td>
->     <td align="center" width="50%"><strong>操作演示</strong><br><img src="./assets/2026-09-07_11-27-16.gif" width="100%" /><br><a href="./assets/2026-09-07_11-27-16.mp4">▶ 查看高清原画视频</a></td>
+>     <td align="center" width="50%"><strong>Static Preview</strong><br><img src="./assets/2026-09-07_10-05-46.png" /></td>
+>     <td align="center" width="50%"><strong>Interactive Demo</strong><br><img src="./assets/2026-09-07_11-27-16.gif" width="100%" /><br><a href="./assets/2026-09-07_11-27-16.mp4">▶ Watch HD Video</a></td>
 >   </tr>
 > </table>
 
-[↑ 返回核心功能导航](#features)
+[↑ Back to Features](#features)
 
 ---
 
-#### <a id="feature-3"></a> 3. 项目归档：未完成暂时不处理的项目可以一键归档
+#### <a id="feature-3"></a> 3. Project Archive: One-click archive & restore workspace projects
 
-- **原因**：部分暂时未完成但又不愿删除的项目，长期留在侧栏会占用大量垂直空间；归档后能保持界面整洁，原项目与会话数据依然完整保存。
-- **效果**：
-  1. **一键快速归档**：鼠标悬停在左侧任意项目上，点击右侧 **📥** 图标即可将该项目归档折叠，立刻从主项目列表中隐藏，腾出垂直空间；
-  2. **查看与还原**：在 `Projects` 标题栏右侧点击 **`Archive`** 按钮（有归档项目时附带数字徽标），展开折叠面板，点击 **`Restore`** 按钮或使用右键菜单，即可随时恢复到主列表；
-  3. **交互自动解除归档**：在已归档项目中发起新对话或在历史会话中继续提问时，系统会自动解除归档并恢复显示在主列表中；
-  4. **完美契合原生主题**：深度适配 Antigravity 原生 Tailwind 与 CSS 变量，深色/浅色模式无缝自适应。
+- **The Problem**: Unfinished projects clutter the left sidebar, consuming precious vertical screen space.
+- **Solution & Experience**:
+  1. **One-Click Archive**: Hover over any project item and click the **📥** icon to collapse and hide it immediately from the active projects list;
+  2. **View & Restore**: Click the **`Archive`** button in the `Projects` header (with badge count) to open the archived drawer, then click **`Restore`** or use the context menu to bring it back;
+  3. **Auto Unarchive on Activity**: Starting a new prompt or sending messages in an archived project automatically unarchives it back to the active list;
+  4. **Native Theme Adaptive**: Perfectly matched with Antigravity's native Tailwind & CSS variables in both dark and light modes.
 
-> 📷 **功能演示视频 / 图片**：
+> 📷 **Demo Screenshot / Video**:
 >
 > <table>
 >   <tr>
@@ -166,58 +114,56 @@ agy-enhancer/
 >   </tr>
 > </table>
 
-[↑ 返回核心功能导航](#features)
+[↑ Back to Features](#features)
 
 ---
 
-#### <a id="feature-4"></a> 4. 右键菜单：操作界面全面添加右键功能
+#### <a id="feature-4"></a> 4. Context Menu Overhaul: Comprehensive right-click actions across the UI
 
-- **原因**：
-  1. 原生客户端暂未提供右键快捷菜单，很多高频操作层级较深或无法直接触发；
-  2. 通过右键上下文菜单可集中提供复制、路径定位、文件管理、引用提问等操作，显著提升交互效率。
-- **效果**：
+- **The Problem**: The native client lacks right-click context menus for common daily operations like copying, opening local folders, saving artifacts, or quoting text.
+- **Enhanced Behavior**:
 
-#### 一、左侧栏右键快捷操作
-- **未归档会话**：
-  1. 将“Copy”二级子菜单直接提升为一级菜单，减少点击层级；
-  2. 新增“打开会话所在目录”（在本地文件资源管理器中高亮定位）。
-- **项目会话**：
-  1. 将“Copy”二级子菜单提升为一级菜单；
-  2. 新增“打开会话所在目录”；
-  3. 新增“打开所在项目目录”。
-- **项目列表项**：
-  1. 新增“打开所在项目目录”。
+#### I. Left Sidebar Context Menu
+- **Unarchived Chats**:
+  1. Elevated "Copy" sub-options directly to primary menu level for faster access;
+  2. Added "Reveal in Explorer" (highlights conversation file in Windows Explorer).
+- **Project Chats**:
+  1. Elevated "Copy" actions to top-level;
+  2. Added "Reveal in Explorer" for conversation;
+  3. Added "Open Project Directory".
+- **Project Items**:
+  1. Added "Open Project Directory".
 
-#### 二、聊天主区域（提问区 & 回复区）右键菜单规范
+#### II. Main Chat Area (Prompts & Responses) Menu Specification
 
-**严格顺序**排列：
+Arranged in **strict order**:
 
-| 触发场景 / 目标实体 | 英文菜单项 (严格按此顺序) | 功能行为说明 |
+| Trigger Scenario / Target Entity | Menu Item (Strict Order) | Behavior Description |
 | :--- | :--- | :--- |
-| **选中文本**<br>*(提问或回复中划选文字)* | 1. **`Copy`**<br>2. **`Quote`**<br>*(划选网址额外提供: 3. `Open Link in Browser` 4. `Copy Link Address`)*<br>*(划选路径额外提供: 3. `Reveal in Explorer` 4. `Copy Path`)【不划选也可识别】*<br>5. **`Search`** | • 复制所选文字到剪贴板<br>• 将文本以引用格式填入下方提问输入框<br>• 智能识别划选内容：划选网址可直接在浏览器打开或复制网址；划选本地路径可直接打开目录或复制所在目录【不划选也可识别】<br>• 调用默认搜索引擎（Google）在外部浏览器中搜索所选内容 |
-| **代码块**<br>*(未划选文字)* | 1. **`Copy Code`**<br>2. **`Save As...`** | • 复制当前代码块全部纯文本（优先触发原生复制按钮）<br>• 另存/导出该代码块为本地文件（智能识别语言后缀） |
-| **超链接**<br>*(Hyperlink / URL)* | 1. **`Open Link in Browser`**<br>2. **`Copy Link Address`** | • 在系统默认外部浏览器中打开链接（仅打开一次）<br>• 复制完整超链接地址到剪贴板 |
-| **本地路径**<br>*(Local Path)* | 1. **`Reveal in Explorer`**<br>2. **`Copy Path`** *(仅所在目录)*<br>*(图片路径额外支持: 3. `Copy Image`)* | • 在本地 Windows 资源管理器中打开定位该路径<br>• 复制所在目录的绝对路径（不带文件名）<br>• 若指向图片文件，支持直接复制图片位图 |
-| **实体文件 / 制品卡片**<br>*(Artifact Card / 附件)* | 1. **`Reveal in Explorer`**<br>2. **`Copy Path`** *(仅所在目录)*<br>*(图片文件额外支持: 3. `Copy Image`)* | • 在本地资源管理器中打开并定位文件所在目录<br>• 复制该文件所在目录的绝对路径（不带文件名）<br>• 若卡片指向图片文件，支持直接复制图片位图 |
-| **图片**<br>*(Image)* | 1. **`Copy Image`**<br>2. **`Reveal in Explorer`** *(本地/落盘图片)*<br>3. **`Copy Path`** *(仅所在目录)*<br>4. **`Save Image As...`** | • 复制图片二进制位图到系统剪贴板（免去中间地址，可直接粘贴使用）<br>• 在资源管理器中打开其所在文件夹<br>• 复制图片所在目录的绝对路径（不带文件名）<br>• 另存为本地图片文件（免去手动输入文件名） |
-| **消息气泡空白处**<br>*(回复区 / 提问区空白处)* | *(暂不启用 / 不弹出)* | • 已全部去掉，保持界面纯净及放行潜在原生交互 |
+| **Selected Text**<br>*(Text highlighted in prompt or response)* | 1. **`Copy`**<br>2. **`Quote`**<br>*(If selected text is URL: 3. `Open Link in Browser` 4. `Copy Link Address`)*<br>*(If selected text is path: 3. `Reveal in Explorer` 4. `Copy Path`)【Identified even without selection】*<br>5. **`Search`** | • Copies selection to clipboard<br>• Formats text into a markdown quote block into the prompt input box<br>• Smart recognition: URLs can be directly opened in external browser; local paths can be revealed in Explorer<br>• Performs Google search in default browser |
+| **Code Block**<br>*(No text selected)* | 1. **`Copy Code`**<br>2. **`Save As...`** | • Copies full raw code text (triggers native copy button when possible)<br>• Exports code block as a local file with smart file extension detection |
+| **Hyperlink**<br>*(URL link)* | 1. **`Open Link in Browser`**<br>2. **`Copy Link Address`** | • Opens URL in default system browser (safely once)<br>• Copies URL to clipboard |
+| **Local Path** | 1. **`Reveal in Explorer`**<br>2. **`Copy Path`** *(Folder only)*<br>*(Image paths additionally offer: 3. `Copy Image`)* | • Highlights and opens location in Windows Explorer<br>• Copies directory path to clipboard<br>• If path points to an image, copies bitmap to clipboard |
+| **Artifact Card / Attachment** | 1. **`Reveal in Explorer`**<br>2. **`Copy Path`** *(Folder only)*<br>*(Image artifacts additionally offer: 3. `Copy Image`)* | • Reveals artifact directory in Windows Explorer<br>• Copies artifact directory path to clipboard<br>• Copies image bitmap directly if applicable |
+| **Image Element** | 1. **`Copy Image`**<br>2. **`Reveal in Explorer`** *(Local images)*<br>3. **`Copy Path`** *(Folder only)*<br>4. **`Save Image As...`** | • Copies binary image bitmap directly to system clipboard<br>• Opens container directory in Explorer<br>• Copies directory path<br>• Saves image file locally |
+| **Blank Message Bubble** | *(Disabled / Hidden)* | • Kept blank and clean to allow native click behaviors |
 
 ---
 
-#### 三、右侧栏（制品 / 代码 / 预览）右键菜单规范
+#### III. Right Sidebar (Artifacts / Code / Preview) Menu Specification
 
-**严格顺序**排列：
+Arranged in **strict order**:
 
-| 触发场景 / 目标实体 | 英文菜单项 (严格按此顺序) | 功能行为说明 |
+| Trigger Scenario / Target Entity | Menu Item (Strict Order) | Behavior Description |
 | :--- | :--- | :--- |
-| **选中文本 / 代码行**<br>*(Text / Code Selection)* | 1. **`Comment`**<br>2. **`Copy`**<br>3. **`Quote`**<br>4. **`Explain`** | • 屏蔽原生悬浮窗，点击呼出原生行间批注/评论框<br>• 复制所选文本或代码到剪贴板<br>• 屏蔽原生悬浮窗，点击将所选内容以引用格式填入提问框<br>• 提问框自动填入预设解释 Prompt 并带上该代码 |
-| **代码块 / 编辑器空白处**<br>*(未划选文字)* | 1. **`Copy Code`**<br>2. **`Reveal in Explorer`** *(制品/本地代码文件)*<br>3. **`Copy Path`** *(仅所在目录)*<br>4. **`Save As...`** | • 复制当前代码全文（优先触发原生复制代码按钮）<br>• 在本地 Windows 资源管理器中高亮定位当前代码文件<br>• 复制当前代码文件所在的目录路径（不带文件名）<br>• 导出/另存为本地文件 |
-| **图片**<br>*(Image)* | 1. **`Copy Image`**<br>2. **`Reveal in Explorer`** *(本地/落盘图片)*<br>3. **`Copy Path`** *(仅所在目录)*<br>4. **`Save Image As...`** | • 复制图片二进制位图到系统剪贴板（可直接粘贴为图像）<br>• 在文件资源管理器中打开图片所在的目录<br>• 复制图片所在目录的绝对路径（不带文件名）<br>• 另存为本地图片文件（免去手动命名） |
-| **超链接**<br>*(Hyperlink / URL)* | 1. **`Open Link in Browser`**<br>2. **`Copy Link Address`** | • 在系统默认外部浏览器中打开该网址（仅打开一次）<br>• 复制该链接完整 URL 到剪贴板 |
-| **本地路径**<br>*(Local Path)* | 1. **`Reveal in Explorer`**<br>2. **`Copy Path`** *(仅所在目录)*<br>*(图片路径额外支持: 3. `Copy Image`)* | • 在本地资源管理器中直接打开定位该路径<br>• 复制所在目录的绝对路径（不带文件名）<br>• 若为图片文件，支持直接复制图片位图 |
-| **右侧栏空白处**<br>*(未划选文字)* | 1. **`Reveal in Explorer`**<br>2. **`Copy Path`** *(仅所在目录)*<br>*(图片制品额外支持: 3. `Copy Image`)* | • 在资源管理器中打开当前活动制品/文件所在的目录<br>• 复制当前制品所在目录的绝对路径（不带文件名）<br>• 若当前为图片制品，支持直接复制图片位图 |
+| **Selected Text / Code Line** | 1. **`Comment`**<br>2. **`Copy`**<br>3. **`Quote`**<br>4. **`Explain`** | • Triggers inline code commenting input<br>• Copies selected text/code<br>• Formats selection into prompt quote<br>• Inserts code explanation prompt into chat input |
+| **Code Editor Empty Area** | 1. **`Copy Code`**<br>2. **`Reveal in Explorer`**<br>3. **`Copy Path`** *(Folder only)*<br>4. **`Save As...`** | • Copies full code content<br>• Locates artifact/source file in Windows Explorer<br>• Copies directory path<br>• Exports as local file |
+| **Image Element** | 1. **`Copy Image`**<br>2. **`Reveal in Explorer`**<br>3. **`Copy Path`** *(Folder only)*<br>4. **`Save Image As...`** | • Copies image bitmap directly to clipboard<br>• Reveals directory in Explorer<br>• Copies directory path<br>• Saves image locally |
+| **Hyperlink** | 1. **`Open Link in Browser`**<br>2. **`Copy Link Address`** | • Opens in external default browser<br>• Copies link URL |
+| **Local Path** | 1. **`Reveal in Explorer`**<br>2. **`Copy Path`** *(Folder only)*<br>*(Image paths support: 3. `Copy Image`)* | • Opens folder in Windows Explorer<br>• Copies folder path<br>• Copies bitmap if image |
+| **Empty Inspector Area** | 1. **`Reveal in Explorer`**<br>2. **`Copy Path`** *(Folder only)*<br>*(Image artifacts support: 3. `Copy Image`)* | • Reveals active artifact directory in Windows Explorer<br>• Copies active directory path<br>• Copies image bitmap if current artifact is an image |
 
-> 📷 **功能演示视频 / 图片**：
+> 📷 **Demo Screenshot / Video**:
 >
 > <table>
 >   <tr>
@@ -230,79 +176,97 @@ agy-enhancer/
 >   </tr>
 > </table>
 
-[↑ 返回核心功能导航](#features)
+[↑ Back to Features](#features)
 
 ---
 
-#### <a id="feature-5"></a> 5. 会话阅读记忆：记住每个会话阅读的进度
+#### <a id="feature-5"></a> 5. Conversation Reading Memory: Remembers scroll position per chat
 
-- **原因**：原生客户端在每次切换会话时，都会将页面强制重置滚动到底部。阅读长篇对话或代码时极为不便，需要反复重新滑找此前阅读的位置。
-- **效果**：
-  1. **自动记忆阅读位置**：切换会话时自动保存并恢复浏览进度，即使重启客户端或电脑依然生效；
-  2. **智能容量管理**：预设记录最近 50 条会话的阅读进度（若会话已自然处于最底部则不占用记录额度）。
+- **The Problem**: In native Antigravity, switching conversations forcibly snaps the view to the bottom, losing your reading context in lengthy dialogues or code reviews.
+- **Solution & Experience**:
+  1. **Automatic Position Memory**: Automatically tracks and restores reading positions across conversation switches; persists across client restarts or PC reboots;
+  2. **Smart Storage Capacity**: Retains reading positions for up to 50 active chats (conversations already naturally scrolled to the bottom do not consume quota).
 
-> 📷 **功能演示视频 / 图片**：
+> 📷 **Demo Screenshot / Video**:
 >
-> <img src="./assets/2026-09-07_11-41-40.gif" width="100%" /><br><a href="./assets/2026-09-07_11-41-40.mp4">▶ 查看高清原画视频</a>
+> <img src="./assets/2026-09-07_11-41-40.gif" width="100%" /><br><a href="./assets/2026-09-07_11-41-40.mp4">▶ Watch HD Video</a>
 
-[↑ 返回核心功能导航](#features)
+[↑ Back to Features](#features)
 
 ---
 
-#### <a id="feature-6"></a> 6. 智能未读判定：真实阅读完输出信息后再标记为已读
+#### <a id="feature-6"></a> 6. Smart Unread Detection: Marks as read only after genuine viewing
 
-- **原因**：
-  1. 在当前会话生成内容时，若用户中途切换到其他会话，该会话会被原生客户端错误地提前标记为“已读”，导致用户遗漏后续输出；
-  2. 会话在后台执行任务并生成完毕后，用户只要点击进入但即便未实际浏览内容，系统也会直接标记为“已读”。
-- **效果**：
-  引入智能未读判定机制，确保用户真实浏览后再更新状态，避免误判漏读：
-  1. **长文信息**：需二次滚动到底部且停留满 5 秒后，才标记为已读；
-  2. **短文信息**：二次滚动到底部或停留满 10 秒后，自动标记为已读；
-  3. **手动控制**：支持在左侧栏右键菜单中手动标记为“已读”或“未读”。
+- **The Problem**:
+  1. If you switch away while a response is generating, the native client marks the conversation as read prematurely, risking overlooked outputs;
+  2. Background generation completion immediately clears unread flags even if you just briefly opened the chat without reading.
+- **Solution & Experience**:
+  Applies an intelligent unread verification mechanism:
+  1. **Long Dialogues**: Requires scrolling down to bottom twice and staying for at least 5 seconds before marking as read;
+  2. **Short Dialogues**: Automatically marks as read after scrolling down twice or remaining for 10 seconds;
+  3. **Manual Control**: Directly toggle "Mark as Read" or "Mark as Unread" via sidebar context menu.
 
-> 📷 **功能演示视频 / 图片**：
+> 📷 **Demo Screenshot / Video**:
 >
 > <img src="./assets/2026-09-07_12-03-24.png" width="100%" />
 
-[↑ 返回顶部导航](#quick-nav)
+[↑ Back to Quick Navigation](#quick-nav)
+
+---
+
+<a id="customization"></a>
+### 🎨 Customization & Hot Reload
+
+Open [`src/agy-enhancer.js`](./src/agy-enhancer.js) with any text editor and tweak `USER_CONFIG` at the top:
+
+- `BUTTON_OPACITY`: Idle semi-transparency (default `0.3`, or 30% opacity to prevent obscuring text);
+- `BUTTON_HOVER_OPACITY`: Hover opacity (default `1.0` for crisp visibility);
+- `NAV_RIGHT`: Margin from the right edge (default `20px`);
+- `NAV_BOTTOM`: Margin from bottom chat input (default `170px`);
+- `BUTTON_SIZE`: Diameter of the circular navigation buttons (default `38px`).
+
+> ⚡ **Sub-Second Hot Reload**:
+> Save your changes with `Ctrl + S`, and the daemon will hot-reload the UI within **0.1 seconds** without restarting the client or reloading the app!
+
+[↑ Back to Quick Navigation](#quick-nav)
 
 ---
 
 <a id="userscript"></a>
-### 📜 油猴脚本 (Userscript) 指南
+### 📜 Userscript (Tampermonkey) Guide
 
-除了作为 Windows 后台常驻守护服务使用外，本项目还提供了油猴用户脚本文件 [`scripts/agy-enhancer.user.js`](./scripts/agy-enhancer.user.js)。
+Beyond the Windows background service daemon, this repository includes a pre-packaged userscript [`agy-enhancer.user.js`](./agy-enhancer.user.js).
 
-如果您通过主流浏览器（Chrome、Edge、Firefox 等）访问 Antigravity 的 Web 端或本地网页端界面：
-1. 确保浏览器已安装 [Tampermonkey](https://www.tampermonkey.net/) 插件；
-2. 将 `scripts/` 目录下的 [`agy-enhancer.user.js`](./scripts/agy-enhancer.user.js) 拖拽进浏览器窗口，或在 Tampermonkey 管理面板中选择“添加新脚本”并将代码复制保存；
-3. 访问 Antigravity Web 界面时，脚本将自动加载并提供完整的导航、归档与右键增强能力。
+If you access Antigravity through modern web browsers (Chrome, Edge, Firefox, etc.) or localhost web ports:
+1. Ensure the [Tampermonkey](https://www.tampermonkey.net/) extension is installed in your browser;
+2. Drag and drop [`agy-enhancer.user.js`](./agy-enhancer.user.js) into your browser, or create a new script in Tampermonkey and paste the code;
+3. Refresh Antigravity Web to enjoy full navigation, archive, and context menu enhancements.
 
-[↑ 返回顶部导航](#quick-nav)
+[↑ Back to Quick Navigation](#quick-nav)
 
 ---
 
 <a id="faq"></a>
-### ❓ 常见问题排查 (FAQ)
+### ❓ FAQ & Troubleshooting
 
-#### Q1: 运行 install.bat 后，Antigravity 右上角没有出现绿色圆点？
-1. **客户端运行状态**：请确保 Antigravity 2.0 桌面端已启动；
-2. **检测 Node.js 环境**：打开命令行（CMD 或 PowerShell），输入 `node -v`。若提示命令未找到，请前往 [Node.js 官网](https://nodejs.org/) 下载并安装 LTS 版本；
-3. **查看排错日志**：双击运行 `scripts/start-enhancer.bat`（调试控制台模式），查看终端中打印的端口检测及连接日志；
-4. **窗口刷新重试**：如果在打开客户端后曾按过 `Ctrl + R` 强制刷新，服务通常会在 0.2 秒内自动重新载入。
+#### Q1: No green indicator dot appeared after setup?
+1. **Client Status**: Make sure Antigravity 2.0 desktop client is currently running;
+2. **Verify Node.js**: Open CMD or PowerShell and execute `node -v`. If command is not found, install the LTS release from [Node.js Official Site](https://nodejs.org/);
+3. **Debug Log**: Run `start-enhancer.bat` in debug console mode to inspect terminal logs and connection errors;
+4. **Window Refresh**: If you used `Ctrl + R` to hard reload the window, the daemon automatically re-injects in ~0.2s.
 
-#### Q2: 项目后续发布新版本，如何更新？
-直接前往 [Releases 最新发布页面](https://github.com/atjjme/agy-enhancer/releases/latest) 下载新的 ZIP 压缩包，解压并覆盖本地同名文件即可。
-- 如果后台守护服务正在运行，修改/覆盖 `src/agy-enhancer.js` 时会触发自动热重载；
-- 无需重复配置开机自启，也无需重启电脑。
+#### Q2: How do I update to newer releases?
+Simply download the latest ZIP package from [Releases](https://github.com/atjjme/agy-enhancer/releases/latest) and extract/overwrite existing files.
+- The background daemon will hot reload `src/agy-enhancer.js` immediately upon file replacement;
+- No need to reconfigure startup or reboot your PC.
 
-#### Q3: 守护进程会影响系统性能或收集个人隐私吗？
-- **零破坏与安全侵入**：绝不修改 Antigravity 安装包或核心底层代码，安全可靠；
-- **资源占用极低**：守护服务仅监听文件变动与端口连接，内存占用极小，几乎零 CPU 消耗；
-- **纯本地离线运行**：所有逻辑与数据（归档、阅读位置、已读标记）均保存在您本机的 `%APPDATA%\antigravity` 目录下，**绝不向任何外部第三方服务器上传**您的提示词、对话记录、项目路径等任何隐私数据。
+#### Q3: Does the daemon impact performance or collect private data?
+- **Zero Invasiveness**: Never modifies Antigravity binaries or core application files;
+- **Minimal Footprint**: Operates via efficient event loops with negligible memory and CPU overhead;
+- **100% Local & Private**: All settings, archives, and scroll records stay in your local `%APPDATA%\antigravity` folder. **Never sends or uploads** prompts, conversation logs, or paths to any external server.
 
-#### Q4: 如何彻底关闭或卸载？
-- **临时停止服务**：双击运行 `scripts/stop-service.bat`，即可立刻终止正在运行的后台守护进程；
-- **彻底卸载清理**：双击运行 `scripts/uninstall.bat`，脚本会自动清除 Windows Startup 启动文件夹中的快捷方式，并同步终止服务。
+#### Q4: How do I terminate or completely uninstall?
+- **Temporary Stop**: Double-click `stop-service.bat` to terminate the background process;
+- **Full Removal**: Double-click `uninstall.bat` to remove the startup shortcut and stop the service cleanly.
 
-[↑ 返回顶部导航](#quick-nav)
+[↑ Back to Quick Navigation](#quick-nav)
