@@ -1001,7 +1001,7 @@
       if (!toast) {
         toast = document.createElement('div');
         toast.id = 'agy-enhancer-toast';
-        toast.title = `Antigravity Enhancer ready${branchTag} (点击打开设置)`;
+        toast.title = `Antigravity Enhancer ready${branchTag}`;
         toast.innerHTML = `
           <div class="dot"></div>
           <span class="toast-text">Antigravity Enhancer active${branchTag}</span>
@@ -1033,7 +1033,7 @@
         });
       } else {
         // 已存在单例 Toast，更新标题并重新绑定点击处理
-        toast.title = `Antigravity Enhancer ready${branchTag} (点击打开设置)`;
+        toast.title = `Antigravity Enhancer ready${branchTag}`;
         if (!toast.classList.contains('collapsed')) {
           toast.classList.add('collapsed');
         }
