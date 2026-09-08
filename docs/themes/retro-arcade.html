@@ -179,7 +179,7 @@
       box-shadow: 1px 1px 0px #000;
     }
 
-    /* 顶级总闸 Hero (INSERT COIN / MASTER POWER) */
+    /* 顶级总闸 Hero */
     .master-arcade-card {
       background: var(--pixel-panel);
       border: 3px solid var(--p-yellow);
@@ -251,7 +251,6 @@
       letter-spacing: 1px;
     }
 
-    /* 行 */
     .pixel-row {
       display: flex;
       align-items: center;
@@ -282,7 +281,6 @@
       line-height: 1.5;
     }
 
-    /* 联动子卡片 */
     .pixel-sub-block {
       margin: 6px 0 10px 18px;
       padding: 10px 14px;
@@ -297,7 +295,6 @@
       pointer-events: none;
     }
 
-    /* 功能区域休眠 */
     .pixel-features-wrap {
       position: relative;
       transition: all 0.3s;
@@ -327,7 +324,7 @@
       display: block;
     }
 
-    /* 像素方块开关 (8-Bit Pixel Switch) */
+    /* 像素方块开关 */
     .pixel-switch {
       position: relative;
       display: inline-block;
@@ -375,7 +372,6 @@
       box-shadow: inset 1px 1px 0px #fff, 0 0 8px var(--p-green);
     }
 
-    /* Hero 大开关 */
     .hero-pixel-switch {
       width: 60px;
       height: 30px;
@@ -488,11 +484,36 @@
       opacity: 1;
       transform: translateX(-50%) translateY(0);
     }
+
+    /* 主题切换器 */
+    .theme-nav-pill {
+      display: inline-flex;
+      align-items: center;
+      background: var(--p-dark);
+      border: 2px solid var(--p-yellow);
+      box-shadow: 2px 2px 0px #000;
+      padding: 4px 10px;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--p-yellow);
+    }
+    .theme-nav-pill select {
+      background: transparent;
+      border: none;
+      color: var(--p-yellow);
+      font-family: inherit;
+      font-size: 11px;
+      outline: none;
+      cursor: pointer;
+    }
+    .theme-nav-pill select option {
+      background: #16152b;
+      color: #fff;
+    }
   </style>
 </head>
 <body>
 
-  <!-- Toast -->
   <div class="arcade-toast" id="toastMsg">
     <span id="toastText">★ LEVEL SAVED! CONFIG DEPLOYED ★</span>
   </div>
@@ -505,13 +526,27 @@
         <div class="pixel-heart">★</div>
         <div class="arcade-title-box">
           <h1>Antigravity 增强控制台</h1>
-          <p>ARCADE_EDITION_1989 • 8-BIT SYSTEM CONTROLLER</p>
+          <p>ARCADE_EDITION • 8-BIT SYSTEM CONTROLLER</p>
         </div>
       </div>
 
-      <div class="pixel-badge" id="connCapsule">
-        <span class="blink-square"></span>
-        <span id="connLabel">LINK: ONLINE</span>
+      <div style="display: flex; align-items: center; gap: 12px;">
+        <div class="theme-nav-pill">
+          <span>🎨 </span>
+          <select onchange="changeGlobalTheme(this.value)">
+            <option value="aurora-bento.html">极光便当盒 (默认)</option>
+            <option value="cyberpunk.html">赛博全息</option>
+            <option value="swiss-gallery.html">瑞士画廊钛金</option>
+            <option value="spatial-3d.html">3D 空间浮岛</option>
+            <option value="retro-arcade.html" selected>霓虹复古像素</option>
+            <option value="classic-default.html">原版经典沉浸</option>
+          </select>
+        </div>
+
+        <div class="pixel-badge" id="connCapsule">
+          <span class="blink-square"></span>
+          <span id="connLabel">LINK: ONLINE</span>
+        </div>
       </div>
     </header>
 
@@ -524,7 +559,7 @@
       <button class="btn-pixel-retry" id="retryConnBtn" type="button">RETRY LINK</button>
     </div>
 
-    <!-- 顶级总闸 Hero (Master Switch) -->
+    <!-- 顶级总闸 Hero -->
     <div class="master-arcade-card" id="heroMasterCard">
       <div>
         <div class="master-status-tag" id="heroMasterStatusTag">● 1P READY // SYSTEM ACTIVE</div>
@@ -664,6 +699,11 @@
   </div>
 
   <script>
+    function changeGlobalTheme(val) {
+      localStorage.setItem('agy_theme', 'docs/themes/' + val);
+      location.href = val;
+    }
+
     const API_BASE = (location.protocol === 'http:' || location.protocol === 'https:') 
       ? '' 
       : 'http://127.0.0.1:37210';
@@ -725,7 +765,6 @@
         featuresContainer.classList.add('master-dormant');
       }
 
-      // 右键联动
       const ctxMenuCheck = document.getElementById('ENABLE_CONTEXT_MENU').checked;
       const quoteSubPanel = document.getElementById('quotePopupSubPanel');
       const blockQuoteCheck = document.getElementById('ENABLE_BLOCK_QUOTE_POPUP');

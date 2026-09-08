@@ -47,7 +47,6 @@
       -webkit-font-smoothing: antialiased;
     }
 
-    /* 3D 空间网格底纹 */
     .spatial-grid-bg {
       position: fixed;
       top: 0; left: 0; width: 100vw; height: 100vh;
@@ -180,7 +179,7 @@
       white-space: nowrap;
     }
 
-    /* 核心浮空城堡 Hero (Master Island) */
+    /* 核心浮空城堡 Hero */
     .master-citadel {
       background: linear-gradient(135deg, rgba(22, 32, 58, 0.85) 0%, rgba(13, 17, 30, 0.85) 100%);
       border: 1px solid rgba(0, 242, 254, 0.35);
@@ -237,7 +236,7 @@
       max-width: 620px;
     }
 
-    /* 空间浮岛网格 (3D Tilt Islands) */
+    /* 空间浮岛网格 */
     .spatial-islands-zone {
       display: grid;
       grid-template-columns: repeat(2, 1fr);
@@ -260,7 +259,6 @@
       transform: translateZ(-40px);
     }
 
-    /* 浮岛卡片（支持鼠标 3D 悬浮倾斜） */
     .spatial-card {
       background: var(--island-bg);
       border: 1px solid var(--island-border);
@@ -280,7 +278,6 @@
       box-shadow: 0 30px 60px -15px rgba(0, 0, 0, 0.8), 0 0 30px rgba(0, 242, 254, 0.2);
     }
 
-    /* 镜面反光扫光层 */
     .spatial-card::before {
       content: "";
       position: absolute;
@@ -321,7 +318,6 @@
       font-weight: 700;
     }
 
-    /* 岛屿内部控制行 */
     .island-row {
       display: flex;
       align-items: center;
@@ -360,7 +356,6 @@
       line-height: 1.45;
     }
 
-    /* 联动子项小岛屿 */
     .island-sub-deck {
       margin: 8px 0 12px;
       padding: 12px 14px;
@@ -377,7 +372,7 @@
       pointer-events: none;
     }
 
-    /* 3D 拟物触感开关 (3D Push Switch) */
+    /* 3D 拟物触感开关 */
     .spatial-switch {
       position: relative;
       display: inline-block;
@@ -427,7 +422,6 @@
       transform: translateX(22px);
     }
 
-    /* Hero 大开关 */
     .hero-spatial-switch {
       width: 60px;
       height: 32px;
@@ -444,7 +438,7 @@
       transform: translateX(28px);
     }
 
-    /* 悬浮立体控制坞 (Floating 3D Dock) */
+    /* 悬浮立体控制坞 */
     .spatial-dock {
       position: fixed;
       bottom: 24px;
@@ -541,14 +535,37 @@
       opacity: 1;
       transform: translateX(-50%) translateY(0);
     }
+
+    /* 主题切换器 */
+    .theme-nav-pill {
+      display: inline-flex;
+      align-items: center;
+      background: rgba(18, 25, 45, 0.85);
+      border: 1px solid rgba(0, 242, 254, 0.3);
+      padding: 4px 12px;
+      border-radius: 100px;
+      font-size: 12px;
+      color: var(--glow-teal);
+    }
+    .theme-nav-pill select {
+      background: transparent;
+      border: none;
+      color: var(--glow-teal);
+      font-family: inherit;
+      font-size: 12px;
+      outline: none;
+      cursor: pointer;
+    }
+    .theme-nav-pill select option {
+      background: #0d1326;
+      color: #fff;
+    }
   </style>
 </head>
 <body>
 
-  <!-- 网格底纹 -->
   <div class="spatial-grid-bg"></div>
 
-  <!-- Toast -->
   <div class="spatial-toast" id="toastMsg">
     <span id="toastText">3D 空间配置已成功同步热生效</span>
   </div>
@@ -566,9 +583,23 @@
         <span class="header-spatial-title">Antigravity 增强器 • 空间浮岛</span>
       </div>
 
-      <div class="spatial-pill" id="connCapsule">
-        <span class="orb-pulse"></span>
-        <span id="connLabel">守护信标连接中...</span>
+      <div style="display: flex; align-items: center; gap: 14px;">
+        <div class="theme-nav-pill">
+          <span>🎨 </span>
+          <select onchange="changeGlobalTheme(this.value)">
+            <option value="aurora-bento.html">极光便当盒 (默认)</option>
+            <option value="cyberpunk.html">赛博全息</option>
+            <option value="swiss-gallery.html">瑞士画廊钛金</option>
+            <option value="spatial-3d.html" selected>3D 空间浮岛</option>
+            <option value="retro-arcade.html">霓虹复古像素</option>
+            <option value="classic-default.html">原版经典沉浸</option>
+          </select>
+        </div>
+
+        <div class="spatial-pill" id="connCapsule">
+          <span class="orb-pulse"></span>
+          <span id="connLabel">守护信标连接中...</span>
+        </div>
       </div>
     </header>
 
@@ -581,7 +612,7 @@
       <button class="btn-spatial-reprobe" id="retryConnBtn" type="button">探测连接</button>
     </div>
 
-    <!-- 核心浮空城堡 (Hero Master Switch) -->
+    <!-- 核心浮空城堡 Hero -->
     <div class="master-citadel" id="heroMasterCard">
       <div>
         <div class="citadel-status-badge" id="heroMasterStatusTag">● 空间浮岛运转中</div>
@@ -596,7 +627,7 @@
       </label>
     </div>
 
-    <!-- 浮岛网格 (鼠标倾斜视差) -->
+    <!-- 浮岛网格 -->
     <div class="spatial-islands-zone" id="featuresContainer">
 
       <!-- 岛屿 1: 系统服务 -->
@@ -738,6 +769,11 @@
   </div>
 
   <script>
+    function changeGlobalTheme(val) {
+      localStorage.setItem('agy_theme', 'docs/themes/' + val);
+      location.href = val;
+    }
+
     const API_BASE = (location.protocol === 'http:' || location.protocol === 'https:') 
       ? '' 
       : 'http://127.0.0.1:37210';
@@ -768,7 +804,6 @@
 
     let isDirty = false;
 
-    // 鼠标 3D 悬浮倾斜视差效果
     const cards = document.querySelectorAll('.spatial-card');
     cards.forEach(card => {
       card.addEventListener('mousemove', (e) => {
@@ -821,7 +856,6 @@
         featuresContainer.classList.add('master-dormant');
       }
 
-      // 右键联动划词 Quote
       const ctxMenuCheck = document.getElementById('ENABLE_CONTEXT_MENU').checked;
       const quoteSubPanel = document.getElementById('quotePopupSubPanel');
       const blockQuoteCheck = document.getElementById('ENABLE_BLOCK_QUOTE_POPUP');

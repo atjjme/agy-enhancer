@@ -41,7 +41,6 @@
       position: relative;
     }
 
-    /* 钛金哑光细腻微质感 */
     body::after {
       content: "";
       position: fixed;
@@ -274,7 +273,6 @@
       display: block;
     }
 
-    /* 章节标题 */
     .section-chapter-label {
       display: flex;
       align-items: baseline;
@@ -298,7 +296,6 @@
       text-transform: uppercase;
     }
 
-    /* 条目列表行 */
     .gallery-row {
       display: flex;
       align-items: center;
@@ -346,7 +343,6 @@
       line-height: 1.5;
     }
 
-    /* 联动子项排版 */
     .gallery-sub-row {
       margin: 6px 0 12px 30px;
       padding: 12px 20px;
@@ -361,7 +357,7 @@
       pointer-events: none;
     }
 
-    /* 钛金极简拨杆开关 (Titanium Minimal Switch) */
+    /* 钛金极简拨杆开关 */
     .titanium-switch {
       position: relative;
       display: inline-block;
@@ -409,7 +405,6 @@
       box-shadow: 0 0 8px rgba(212, 175, 55, 0.6);
     }
 
-    /* Hero 大开关 */
     .hero-titanium-switch {
       width: 56px;
       height: 28px;
@@ -515,11 +510,35 @@
       opacity: 1;
       transform: translateX(-50%) translateY(0);
     }
+
+    /* 主题切换器 */
+    .theme-nav-pill {
+      display: inline-flex;
+      align-items: center;
+      background: var(--titanium-surface);
+      border: 1px solid var(--titanium-gold);
+      padding: 4px 12px;
+      border-radius: 4px;
+      font-size: 12px;
+      color: var(--titanium-gold);
+    }
+    .theme-nav-pill select {
+      background: transparent;
+      border: none;
+      color: var(--titanium-gold-light);
+      font-family: inherit;
+      font-size: 12px;
+      outline: none;
+      cursor: pointer;
+    }
+    .theme-nav-pill select option {
+      background: #101216;
+      color: #fff;
+    }
   </style>
 </head>
 <body>
 
-  <!-- Toast -->
   <div class="gallery-toast" id="toastMsg">
     <span id="toastText">CONFIGURATION COMMITTED & DEPLOYED</span>
   </div>
@@ -536,9 +555,23 @@
         </p>
       </div>
 
-      <div class="titanium-status-badge" id="connCapsule">
-        <span class="gold-dot"></span>
-        <span id="connLabel">守护服务握手已就绪</span>
+      <div style="display: flex; align-items: center; gap: 14px;">
+        <div class="theme-nav-pill">
+          <span>🎨 </span>
+          <select onchange="changeGlobalTheme(this.value)">
+            <option value="aurora-bento.html">极光便当盒 (默认)</option>
+            <option value="cyberpunk.html">赛博全息</option>
+            <option value="swiss-gallery.html" selected>瑞士画廊钛金</option>
+            <option value="spatial-3d.html">3D 空间浮岛</option>
+            <option value="retro-arcade.html">霓虹复古像素</option>
+            <option value="classic-default.html">原版经典沉浸</option>
+          </select>
+        </div>
+
+        <div class="titanium-status-badge" id="connCapsule">
+          <span class="gold-dot"></span>
+          <span id="connLabel">守护服务握手已就绪</span>
+        </div>
       </div>
     </header>
 
@@ -725,6 +758,11 @@
   </div>
 
   <script>
+    function changeGlobalTheme(val) {
+      localStorage.setItem('agy_theme', 'docs/themes/' + val);
+      location.href = val;
+    }
+
     const API_BASE = (location.protocol === 'http:' || location.protocol === 'https:') 
       ? '' 
       : 'http://127.0.0.1:37210';
@@ -786,7 +824,6 @@
         featuresContainer.classList.add('master-dormant');
       }
 
-      // 右键联动划词 Quote
       const ctxMenuCheck = document.getElementById('ENABLE_CONTEXT_MENU').checked;
       const quoteSubPanel = document.getElementById('quotePopupSubPanel');
       const blockQuoteCheck = document.getElementById('ENABLE_BLOCK_QUOTE_POPUP');

@@ -47,7 +47,7 @@
       -webkit-font-smoothing: antialiased;
     }
 
-    /* 动态极光画布背景 (Fluid Aurora Canvas) */
+    /* 动态极光画布背景 */
     .aurora-background {
       position: fixed;
       top: 0;
@@ -100,7 +100,6 @@
       100% { transform: translate(-30px, -20px) scale(0.95); }
     }
 
-    /* 主容器 */
     .vision-container {
       width: 100%;
       max-width: 1080px;
@@ -108,7 +107,7 @@
       z-index: 1;
     }
 
-    /* VisionOS 顶部浮动毛玻璃状态岛 (Island Nav) */
+    /* VisionOS 顶部浮动毛玻璃状态岛 */
     .vision-nav {
       display: flex;
       align-items: center;
@@ -243,14 +242,13 @@
       background: rgba(255, 255, 255, 0.2);
     }
 
-    /* Bento Grid (便当盒瀑布流架构) */
+    /* Bento Grid */
     .bento-grid {
       display: grid;
       grid-template-columns: repeat(12, 1fr);
       gap: 20px;
     }
 
-    /* Bento 卡片基础样式 */
     .bento-card {
       background: var(--glass-base);
       backdrop-filter: blur(32px);
@@ -270,16 +268,13 @@
       transform: translateY(-2px);
     }
 
-    /* 卡片尺寸跨度 */
     .col-span-12 { grid-column: span 12; }
     .col-span-7  { grid-column: span 7; }
     .col-span-5  { grid-column: span 5; }
     .col-span-6  { grid-column: span 6; }
-    .col-span-4  { grid-column: span 4; }
-    .col-span-8  { grid-column: span 8; }
 
     @media (max-width: 900px) {
-      .col-span-7, .col-span-5, .col-span-6, .col-span-4, .col-span-8 {
+      .col-span-7, .col-span-5, .col-span-6 {
         grid-column: span 12 !important;
       }
     }
@@ -350,7 +345,6 @@
       max-width: 680px;
     }
 
-    /* 卡片内部标题条 */
     .bento-header {
       display: flex;
       align-items: center;
@@ -377,7 +371,6 @@
       letter-spacing: -0.01em;
     }
 
-    /* Bento 内部功能行 */
     .bento-item-row {
       display: flex;
       align-items: center;
@@ -416,7 +409,6 @@
       line-height: 1.45;
     }
 
-    /* 子开关联动折叠抽屉 */
     .bento-sub-tile {
       margin: 8px 0 12px;
       padding: 12px 16px;
@@ -432,7 +424,7 @@
       pointer-events: none;
     }
 
-    /* VisionOS 物理弹簧阻尼开关 (Vision Switch) */
+    /* VisionOS 开关 */
     .vision-switch {
       position: relative;
       display: inline-block;
@@ -480,7 +472,6 @@
       transform: translateX(20px);
     }
 
-    /* Hero 大开关尺寸 */
     .hero-vision-switch {
       width: 58px;
       height: 32px;
@@ -497,30 +488,6 @@
       transform: translateX(26px);
     }
 
-    /* 功能区域休眠联动 */
-    .features-bento-zone {
-      display: contents;
-      transition: all 0.4s ease;
-    }
-
-    .bento-dormant-mask {
-      display: none;
-      grid-column: span 12;
-      background: rgba(244, 63, 94, 0.15);
-      border: 1px solid rgba(244, 63, 94, 0.35);
-      border-radius: var(--radius-bento);
-      padding: 14px 20px;
-      text-align: center;
-      font-size: 13.5px;
-      font-weight: 600;
-      color: #fda4af;
-      margin-bottom: 4px;
-    }
-
-    .master-dormant-active .bento-dormant-mask {
-      display: block;
-    }
-
     .master-dormant-active .bento-feature-card {
       opacity: 0.35;
       filter: grayscale(0.8);
@@ -528,7 +495,7 @@
       user-select: none;
     }
 
-    /* macOS 悬浮 Dock 操作底栏 */
+    /* macOS 悬浮 Dock */
     .vision-dock {
       position: fixed;
       bottom: 24px;
@@ -604,7 +571,7 @@
       transform: none;
     }
 
-    /* VisionOS Toast 提示泡 */
+    /* Toast */
     .vision-toast {
       position: fixed;
       top: 30px;
@@ -633,18 +600,41 @@
       opacity: 1;
       transform: translateX(-50%) translateY(0);
     }
+
+    /* 微型主题切换器 */
+    .theme-nav-pill {
+      display: inline-flex;
+      align-items: center;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      padding: 4px 12px;
+      border-radius: 100px;
+      font-size: 12px;
+      color: var(--text-pri);
+    }
+    .theme-nav-pill select {
+      background: transparent;
+      border: none;
+      color: var(--text-pri);
+      font-family: inherit;
+      font-size: 12px;
+      outline: none;
+      cursor: pointer;
+    }
+    .theme-nav-pill select option {
+      background: #181b2a;
+      color: #fff;
+    }
   </style>
 </head>
 <body>
 
-  <!-- 极光背景画布 -->
   <div class="aurora-background">
     <div class="aurora-blob blob-1"></div>
     <div class="aurora-blob blob-2"></div>
     <div class="aurora-blob blob-3"></div>
   </div>
 
-  <!-- 提示气泡 -->
   <div class="vision-toast" id="toastMsg">
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6L9 17l-5-5"/></svg>
     <span id="toastText">配置已成功保存并即时热重载</span>
@@ -661,12 +651,26 @@
           </svg>
         </div>
         <span class="nav-title">Antigravity 增强器</span>
-        <span class="nav-tag">Vision Bento 3.7</span>
+        <span class="nav-tag">Vision Bento</span>
       </div>
 
-      <div class="conn-pill" id="connCapsule">
-        <span class="conn-indicator"></span>
-        <span id="connLabel">连接守护服务中...</span>
+      <div style="display: flex; align-items: center; gap: 12px;">
+        <div class="theme-nav-pill">
+          <span>🎨 </span>
+          <select onchange="changeGlobalTheme(this.value)">
+            <option value="aurora-bento.html" selected>极光便当盒 (默认)</option>
+            <option value="cyberpunk.html">赛博全息</option>
+            <option value="swiss-gallery.html">瑞士画廊钛金</option>
+            <option value="spatial-3d.html">3D 空间浮岛</option>
+            <option value="retro-arcade.html">霓虹复古像素</option>
+            <option value="classic-default.html">原版经典沉浸</option>
+          </select>
+        </div>
+
+        <div class="conn-pill" id="connCapsule">
+          <span class="conn-indicator"></span>
+          <span id="connLabel">连接守护服务中...</span>
+        </div>
       </div>
     </nav>
 
@@ -685,7 +689,7 @@
     <!-- Bento 响应式网格 -->
     <div class="bento-grid" id="featuresBentoContainer">
 
-      <!-- Bento 1: 全局总开关 (Master Hero Bento) -->
+      <!-- Bento 1: 全局总开关 -->
       <div class="bento-card col-span-12 bento-hero" id="heroMasterCard">
         <div class="hero-text-wrap">
           <div class="hero-badge-pill">
@@ -842,6 +846,11 @@
   </div>
 
   <script>
+    function changeGlobalTheme(val) {
+      localStorage.setItem('agy_theme', 'docs/themes/' + val);
+      location.href = val;
+    }
+
     const API_BASE = (location.protocol === 'http:' || location.protocol === 'https:') 
       ? '' 
       : 'http://127.0.0.1:37210';

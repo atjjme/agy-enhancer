@@ -44,7 +44,6 @@
       overflow-x: hidden;
     }
 
-    /* 扫描线氛围 */
     body::before {
       content: " ";
       position: fixed;
@@ -121,18 +120,6 @@
       display: flex;
       align-items: center;
       gap: 10px;
-    }
-
-    .hud-badge-tag {
-      font-size: 10px;
-      font-family: monospace;
-      padding: 2px 6px;
-      background: rgba(0, 242, 254, 0.15);
-      border: 1px solid var(--neon-cyan);
-      color: var(--neon-cyan);
-      border-radius: 2px;
-      text-transform: uppercase;
-      letter-spacing: 1px;
     }
 
     .hud-subtitle {
@@ -271,7 +258,6 @@
       -webkit-backdrop-filter: blur(12px);
     }
 
-    /* 边角科技装饰 */
     .hud-card::after {
       content: "";
       position: absolute;
@@ -388,7 +374,6 @@
       transition: all 0.4s ease;
     }
 
-    /* 休眠遮罩 */
     .tactical-matrix.master-dormant {
       opacity: 0.35;
       filter: grayscale(0.85);
@@ -482,7 +467,7 @@
       pointer-events: none;
     }
 
-    /* 赛博切角开关 (Cyber Switch) */
+    /* 赛博切角开关 */
     .cyber-switch {
       position: relative;
       display: inline-block;
@@ -555,7 +540,7 @@
       box-shadow: 0 0 12px var(--neon-green);
     }
 
-    /* 底部战术控制指令坞 (HUD Action Bar) */
+    /* 底部战术控制指令坞 */
     .hud-dock-bar {
       position: fixed;
       bottom: 24px;
@@ -657,6 +642,32 @@
       opacity: 1;
       transform: translateX(-50%) translateY(0);
     }
+
+    /* 优雅通用微型主题切换器 */
+    .theme-nav-pill {
+      display: inline-flex;
+      align-items: center;
+      background: rgba(0, 242, 254, 0.08);
+      border: 1px solid var(--neon-cyan);
+      padding: 4px 10px;
+      font-family: monospace;
+      font-size: 12px;
+      color: var(--neon-cyan);
+      box-shadow: 0 0 8px rgba(0, 242, 254, 0.2);
+    }
+    .theme-nav-pill select {
+      background: transparent;
+      border: none;
+      color: var(--neon-cyan);
+      font-family: inherit;
+      font-size: 12px;
+      outline: none;
+      cursor: pointer;
+    }
+    .theme-nav-pill select option {
+      background: #0b0f19;
+      color: #fff;
+    }
   </style>
 </head>
 <body>
@@ -677,14 +688,28 @@
           </svg>
         </div>
         <div class="hud-title-wrap">
-          <h1>Antigravity // 战术指挥舱 <span class="hud-badge-tag">HOLO-MK1</span></h1>
-          <div class="hud-subtitle">PROMPT_INJECTOR_DAEMON v3.7 • 守护进程与增强模块实时调配控制台</div>
+          <h1>Antigravity // 战术指挥舱</h1>
+          <div class="hud-subtitle">PROMPT_INJECTOR_DAEMON • 守护进程与增强模块实时调配控制台</div>
         </div>
       </div>
 
-      <div class="hud-conn-capsule" id="connCapsule">
-        <span class="radar-blip"></span>
-        <span id="connLabel">INITIALIZING_LINK...</span>
+      <div style="display: flex; align-items: center; gap: 14px;">
+        <div class="theme-nav-pill">
+          <span>🎨 </span>
+          <select onchange="changeGlobalTheme(this.value)">
+            <option value="aurora-bento.html">极光便当盒 (默认)</option>
+            <option value="cyberpunk.html" selected>赛博全息</option>
+            <option value="swiss-gallery.html">瑞士画廊钛金</option>
+            <option value="spatial-3d.html">3D 空间浮岛</option>
+            <option value="retro-arcade.html">霓虹复古像素</option>
+            <option value="classic-default.html">原版经典沉浸</option>
+          </select>
+        </div>
+
+        <div class="hud-conn-capsule" id="connCapsule">
+          <span class="radar-blip"></span>
+          <span id="connLabel">INITIALIZING_LINK...</span>
+        </div>
       </div>
     </header>
 
@@ -890,6 +915,11 @@
   </div>
 
   <script>
+    function changeGlobalTheme(val) {
+      localStorage.setItem('agy_theme', 'docs/themes/' + val);
+      location.href = val;
+    }
+
     const API_BASE = (location.protocol === 'http:' || location.protocol === 'https:') 
       ? '' 
       : 'http://127.0.0.1:37210';
@@ -951,7 +981,6 @@
         featuresContainer.classList.add('master-dormant');
       }
 
-      // 右键开关联动划词 Quote
       const ctxMenuCheck = document.getElementById('ENABLE_CONTEXT_MENU').checked;
       const quoteSubPanel = document.getElementById('quotePopupSubPanel');
       const blockQuoteCheck = document.getElementById('ENABLE_BLOCK_QUOTE_POPUP');
