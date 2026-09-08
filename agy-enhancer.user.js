@@ -132,6 +132,9 @@ window.__AGY_BRANCH_NAME__ = "optimize_input_performance_latency";
   let cachedPM = null;
   let cachedTSP = null;
   let cachedFiberHooks = null;
+  let onHeartbeatProjectArchiver = null;
+  let onHeartbeatScrollPersistence = null;
+  let onHeartbeatSmartUnread = null;
 
   // 轻量级全局用户打字感知：输入期间主动抑制后台高频 DOM 扫描与布局测量
   function isUserTyping() {
@@ -165,6 +168,9 @@ window.__AGY_BRANCH_NAME__ = "optimize_input_performance_latency";
     cachedPM = null;
     cachedTSP = null;
     cachedFiberHooks = null;
+    onHeartbeatProjectArchiver = null;
+    onHeartbeatScrollPersistence = null;
+    onHeartbeatSmartUnread = null;
 
     if (windowPopstateHandler) {
       window.removeEventListener('popstate', windowPopstateHandler);
@@ -2542,8 +2548,7 @@ window.__AGY_BRANCH_NAME__ = "optimize_input_performance_latency";
         });
       }
 
-      // 监听变更与定时保活（已有 onDidChange 实时驱动，保活间隔放宽至 5000ms 节约性能）
-      addInterval(updateArchiveUI, 5000);
+      // 监听变更与初始挂载（保活由全局心跳调度器统一负责，数据变动已有 onDidChange 实时驱动）
       windowPopstateHandler = updateArchiveUI;
       window.addEventListener('popstate', windowPopstateHandler);
       addTimeout(updateArchiveUI, 200);
@@ -2555,6 +2560,8 @@ window.__AGY_BRANCH_NAME__ = "optimize_input_performance_latency";
           if (isPanelOpen) renderArchivePanel(pm);
         });
       }
+
+      onHeartbeatProjectArchiver = updateArchiveUI;
 
       // ==================== 7. 原生侧边栏未归档对话菜单增强 ====================
       function initNativeConvoMenuEnhancer() {
@@ -4464,7 +4471,7 @@ window.__AGY_BRANCH_NAME__ = "optimize_input_performance_latency";
         if (saveTimer) clearTimeout(saveTimer);
         saveTimer = setTimeout(() => {
           recordConvoPosition(convoId);
-        }, 80);
+        }, 250);
       }
 
       function syncFiberAutoScrollDisabled(container) {
@@ -4548,7 +4555,7 @@ window.__AGY_BRANCH_NAME__ = "optimize_input_performance_latency";
 
         applyRestoration();
 
-        const checkDelays = [15, 40, 80, 140, 220, 340, 500, 750, 1100, 1600, 2300, 3200, 4500];
+        const checkDelays = [80, 250, 700, 1800];
         checkDelays.forEach(ms => {
           addTimeout(() => {
             if (activeRestoringConvoId === convoId) {
@@ -4706,7 +4713,7 @@ window.__AGY_BRANCH_NAME__ = "optimize_input_performance_latency";
 
       convoSwitchPopstateHandler = handleConvoSwitch;
       window.addEventListener('popstate', convoSwitchPopstateHandler);
-      addInterval(handleConvoSwitch, 1000);
+      onHeartbeatScrollPersistence = handleConvoSwitch;
 
       // 新提问提交通知钩子：提交新提问代表用户在底部追问，直接删除记录
       notifyNewPromptSubmitted = () => {
@@ -4860,13 +4867,7 @@ window.__AGY_BRANCH_NAME__ = "optimize_input_performance_latency";
           }
         }
 
-        const { pages } = getPagesInfo();
-        if (!pages || pages.length === 0) {
-          return maxScroll > container.clientHeight * 0.8;
-        }
-        const lastTurn = pages[pages.length - 1];
-        if (!lastTurn || typeof lastTurn.height !== 'number') return false;
-        return lastTurn.height >= (container.clientHeight * USER_CONFIG.LONG_TEXT_RATIO);
+        return maxScroll > container.clientHeight * USER_CONFIG.LONG_TEXT_RATIO;
       }
 
       function markConvoAsUnread(convoId, reason) {
@@ -5033,9 +5034,6 @@ window.__AGY_BRANCH_NAME__ = "optimize_input_performance_latency";
         }
       };
       window.addEventListener('wheel', unreadWheelHandler, { capture: true, passive: true });
-
-      // 周期性检测触底与停留状态（弥补平滑滚动与动态内容渲染）
-      addInterval(handleViewingScroll, 1000);
 
       // 对话切换监测（与会话切换事件联动，免除独立高频轮询）
       let trackedConvoId = null;
@@ -5254,13 +5252,17 @@ window.__AGY_BRANCH_NAME__ = "optimize_input_performance_latency";
         });
       }
 
-      // 统合侧边栏扫描：合并高频定时器，间隔放宽至 1000ms，大幅削减 DOM 重复查询与主线程开销
+      // 统合侧边栏扫描：单次遍历合并状态检查与红点同步，大幅削减 DOM 重复查询与主线程开销
       function checkAndSyncSidebar() {
         if (isUserTyping()) return;
         checkGeneratingAndUnreadState();
         syncSidebarIndicators();
       }
-      addInterval(checkAndSyncSidebar, 1000);
+
+      onHeartbeatSmartUnread = () => {
+        handleViewingScroll();
+        checkAndSyncSidebar();
+      };
 
       // 对外暴露辅助方法供右键菜单等模块协同调用与测试
       window.__AGY_MARK_SEEN__ = (id) => markConvoAsSeen(id || getCurrentUrlConvoId(), 'manual API');
@@ -5415,6 +5417,33 @@ window.__AGY_BRANCH_NAME__ = "optimize_input_performance_latency";
     initConversationScrollPersistence();
     initSmartUnreadTracker();
     initQuotePopupInterceptor();
+
+    // ==================== 12. 全局统一后台心跳调度器 (Unified Heartbeat Dispatcher) ====================
+    let heartbeatTickCount = 0;
+    function heartbeatDispatcher() {
+      // 1. 全局打字休眠保护：用户正在输入文字时，整轮后台轮询全部静默，保证 0 性能损耗
+      if (isUserTyping()) return;
+
+      heartbeatTickCount++;
+
+      // 2. 模块独立调度（完全由用户配置开关独立控制，便于随时动态启闭与解耦）
+      // 模块 1：会话滚动位置切换与恢复兜底（每 1000ms）
+      if (USER_CONFIG.ENABLE_SCROLL_POSITION_PERSISTENCE && onHeartbeatScrollPersistence) {
+        onHeartbeatScrollPersistence();
+      }
+
+      // 模块 2：智能已读/未读状态追踪与侧边栏红点同步（每 1000ms）
+      if (USER_CONFIG.ENABLE_SMART_UNREAD && onHeartbeatSmartUnread) {
+        onHeartbeatSmartUnread();
+      }
+
+      // 模块 3：项目折叠归档面板与快捷按钮保活（每 5000ms 即每 5 次心跳）
+      if (heartbeatTickCount % 5 === 0 && onHeartbeatProjectArchiver) {
+        onHeartbeatProjectArchiver();
+      }
+    }
+
+    addInterval(heartbeatDispatcher, 1000);
 
     console.log('[agy-enhancer] Page navigator, project archiver, context menu, scroll memory, unread tracker, and quote interceptor ready!');
   }
