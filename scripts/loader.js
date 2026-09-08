@@ -46,7 +46,8 @@ const configFile = path.join(
   'agy-enhancer-config.json'
 );
 
-const localConfigFile = path.resolve(__dirname, '../agy-enhancer-config.json');
+const localConfigFile = path.resolve(__dirname, 'agy-enhancer-config.json');
+const fallbackConfigFile = path.resolve(__dirname, '../agy-enhancer-config.json');
 const settingsHtmlFile = path.resolve(__dirname, '../settings.html');
 const SETTINGS_PORT = 37210;
 
@@ -167,7 +168,7 @@ function setAutostart(enable) {
     }
 
     if (enable) {
-      const vbsPath = path.resolve(__dirname, '../start-service-silent.vbs');
+      const vbsPath = path.resolve(__dirname, 'start-service-silent.vbs');
       const rootDir = path.resolve(__dirname, '..');
       const psCmd = `$ws = New-Object -ComObject WScript.Shell; ` +
         `$shortcut = $ws.CreateShortcut('${shortcutPath.replace(/'/g, "''")}'); ` +
@@ -199,6 +200,9 @@ function getStoredConfig() {
       Object.assign(config, JSON.parse(raw));
     } else if (fs.existsSync(localConfigFile)) {
       const raw = fs.readFileSync(localConfigFile, 'utf8');
+      Object.assign(config, JSON.parse(raw));
+    } else if (fs.existsSync(fallbackConfigFile)) {
+      const raw = fs.readFileSync(fallbackConfigFile, 'utf8');
       Object.assign(config, JSON.parse(raw));
     }
   } catch (e) {}

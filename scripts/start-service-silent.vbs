@@ -1,8 +1,9 @@
 Set ws = CreateObject("WScript.Shell")
 Set fso = CreateObject("Scripting.FileSystemObject")
-currentDir = fso.GetParentFolderName(WScript.ScriptFullName)
-ws.CurrentDirectory = currentDir
-jsScript = currentDir & "\scripts\loader.js"
+scriptsDir = fso.GetParentFolderName(WScript.ScriptFullName)
+rootDir = fso.GetParentFolderName(scriptsDir)
+ws.CurrentDirectory = rootDir
+jsScript = scriptsDir & "\loader.js"
 
 nodeExe = "node"
 If fso.FileExists("C:\Program Files\nodejs\node.exe") Then

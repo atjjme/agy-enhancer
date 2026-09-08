@@ -11,5 +11,5 @@ echo [Feature 2] Hot-updates when saving src\agy-enhancer.js.
 echo.
 echo Keep this window open. Minimizing will not affect usage.
 echo.
-node "%~dp0scripts\loader.js"
+node "%~dp0loader.js"
 pause

@@ -136,34 +136,80 @@
       line-height: 1.6;
     }
 
-    /* 离线警示横幅 */
+    /* 离线/未启动引导横幅 */
     .offline-banner {
       display: none;
-      background: linear-gradient(90deg, rgba(244, 63, 94, 0.15) 0%, rgba(30, 24, 34, 0.6) 100%);
-      border: 1px solid rgba(244, 63, 94, 0.35);
+      background: linear-gradient(135deg, rgba(99, 102, 241, 0.12) 0%, rgba(245, 158, 11, 0.1) 100%);
+      border: 1px solid rgba(129, 140, 248, 0.35);
       border-radius: var(--radius-md);
-      padding: 14px 18px;
+      padding: 16px 20px;
       margin-bottom: 24px;
       align-items: center;
-      gap: 12px;
-      font-size: 13px;
-      color: #fecdd3;
+      gap: 16px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
     }
 
     .offline-banner.active {
       display: flex;
     }
 
+    .offline-icon {
+      font-size: 26px;
+      line-height: 1;
+      flex-shrink: 0;
+      animation: waveHand 2s infinite ease-in-out;
+      transform-origin: 70% 70%;
+    }
+
+    @keyframes waveHand {
+      0%, 100% { transform: rotate(0deg); }
+      20%, 60% { transform: rotate(14deg); }
+      40%, 80% { transform: rotate(-10deg); }
+    }
+
+    .offline-content {
+      flex: 1;
+    }
+
+    .offline-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: #f8fafc;
+      margin-bottom: 4px;
+      letter-spacing: -0.01em;
+    }
+
+    .offline-desc {
+      font-size: 13px;
+      color: #cbd5e1;
+      line-height: 1.5;
+    }
+
+    .offline-desc strong {
+      color: #38bdf8;
+      background: rgba(56, 189, 248, 0.12);
+      padding: 2px 6px;
+      border-radius: 4px;
+      border: 1px solid rgba(56, 189, 248, 0.25);
+    }
+
     .btn-retry-conn {
       margin-left: auto;
-      background: rgba(244, 63, 94, 0.25);
-      border: 1px solid rgba(244, 63, 94, 0.4);
+      background: rgba(99, 102, 241, 0.25);
+      border: 1px solid rgba(129, 140, 248, 0.45);
       color: #fff;
-      padding: 5px 12px;
-      border-radius: 6px;
-      font-size: 12px;
+      padding: 6px 14px;
+      border-radius: 8px;
+      font-size: 12.5px;
       cursor: pointer;
       font-weight: 500;
+      white-space: nowrap;
+      transition: all 0.2s;
+    }
+
+    .btn-retry-conn:hover {
+      background: rgba(99, 102, 241, 0.4);
+      border-color: rgba(129, 140, 248, 0.7);
     }
 
     /* 顶级总闸控制 Hero 卡片 */
@@ -621,11 +667,14 @@
       </p>
     </div>
 
-    <!-- 离线提示条 -->
+    <!-- 离线/未启动引导横幅 -->
     <div class="offline-banner" id="offlineBanner">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
-      <div>未检测到正在运行的后台服务。请运行 <strong>settings.bat</strong> 或启动服务以读取实际配置。</div>
-      <button class="btn-retry-conn" id="retryConnBtn" type="button">重试连接</button>
+      <div class="offline-icon">👋</div>
+      <div class="offline-content">
+        <div class="offline-title">欢迎！您正在打开设置中心</div>
+        <div class="offline-desc">受浏览器安全限制，你需要双击运行 <strong>install.bat</strong> 以启动本服务，即可点亮本页面并开启全部功能！</div>
+      </div>
+      <button class="btn-retry-conn" id="retryConnBtn" type="button">检测服务</button>
     </div>
 
     <!-- 🌟 顶级总控卡片 (Master Switch) -->
@@ -938,7 +987,56 @@
       }
     });
 
-    // 从后台拉取真实配置（仅在打开页面或点击重试时执行一次，绝无后台定时覆盖）
+    let offlineProbeTimer = null;
+
+    function stopOfflineProbe() {
+      if (offlineProbeTimer) {
+        clearInterval(offlineProbeTimer);
+        offlineProbeTimer = null;
+      }
+    }
+
+    function startOfflineProbe() {
+      if (offlineProbeTimer) return;
+      offlineProbeTimer = setInterval(async () => {
+        try {
+          const res = await fetch(`${API_BASE}/api/config?t=${Date.now()}`, { cache: 'no-store' });
+          if (res.ok) {
+            const data = await res.json();
+            if (data.success && data.config) {
+              stopOfflineProbe();
+              applyLiveConfig(data.config);
+              toast('✨ 服务已就绪！页面已点亮并同步配置');
+            }
+          }
+        } catch (e) {
+          // 继续静默探测
+        }
+      }, 1800);
+    }
+
+    function applyLiveConfig(liveCfg) {
+      const capsule = document.getElementById('connCapsule');
+      const label = document.getElementById('connLabel');
+      const banner = document.getElementById('offlineBanner');
+
+      capsule.classList.remove('disconnected');
+      banner.classList.remove('active');
+      label.textContent = '设置服务就绪 (按需运行)';
+
+      SWITCH_KEYS.forEach(key => {
+        const el = document.getElementById(key);
+        if (el && typeof liveCfg[key] === 'boolean') {
+          el.checked = liveCfg[key];
+        }
+      });
+
+      isDirty = false;
+      updateHierarchyVisuals();
+      document.getElementById('dockHint').textContent = '已同步当前系统实际配置';
+    }
+
+    // 从后台拉取真实配置
     async function fetchLiveConfig() {
       const capsule = document.getElementById('connCapsule');
       const label = document.getElementById('connLabel');
@@ -950,28 +1048,15 @@
         const data = await res.json();
 
         if (data.success && data.config) {
-          capsule.classList.remove('disconnected');
-          banner.classList.remove('active');
-          label.textContent = '设置服务就绪 (按需运行)';
-
-          // 仅在未编辑或初次进入时回显，绝不随意覆盖用户正在编辑的开关
-          const liveCfg = data.config;
-          SWITCH_KEYS.forEach(key => {
-            const el = document.getElementById(key);
-            if (el && typeof liveCfg[key] === 'boolean') {
-              el.checked = liveCfg[key];
-            }
-          });
-
-          isDirty = false;
-          updateHierarchyVisuals();
-          document.getElementById('dockHint').textContent = '已同步当前系统实际配置';
+          stopOfflineProbe();
+          applyLiveConfig(data.config);
         }
       } catch (err) {
         capsule.classList.add('disconnected');
-        label.textContent = '服务未运行 (请运行 settings.bat)';
+        label.textContent = '等待服务启动 (请运行 install.bat)';
         banner.classList.add('active');
-        document.getElementById('dockHint').textContent = '⚠️ 未检测到设置服务';
+        document.getElementById('dockHint').textContent = '⚠️ 等待运行 install.bat 点亮本页面';
+        startOfflineProbe();
       }
     }
 
@@ -1013,7 +1098,7 @@
           alert('保存失败: ' + (data.error || '未知错误'));
         }
       } catch (e) {
-        alert('无法保存：后台服务未响应，请确保设置服务正在运行（双击 settings.bat 即可）。');
+        alert('无法保存：后台服务未响应，请先运行 install.bat 启动服务。');
       } finally {
         saveBtn.disabled = false;
         saveExitBtn.disabled = false;
