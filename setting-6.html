@@ -1,0 +1,888 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Antigravity 增强器 - 霓虹复古像素 (8-Bit Arcade)</title>
+  <style>
+    :root {
+      --pixel-bg: #0d0c1d;
+      --pixel-panel: #16152b;
+      --pixel-subpanel: #1f1d38;
+      
+      --p-yellow: #ffe600;
+      --p-pink: #ff0055;
+      --p-cyan: #00f0ff;
+      --p-green: #39ff14;
+      --p-purple: #9d4edd;
+      
+      --p-white: #f8fafc;
+      --p-gray: #7d7a9e;
+      --p-dark: #080711;
+      
+      --pixel-border: 3px solid #000;
+      --pixel-shadow: 4px 4px 0px #000;
+      --pixel-glow-cyan: 0 0 12px rgba(0, 240, 255, 0.4);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      image-rendering: pixelated;
+    }
+
+    body {
+      background-color: var(--pixel-bg);
+      background-image: 
+        radial-gradient(circle at 50% 0%, rgba(157, 78, 221, 0.2) 0%, transparent 60%),
+        linear-gradient(rgba(0, 0, 0, 0.4) 50%, transparent 50%);
+      background-size: 100% 100%, 100% 4px;
+      color: var(--p-white);
+      font-family: "Courier New", Courier, "PingFang SC", "Microsoft YaHei", monospace;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 30px 20px 140px;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .pixel-container {
+      width: 100%;
+      max-width: 820px;
+      position: relative;
+    }
+
+    /* 像素街机顶栏 */
+    .arcade-header {
+      background: var(--pixel-panel);
+      border: 3px solid var(--p-cyan);
+      box-shadow: 6px 6px 0px #000, 0 0 16px rgba(0, 240, 255, 0.3);
+      padding: 18px 24px;
+      margin-bottom: 26px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    .arcade-brand {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .pixel-heart {
+      width: 32px;
+      height: 32px;
+      background: var(--p-pink);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-weight: 900;
+      box-shadow: 3px 3px 0px #000;
+      font-size: 18px;
+    }
+
+    .arcade-title-box h1 {
+      font-size: 18px;
+      font-weight: 900;
+      color: var(--p-yellow);
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      text-shadow: 2px 2px 0px #000;
+    }
+
+    .arcade-title-box p {
+      font-size: 11px;
+      color: var(--p-cyan);
+      margin-top: 2px;
+      letter-spacing: 0.5px;
+    }
+
+    /* 像素连接状态 */
+    .pixel-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 14px;
+      background: var(--p-dark);
+      border: 2px solid var(--p-green);
+      color: var(--p-green);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      box-shadow: 3px 3px 0px #000;
+      text-transform: uppercase;
+    }
+
+    .pixel-badge.disconnected {
+      border-color: var(--p-pink);
+      color: var(--p-pink);
+    }
+
+    .blink-square {
+      width: 8px;
+      height: 8px;
+      background: currentColor;
+      animation: blinkPix 1s infinite steps(1);
+    }
+
+    @keyframes blinkPix {
+      50% { opacity: 0; }
+    }
+
+    /* 离线警报横幅 */
+    .pixel-banner {
+      display: none;
+      background: #380d19;
+      border: 3px solid var(--p-pink);
+      box-shadow: 6px 6px 0px #000;
+      padding: 16px 20px;
+      margin-bottom: 24px;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    .pixel-banner.active {
+      display: flex;
+    }
+
+    .banner-text h4 {
+      font-size: 14px;
+      color: var(--p-yellow);
+      margin-bottom: 3px;
+    }
+
+    .banner-text p {
+      font-size: 11.5px;
+      color: #ffb3c6;
+    }
+
+    .btn-pixel-retry {
+      background: var(--p-pink);
+      border: 2px solid #000;
+      box-shadow: 3px 3px 0px #000;
+      color: #fff;
+      padding: 6px 14px;
+      font-size: 11px;
+      font-weight: 700;
+      cursor: pointer;
+      text-transform: uppercase;
+    }
+
+    .btn-pixel-retry:active {
+      transform: translate(2px, 2px);
+      box-shadow: 1px 1px 0px #000;
+    }
+
+    /* 顶级总闸 Hero (INSERT COIN / MASTER POWER) */
+    .master-arcade-card {
+      background: var(--pixel-panel);
+      border: 3px solid var(--p-yellow);
+      box-shadow: 6px 6px 0px #000, 0 0 16px rgba(255, 230, 0, 0.25);
+      padding: 24px;
+      margin-bottom: 26px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      position: relative;
+      transition: all 0.2s;
+    }
+
+    .master-arcade-card.dormant {
+      border-color: var(--p-gray);
+      box-shadow: 6px 6px 0px #000;
+      opacity: 0.5;
+    }
+
+    .master-status-tag {
+      font-size: 10px;
+      font-weight: 800;
+      color: var(--p-yellow);
+      letter-spacing: 1.5px;
+      margin-bottom: 4px;
+    }
+
+    .master-arcade-card.dormant .master-status-tag {
+      color: var(--p-gray);
+    }
+
+    .master-title {
+      font-size: 17px;
+      font-weight: 900;
+      letter-spacing: 0.5px;
+      margin-bottom: 4px;
+      color: #fff;
+    }
+
+    .master-desc {
+      font-size: 12px;
+      color: var(--p-gray);
+      line-height: 1.5;
+      max-width: 560px;
+    }
+
+    /* 像素面板分组 */
+    .pixel-group-box {
+      background: var(--pixel-panel);
+      border: 3px solid var(--pixel-subpanel);
+      box-shadow: 6px 6px 0px #000;
+      padding: 20px;
+      margin-bottom: 22px;
+      position: relative;
+      transition: all 0.2s;
+    }
+
+    .group-tag-bar {
+      display: inline-block;
+      background: var(--p-dark);
+      border: 2px solid var(--p-cyan);
+      box-shadow: 2px 2px 0px #000;
+      padding: 4px 10px;
+      font-size: 11px;
+      font-weight: 800;
+      color: var(--p-cyan);
+      margin-bottom: 16px;
+      letter-spacing: 1px;
+    }
+
+    /* 行 */
+    .pixel-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 0;
+      border-bottom: 2px dashed rgba(255, 255, 255, 0.08);
+    }
+
+    .pixel-row:last-child {
+      border-bottom: none;
+    }
+
+    .pixel-row-text {
+      flex: 1;
+      padding-right: 20px;
+    }
+
+    .pixel-row-name {
+      font-size: 13.5px;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    .pixel-row-desc {
+      font-size: 11.5px;
+      color: var(--p-gray);
+      margin-top: 3px;
+      line-height: 1.5;
+    }
+
+    /* 联动子卡片 */
+    .pixel-sub-block {
+      margin: 6px 0 10px 18px;
+      padding: 10px 14px;
+      background: var(--p-dark);
+      border-left: 4px solid var(--p-pink);
+      transition: all 0.2s;
+    }
+
+    .pixel-sub-block.collapsed {
+      opacity: 0.3;
+      filter: grayscale(1);
+      pointer-events: none;
+    }
+
+    /* 功能区域休眠 */
+    .pixel-features-wrap {
+      position: relative;
+      transition: all 0.3s;
+    }
+
+    .pixel-features-wrap.master-dormant {
+      opacity: 0.35;
+      filter: grayscale(0.85);
+      pointer-events: none;
+      user-select: none;
+    }
+
+    .game-over-banner {
+      display: none;
+      background: #2a0b12;
+      border: 2px dashed var(--p-pink);
+      padding: 10px;
+      text-align: center;
+      font-size: 12px;
+      color: var(--p-pink);
+      font-weight: 800;
+      letter-spacing: 2px;
+      margin-bottom: 14px;
+    }
+
+    .pixel-features-wrap.master-dormant .game-over-banner {
+      display: block;
+    }
+
+    /* 像素方块开关 (8-Bit Pixel Switch) */
+    .pixel-switch {
+      position: relative;
+      display: inline-block;
+      width: 48px;
+      height: 26px;
+      flex-shrink: 0;
+    }
+
+    .pixel-switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .pixel-slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: var(--p-dark);
+      border: 3px solid #000;
+      box-shadow: inset 2px 2px 0px rgba(0, 0, 0, 0.6);
+      transition: 0.15s steps(3);
+    }
+
+    .pixel-slider::before {
+      position: absolute;
+      content: "";
+      height: 14px;
+      width: 14px;
+      left: 3px;
+      bottom: 3px;
+      background: var(--p-gray);
+      box-shadow: inset 1px 1px 0px #fff, inset -1px -1px 0px #000;
+      transition: 0.15s steps(3);
+    }
+
+    input:checked + .pixel-slider {
+      background: #11361c;
+      border-color: #000;
+    }
+
+    input:checked + .pixel-slider::before {
+      transform: translateX(22px);
+      background: var(--p-green);
+      box-shadow: inset 1px 1px 0px #fff, 0 0 8px var(--p-green);
+    }
+
+    /* Hero 大开关 */
+    .hero-pixel-switch {
+      width: 60px;
+      height: 30px;
+    }
+
+    .hero-pixel-switch .pixel-slider::before {
+      height: 18px;
+      width: 18px;
+      left: 3px;
+      bottom: 3px;
+    }
+
+    .hero-pixel-switch input:checked + .pixel-slider {
+      background: #3d340b;
+    }
+
+    .hero-pixel-switch input:checked + .pixel-slider::before {
+      transform: translateX(30px);
+      background: var(--p-yellow);
+      box-shadow: inset 1px 1px 0px #fff, 0 0 10px var(--p-yellow);
+    }
+
+    /* 底部街机按键底栏 */
+    .arcade-dock {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: calc(100% - 40px);
+      max-width: 820px;
+      background: var(--pixel-panel);
+      border: 3px solid #000;
+      box-shadow: 6px 6px 0px #000;
+      padding: 12px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      z-index: 100;
+    }
+
+    .arcade-hint-text {
+      font-size: 11.5px;
+      color: var(--p-cyan);
+      font-weight: 700;
+      letter-spacing: 0.5px;
+    }
+
+    .arcade-btn-group {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .btn-arcade {
+      font-family: inherit;
+      border: 3px solid #000;
+      padding: 8px 18px;
+      font-size: 12px;
+      font-weight: 900;
+      cursor: pointer;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      box-shadow: 3px 3px 0px #000;
+      transition: all 0.1s;
+    }
+
+    .btn-arcade:active {
+      transform: translate(2px, 2px);
+      box-shadow: 1px 1px 0px #000;
+    }
+
+    .btn-arcade-reset {
+      background: var(--p-subpanel);
+      color: #fff;
+    }
+
+    .btn-arcade-save {
+      background: var(--p-green);
+      color: #000;
+    }
+
+    .btn-arcade-save:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    /* Toast */
+    .arcade-toast {
+      position: fixed;
+      top: 24px;
+      left: 50%;
+      transform: translateX(-50%) translateY(-20px);
+      background: var(--p-panel);
+      border: 3px solid var(--p-green);
+      box-shadow: 6px 6px 0px #000, 0 0 16px rgba(57, 255, 20, 0.4);
+      color: var(--p-green);
+      padding: 10px 24px;
+      font-size: 12.5px;
+      font-weight: 900;
+      letter-spacing: 1px;
+      opacity: 0;
+      pointer-events: none;
+      transition: all 0.2s;
+      z-index: 1000;
+      text-transform: uppercase;
+    }
+
+    .arcade-toast.visible {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Toast -->
+  <div class="arcade-toast" id="toastMsg">
+    <span id="toastText">★ LEVEL SAVED! CONFIG DEPLOYED ★</span>
+  </div>
+
+  <div class="pixel-container">
+
+    <!-- 顶部街机标头 -->
+    <header class="arcade-header">
+      <div class="arcade-brand">
+        <div class="pixel-heart">★</div>
+        <div class="arcade-title-box">
+          <h1>Antigravity 增强控制台</h1>
+          <p>ARCADE_EDITION_1989 • 8-BIT SYSTEM CONTROLLER</p>
+        </div>
+      </div>
+
+      <div class="pixel-badge" id="connCapsule">
+        <span class="blink-square"></span>
+        <span id="connLabel">LINK: ONLINE</span>
+      </div>
+    </header>
+
+    <!-- 离线提示 -->
+    <div class="pixel-banner" id="offlineBanner">
+      <div class="banner-text">
+        <h4>[!] INSERT DISK: DAEMON OFFLINE</h4>
+        <p>浏览器安全机制生效中，请双击运行 <strong>install.bat</strong> 启动后台微服务！</p>
+      </div>
+      <button class="btn-pixel-retry" id="retryConnBtn" type="button">RETRY LINK</button>
+    </div>
+
+    <!-- 顶级总闸 Hero (Master Switch) -->
+    <div class="master-arcade-card" id="heroMasterCard">
+      <div>
+        <div class="master-status-tag" id="heroMasterStatusTag">● 1P READY // SYSTEM ACTIVE</div>
+        <h2 class="master-title">增强器全局总开关 (POWER)</h2>
+        <p class="master-desc" id="heroMasterDesc">
+          开启时全面激活各项像素注入；关闭时彻底休眠，客户端不挂载任何拦截，100% 恢复官方原生纯净体验。
+        </p>
+      </div>
+      <label class="pixel-switch hero-pixel-switch">
+        <input type="checkbox" id="ENABLE_MASTER">
+        <span class="pixel-slider"></span>
+      </label>
+    </div>
+
+    <!-- 功能区域 -->
+    <div class="pixel-features-wrap" id="featuresContainer">
+      <div class="game-over-banner">--- GAME PAUSED // 全局总控已断开 ---</div>
+
+      <!-- 模块 1: 系统服务 -->
+      <div class="pixel-group-box">
+        <span class="group-tag-bar">[STAGE 1] HOST SYSTEM BASE</span>
+
+        <div class="pixel-row">
+          <div class="pixel-row-text">
+            <div class="pixel-row-name">Windows 开机静默自启动</div>
+            <div class="pixel-row-desc">随系统开机自动载入后台静默驻留，零感保障。</div>
+          </div>
+          <label class="pixel-switch">
+            <input type="checkbox" id="ENABLE_AUTOSTART">
+            <span class="pixel-slider"></span>
+          </label>
+        </div>
+      </div>
+
+      <!-- 模块 2: 交互与视觉 -->
+      <div class="pixel-group-box">
+        <span class="group-tag-bar">[STAGE 2] VISUAL & INPUT SUITE</span>
+
+        <div class="pixel-row">
+          <div class="pixel-row-text">
+            <div class="pixel-row-name">全局右键功能增强</div>
+            <div class="pixel-row-desc">接管侧边栏会话、项目管理与代码块复制。关闭恢复原生右键。</div>
+          </div>
+          <label class="pixel-switch">
+            <input type="checkbox" id="ENABLE_CONTEXT_MENU">
+            <span class="pixel-slider"></span>
+          </label>
+        </div>
+
+        <div class="pixel-sub-block" id="quotePopupSubPanel">
+          <div class="pixel-row" style="padding: 2px 0;">
+            <div class="pixel-row-text">
+              <div class="pixel-row-name" style="font-size: 13px; color: var(--p-yellow);">屏蔽划词选中文本时的 Quote 浮窗</div>
+              <div class="pixel-row-desc" style="font-size: 11px;">选中文本时不再弹出官方 Quote (Ctrl+L) 气泡，杜绝卡顿。</div>
+            </div>
+            <label class="pixel-switch">
+              <input type="checkbox" id="ENABLE_BLOCK_QUOTE_POPUP">
+              <span class="pixel-slider"></span>
+            </label>
+          </div>
+        </div>
+
+        <div class="pixel-row">
+          <div class="pixel-row-text">
+            <div class="pixel-row-name">右上角常驻绿色运行指示点</div>
+            <div class="pixel-row-desc">在客户端顶部实时显示微量运行态绿点与启动反馈。</div>
+          </div>
+          <label class="pixel-switch">
+            <input type="checkbox" id="ENABLE_STATUS_INDICATOR">
+            <span class="pixel-slider"></span>
+          </label>
+        </div>
+
+        <div class="pixel-row">
+          <div class="pixel-row-text">
+            <div class="pixel-row-name">右下角常驻智能翻页双按钮</div>
+            <div class="pixel-row-desc">向上（↑）/向下（↓）智能翻阅长对话，双击直达最新回复。</div>
+          </div>
+          <label class="pixel-switch">
+            <input type="checkbox" id="ENABLE_NAV_BUTTONS">
+            <span class="pixel-slider"></span>
+          </label>
+        </div>
+
+        <div class="pixel-row">
+          <div class="pixel-row-text">
+            <div class="pixel-row-name">左侧项目折叠与归档抽屉</div>
+            <div class="pixel-row-desc">鼠标悬停一键隐藏暂缓项目，并在侧栏提供专属收纳抽屉。</div>
+          </div>
+          <label class="pixel-switch">
+            <input type="checkbox" id="ENABLE_PROJECT_ARCHIVER">
+            <span class="pixel-slider"></span>
+          </label>
+        </div>
+      </div>
+
+      <!-- 模块 3: 记忆与状态 -->
+      <div class="pixel-group-box">
+        <span class="group-tag-bar">[STAGE 3] COGNITION & MEMORY</span>
+
+        <div class="pixel-row">
+          <div class="pixel-row-text">
+            <div class="pixel-row-name">多会话阅读进度记忆与自动回滚</div>
+            <div class="pixel-row-desc">精确还原离开时的浏览位置，关停后停止滚动容器监听。</div>
+          </div>
+          <label class="pixel-switch">
+            <input type="checkbox" id="ENABLE_SCROLL_PERSISTENCE">
+            <span class="pixel-slider"></span>
+          </label>
+        </div>
+
+        <div class="pixel-row">
+          <div class="pixel-row-text">
+            <div class="pixel-row-name">智能未读/已读状态追踪</div>
+            <div class="pixel-row-desc">长文阅读触底判定与侧栏圆点提示，关闭停止后台定时器。</div>
+          </div>
+          <label class="pixel-switch">
+            <input type="checkbox" id="ENABLE_SMART_UNREAD">
+            <span class="pixel-slider"></span>
+          </label>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- 底部操作底栏 -->
+    <footer class="arcade-dock">
+      <div class="arcade-hint-text" id="dockInfo">
+        <span id="dockHint">READY TO PLAY // 点击保存生效</span>
+      </div>
+      <div class="arcade-btn-group">
+        <button class="btn-arcade btn-arcade-reset" id="resetBtn" type="button">RESTORE</button>
+        <button class="btn-arcade btn-arcade-save" id="saveBtn" type="button">SAVE GAME</button>
+      </div>
+    </footer>
+
+  </div>
+
+  <script>
+    const API_BASE = (location.protocol === 'http:' || location.protocol === 'https:') 
+      ? '' 
+      : 'http://127.0.0.1:37210';
+
+    const SWITCH_KEYS = [
+      'ENABLE_MASTER',
+      'ENABLE_AUTOSTART',
+      'ENABLE_CONTEXT_MENU',
+      'ENABLE_BLOCK_QUOTE_POPUP',
+      'ENABLE_STATUS_INDICATOR',
+      'ENABLE_NAV_BUTTONS',
+      'ENABLE_PROJECT_ARCHIVER',
+      'ENABLE_SCROLL_PERSISTENCE',
+      'ENABLE_SMART_UNREAD'
+    ];
+
+    const DEFAULTS = {
+      ENABLE_MASTER: true,
+      ENABLE_AUTOSTART: true,
+      ENABLE_CONTEXT_MENU: true,
+      ENABLE_BLOCK_QUOTE_POPUP: true,
+      ENABLE_STATUS_INDICATOR: true,
+      ENABLE_NAV_BUTTONS: true,
+      ENABLE_PROJECT_ARCHIVER: true,
+      ENABLE_SCROLL_PERSISTENCE: true,
+      ENABLE_SMART_UNREAD: true
+    };
+
+    let isDirty = false;
+
+    function toast(text) {
+      const el = document.getElementById('toastMsg');
+      document.getElementById('toastText').textContent = text;
+      el.classList.add('visible');
+      setTimeout(() => el.classList.remove('visible'), 2800);
+    }
+
+    function markDirty() {
+      isDirty = true;
+      document.getElementById('dockHint').innerHTML = '<span style="color: var(--p-yellow);">★ MODIFIED // 存在未保存配置</span>';
+    }
+
+    function updateHierarchyVisuals() {
+      const masterCheck = document.getElementById('ENABLE_MASTER').checked;
+      const heroCard = document.getElementById('heroMasterCard');
+      const heroStatusTag = document.getElementById('heroMasterStatusTag');
+      const heroDesc = document.getElementById('heroMasterDesc');
+      const featuresContainer = document.getElementById('featuresContainer');
+
+      if (masterCheck) {
+        heroCard.classList.remove('dormant');
+        heroStatusTag.textContent = '● 1P READY // SYSTEM ACTIVE';
+        heroDesc.textContent = '像素注入功能已全线挂载，毫秒响应。';
+        featuresContainer.classList.remove('master-dormant');
+      } else {
+        heroCard.classList.add('dormant');
+        heroStatusTag.textContent = '○ GAME OVER // SYSTEM SLEEP';
+        heroDesc.textContent = '总闸已关闭。客户端内不挂载任何事件，100% 原生纯净运行。';
+        featuresContainer.classList.add('master-dormant');
+      }
+
+      // 右键联动
+      const ctxMenuCheck = document.getElementById('ENABLE_CONTEXT_MENU').checked;
+      const quoteSubPanel = document.getElementById('quotePopupSubPanel');
+      const blockQuoteCheck = document.getElementById('ENABLE_BLOCK_QUOTE_POPUP');
+      if (ctxMenuCheck && masterCheck) {
+        quoteSubPanel.classList.remove('collapsed');
+        blockQuoteCheck.disabled = false;
+      } else {
+        quoteSubPanel.classList.add('collapsed');
+        blockQuoteCheck.disabled = true;
+      }
+    }
+
+    SWITCH_KEYS.forEach(key => {
+      const el = document.getElementById(key);
+      if (el) {
+        el.addEventListener('change', () => {
+          markDirty();
+          updateHierarchyVisuals();
+        });
+      }
+    });
+
+    let offlineProbeTimer = null;
+
+    function stopOfflineProbe() {
+      if (offlineProbeTimer) {
+        clearInterval(offlineProbeTimer);
+        offlineProbeTimer = null;
+      }
+    }
+
+    function startOfflineProbe() {
+      if (offlineProbeTimer) return;
+      offlineProbeTimer = setInterval(async () => {
+        try {
+          const res = await fetch(`${API_BASE}/api/config?t=${Date.now()}`, { cache: 'no-store' });
+          if (res.ok) {
+            const data = await res.json();
+            if (data.success && data.config) {
+              stopOfflineProbe();
+              applyLiveConfig(data.config);
+              toast('★ LINK RESTORED! ★');
+            }
+          }
+        } catch (e) {}
+      }, 1800);
+    }
+
+    function applyLiveConfig(liveCfg) {
+      const capsule = document.getElementById('connCapsule');
+      const label = document.getElementById('connLabel');
+      const banner = document.getElementById('offlineBanner');
+
+      capsule.classList.remove('disconnected');
+      banner.classList.remove('active');
+      label.textContent = 'LINK: ONLINE';
+
+      SWITCH_KEYS.forEach(key => {
+        const el = document.getElementById(key);
+        if (el && typeof liveCfg[key] === 'boolean') {
+          el.checked = liveCfg[key];
+        }
+      });
+
+      if (!document.getElementById('ENABLE_CONTEXT_MENU').checked) {
+        document.getElementById('ENABLE_BLOCK_QUOTE_POPUP').checked = false;
+      }
+
+      isDirty = false;
+      updateHierarchyVisuals();
+      document.getElementById('dockHint').textContent = 'SYNCED WITH ROM // 已就绪';
+    }
+
+    async function fetchLiveConfig() {
+      const capsule = document.getElementById('connCapsule');
+      const label = document.getElementById('connLabel');
+      const banner = document.getElementById('offlineBanner');
+
+      try {
+        const res = await fetch(`${API_BASE}/api/config?t=${Date.now()}`, { cache: 'no-store' });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const data = await res.json();
+
+        if (data.success && data.config) {
+          stopOfflineProbe();
+          applyLiveConfig(data.config);
+        }
+      } catch (err) {
+        capsule.classList.add('disconnected');
+        label.textContent = 'LINK: OFFLINE';
+        banner.classList.add('active');
+        document.getElementById('dockHint').textContent = '⚠️ 请先运行 install.bat 点亮服务';
+        startOfflineProbe();
+      }
+    }
+
+    document.getElementById('ENABLE_CONTEXT_MENU').addEventListener('change', (e) => {
+      if (e.target.checked) {
+        document.getElementById('ENABLE_BLOCK_QUOTE_POPUP').checked = true;
+      } else {
+        document.getElementById('ENABLE_BLOCK_QUOTE_POPUP').checked = false;
+      }
+    });
+
+    async function handleSave() {
+      const saveBtn = document.getElementById('saveBtn');
+      saveBtn.disabled = true;
+
+      const payload = {};
+      SWITCH_KEYS.forEach(k => {
+        const el = document.getElementById(k);
+        if (el) payload[k] = el.checked;
+      });
+
+      if (!payload.ENABLE_CONTEXT_MENU) {
+        payload.ENABLE_BLOCK_QUOTE_POPUP = false;
+      }
+
+      try {
+        const res = await fetch(`${API_BASE}/api/config`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (data.success) {
+          isDirty = false;
+          toast('★ GAME SAVED SUCCESSFULLY! ★');
+          document.getElementById('dockHint').textContent = 'SAVED AT ' + new Date().toLocaleTimeString();
+        } else {
+          alert('保存失败: ' + (data.error || '未知错误'));
+        }
+      } catch (e) {
+        alert('无法保存：后台服务未响应，请先运行 install.bat 启动服务。');
+      } finally {
+        saveBtn.disabled = false;
+      }
+    }
+
+    function handleReset() {
+      if (!confirm('确定将所有设置恢复为出厂设定吗？')) return;
+      SWITCH_KEYS.forEach(k => {
+        const el = document.getElementById(k);
+        if (el && typeof DEFAULTS[k] === 'boolean') {
+          el.checked = DEFAULTS[k];
+        }
+      });
+      markDirty();
+      updateHierarchyVisuals();
+      toast('RESET TO DEFAULT');
+    }
+
+    document.getElementById('saveBtn').addEventListener('click', handleSave);
+    document.getElementById('resetBtn').addEventListener('click', handleReset);
+    document.getElementById('retryConnBtn').addEventListener('click', fetchLiveConfig);
+
+    fetchLiveConfig();
+  </script>
+</body>
+</html>
