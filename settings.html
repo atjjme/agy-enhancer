@@ -829,7 +829,11 @@
       <button class="btn-action btn-reset" id="resetBtn" type="button">恢复默认</button>
       <button class="btn-action btn-save" id="saveBtn" type="button">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
-        保存并应用设置
+        保存设置
+      </button>
+      <button class="btn-action btn-reset" id="saveExitBtn" type="button" title="保存当前配置并立即停止后台服务进程，释放全部资源">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"></path><line x1="12" y1="2" x2="12" y2="12"></line></svg>
+        保存并退出
       </button>
     </div>
   </div>
@@ -871,13 +875,18 @@
       ENABLE_SMART_UNREAD: true
     };
 
-    let isConnected = false;
+    let isDirty = false;
 
     function toast(text) {
       const el = document.getElementById('toastMsg');
       document.getElementById('toastText').textContent = text;
       el.classList.add('visible');
       setTimeout(() => el.classList.remove('visible'), 2800);
+    }
+
+    function markDirty() {
+      isDirty = true;
+      document.getElementById('dockHint').innerHTML = '<span style="color: #f59e0b;">● 有未保存的修改</span>';
     }
 
     // 层次联动核心逻辑
@@ -919,11 +928,17 @@
       }
     }
 
-    document.getElementById('ENABLE_MASTER').addEventListener('change', updateHierarchyVisuals);
-    document.getElementById('ENABLE_CONTEXT_MENU').addEventListener('change', updateHierarchyVisuals);
-    document.getElementById('ENABLE_NAV_BUTTONS').addEventListener('change', updateHierarchyVisuals);
+    SWITCH_KEYS.forEach(key => {
+      const el = document.getElementById(key);
+      if (el) {
+        el.addEventListener('change', () => {
+          markDirty();
+          updateHierarchyVisuals();
+        });
+      }
+    });
 
-    // 从后台拉取真实配置
+    // 从后台拉取真实配置（仅在打开页面或点击重试时执行一次，绝无后台定时覆盖）
     async function fetchLiveConfig() {
       const capsule = document.getElementById('connCapsule');
       const label = document.getElementById('connLabel');
@@ -935,14 +950,11 @@
         const data = await res.json();
 
         if (data.success && data.config) {
-          isConnected = true;
           capsule.classList.remove('disconnected');
           banner.classList.remove('active');
+          label.textContent = '设置服务就绪 (按需运行)';
 
-          const clientOnline = data.status?.connected;
-          label.textContent = clientOnline ? '已连接客户端 (热重载就绪)' : '后台守护服务运行中';
-
-          // 严格根据后台返回的真实配置赋值，绝无虚假开启
+          // 仅在未编辑或初次进入时回显，绝不随意覆盖用户正在编辑的开关
           const liveCfg = data.config;
           SWITCH_KEYS.forEach(key => {
             const el = document.getElementById(key);
@@ -951,24 +963,24 @@
             }
           });
 
+          isDirty = false;
           updateHierarchyVisuals();
-          document.getElementById('dockHint').textContent = '已同步当前实际配置';
+          document.getElementById('dockHint').textContent = '已同步当前系统实际配置';
         }
       } catch (err) {
-        isConnected = false;
         capsule.classList.add('disconnected');
-        label.textContent = '后台服务未运行';
+        label.textContent = '服务未运行 (请运行 settings.bat)';
         banner.classList.add('active');
-        document.getElementById('dockHint').textContent = '⚠️ 正在等待后台守护服务...';
+        document.getElementById('dockHint').textContent = '⚠️ 未检测到设置服务';
       }
     }
 
     // 保存配置
-    async function handleSave() {
+    async function handleSave(andExit = false) {
       const saveBtn = document.getElementById('saveBtn');
-      const originalText = saveBtn.innerHTML;
+      const saveExitBtn = document.getElementById('saveExitBtn');
       saveBtn.disabled = true;
-      saveBtn.textContent = '正在保存并热重载...';
+      saveExitBtn.disabled = true;
 
       const payload = {};
       SWITCH_KEYS.forEach(k => {
@@ -984,17 +996,27 @@
         });
         const data = await res.json();
         if (data.success) {
-          toast('✅ 配置已成功保存，客户端已即时热重载！');
-          document.getElementById('dockHint').textContent = '最近保存于 ' + new Date().toLocaleTimeString();
-          fetchLiveConfig();
+          isDirty = false;
+          if (andExit) {
+            toast('✅ 配置已保存！正在安全关闭设置服务...');
+            document.getElementById('dockHint').textContent = '设置服务已关闭，已释放全部资源';
+            await fetch(`${API_BASE}/api/exit`, { method: 'POST' }).catch(() => {});
+            setTimeout(() => {
+              document.getElementById('connCapsule').classList.add('disconnected');
+              document.getElementById('connLabel').textContent = '服务已安全退出 (0 资源占用)';
+            }, 600);
+          } else {
+            toast('✅ 配置已成功保存！');
+            document.getElementById('dockHint').textContent = '最近保存于 ' + new Date().toLocaleTimeString();
+          }
         } else {
           alert('保存失败: ' + (data.error || '未知错误'));
         }
       } catch (e) {
-        alert('无法保存：后台服务未响应，请确保守护服务正在运行（双击 settings.bat 即可）。');
+        alert('无法保存：后台服务未响应，请确保设置服务正在运行（双击 settings.bat 即可）。');
       } finally {
         saveBtn.disabled = false;
-        saveBtn.innerHTML = originalText;
+        saveExitBtn.disabled = false;
       }
     }
 
@@ -1007,19 +1029,18 @@
           el.checked = DEFAULTS[k];
         }
       });
+      markDirty();
       updateHierarchyVisuals();
-      toast('已恢复为推荐默认值（点击保存后生效）');
+      toast('已重置为推荐默认值（点击保存生效）');
     }
 
-    document.getElementById('saveBtn').addEventListener('click', handleSave);
+    document.getElementById('saveBtn').addEventListener('click', () => handleSave(false));
+    document.getElementById('saveExitBtn').addEventListener('click', () => handleSave(true));
     document.getElementById('resetBtn').addEventListener('click', handleReset);
     document.getElementById('retryConnBtn').addEventListener('click', fetchLiveConfig);
 
-    // 初始执行 & 自动重试轮询探活（每 2.5 秒探测一次，保持实时同步）
+    // 页面初次加载时读取一次实际配置，彻底没有任何后台定时器循环执行！
     fetchLiveConfig();
-    setInterval(() => {
-      if (!isConnected) fetchLiveConfig();
-    }, 2500);
   </script>
 </body>
 </html>

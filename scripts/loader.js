@@ -226,102 +226,6 @@ function saveStoredConfig(newConfig) {
   }
 }
 
-function startSettingsServer() {
-  const server = http.createServer((req, res) => {
-    // 跨域支持，支持从任意本地路径或浏览器直接访问
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-
-    if (req.method === 'OPTIONS') {
-      res.writeHead(204);
-      res.end();
-      return;
-    }
-
-    const urlPath = req.url.split('?')[0];
-
-    if (req.method === 'GET' && (urlPath === '/' || urlPath === '/settings.html')) {
-      if (fs.existsSync(settingsHtmlFile)) {
-        res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-        fs.createReadStream(settingsHtmlFile).pipe(res);
-      } else {
-        res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
-        res.end('settings.html not found in project directory');
-      }
-      return;
-    }
-
-    if (req.method === 'GET' && urlPath === '/api/config') {
-      const config = getStoredConfig();
-      const autostart = isAutostartEnabled();
-      config.ENABLE_AUTOSTART = autostart;
-      const { branch } = getCurrentBranchInfo();
-      res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
-      res.end(JSON.stringify({
-        success: true,
-        config,
-        status: {
-          pid: process.pid,
-          clientPort: lastPort,
-          connected: !!(currentWs && currentWs.readyState === 1),
-          branch
-        }
-      }));
-      return;
-    }
-
-    if (req.method === 'POST' && urlPath === '/api/config') {
-      let body = '';
-      req.on('data', chunk => {
-        body += chunk;
-        if (body.length > 1e6) req.destroy();
-      });
-      req.on('end', () => {
-        try {
-          const newConfig = JSON.parse(body);
-          if (typeof newConfig.ENABLE_AUTOSTART === 'boolean') {
-            setAutostart(newConfig.ENABLE_AUTOSTART);
-          }
-          saveStoredConfig(newConfig);
-
-          // 立即热重载注入客户端
-          if (currentWs) {
-            log('[Settings] New configuration applied from Web UI, reinjecting enhancer...');
-            injectEnhancer(currentWs);
-          }
-
-          res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
-          res.end(JSON.stringify({
-            success: true,
-            message: '配置已成功保存并即时生效',
-            config: getStoredConfig()
-          }));
-        } catch (err) {
-          res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
-          res.end(JSON.stringify({ success: false, error: err?.message || 'Invalid JSON' }));
-        }
-      });
-      return;
-    }
-
-    res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
-    res.end('Not Found');
-  });
-
-  server.listen(SETTINGS_PORT, '127.0.0.1', () => {
-    log(`[Settings Dashboard] Local settings server ready at http://127.0.0.1:${SETTINGS_PORT}`);
-  });
-
-  server.on('error', (err) => {
-    if (err.code === 'EADDRINUSE') {
-      log(`[Settings Dashboard] Port ${SETTINGS_PORT} is already in use, assuming another daemon instance is serving settings.`);
-    } else {
-      log(`[Settings Dashboard Error]`, err?.message || err);
-    }
-  });
-}
-
 function resolveArtifactOnDisk(convoId, title) {
   const homeDir = os.homedir();
   const brainConvoDir = path.join(homeDir, '.gemini', 'antigravity', 'brain', convoId);
@@ -649,9 +553,6 @@ function injectEnhancer(ws) {
   }
 }
 
-// 启动本地配置管理微服务
-startSettingsServer();
-
 // 平衡轮询：未连接时每 1200ms 检测一次连接状态，每 1800ms 主动探测页面就绪状态
 setInterval(connectAndAttach, 1200);
 setInterval(checkPageReadiness, 1800);
@@ -669,3 +570,23 @@ try {
     }
   });
 } catch (e) {}
+
+// 监听配置文件变动：用户保存设置后，自动热重载最新配置到窗口
+let configDebounceTimer = null;
+function setupConfigFileWatcher(targetFile) {
+  try {
+    if (fs.existsSync(targetFile)) {
+      fs.watch(targetFile, () => {
+        if (currentWs) {
+          if (configDebounceTimer) clearTimeout(configDebounceTimer);
+          configDebounceTimer = setTimeout(() => {
+            log('[Config Watcher] Configuration updated on disk, reinjecting enhancer...');
+            injectEnhancer(currentWs);
+          }, 120);
+        }
+      });
+    }
+  } catch (e) {}
+}
+setupConfigFileWatcher(configFile);
+setupConfigFileWatcher(localConfigFile);
