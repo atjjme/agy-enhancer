@@ -957,6 +957,31 @@
     // ==================== 2. 创建右上角生效通知 Toast ====================
     let showNotification = (msg) => {};
 
+    async function openSettingsDashboard() {
+      const url = 'http://127.0.0.1:37210/';
+      let opened = false;
+      if (window.electronNative?.openExternal) {
+        try {
+          await window.electronNative.openExternal(url);
+          opened = true;
+        } catch (e) {
+          console.warn('[agy-enhancer] openExternal error:', e);
+        }
+      }
+      if (!opened) {
+        try {
+          window.open(url, '_blank');
+          opened = true;
+        } catch (e) {
+          console.warn('[agy-enhancer] window.open error:', e);
+        }
+      }
+      if (!opened) {
+        const actionToken = Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+        console.log(`[AGY_OPEN_SETTINGS][${actionToken}]` + url);
+      }
+    }
+
     function createToast() {
       let toast = document.getElementById('agy-enhancer-toast');
       const branchTag = window.__AGY_BRANCH_TAG__ || '';
@@ -965,7 +990,7 @@
       if (!toast) {
         toast = document.createElement('div');
         toast.id = 'agy-enhancer-toast';
-        toast.title = `Antigravity Enhancer ready${branchTag}`;
+        toast.title = `Antigravity Enhancer ready${branchTag} (点击打开设置)`;
         toast.innerHTML = `
           <div class="dot"></div>
           <span class="toast-text">Antigravity Enhancer active${branchTag}</span>
@@ -990,13 +1015,14 @@
           toast.classList.add('collapsed');
         });
 
-        toast.addEventListener('click', () => {
-          if (collapseTimer) clearTimeout(collapseTimer);
-          toast.classList.toggle('collapsed');
+        toast.addEventListener('click', (e) => {
+          e.stopPropagation();
+          e.preventDefault();
+          openSettingsDashboard();
         });
       } else {
         // 已存在单例 Toast，仅更新标题，绝对不重置收折状态，绝不重新展开！
-        toast.title = `Antigravity Enhancer ready${branchTag}`;
+        toast.title = `Antigravity Enhancer ready${branchTag} (点击打开设置)`;
         if (!toast.classList.contains('collapsed')) {
           toast.classList.add('collapsed');
         }

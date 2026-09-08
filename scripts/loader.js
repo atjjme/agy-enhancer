@@ -490,6 +490,20 @@ async function connectAndAttach() {
             } catch (e) {
               log(`Failed to copy image: ` + e.message);
             }
+          } else if (typeof text === 'string' && text.startsWith('[AGY_OPEN_SETTINGS]')) {
+            let rawMsg = text.slice('[AGY_OPEN_SETTINGS]'.length).trim();
+            const tokenMatch = rawMsg.match(/^\[([0-9]+)_([a-zA-Z0-9]+)\](.*)/);
+            if (tokenMatch) {
+              const tokenTime = parseInt(tokenMatch[1], 10);
+              const token = tokenMatch[1] + '_' + tokenMatch[2];
+              if (tokenTime >= connectionEstablishedTime - 500 && (Date.now() - tokenTime) <= 5000) {
+                if (!handledConsoleTokens.has(token)) {
+                  handledConsoleTokens.add(token);
+                  log(`[Open Settings] Launching settings dashboard: http://127.0.0.1:${SETTINGS_PORT}/`);
+                  exec(`start http://127.0.0.1:${SETTINGS_PORT}/`);
+                }
+              }
+            }
           }
         } else if (data.id === 77777) {
           // 心跳探测返回：如果探测出错或异常，切勿当成未就绪而乱注
