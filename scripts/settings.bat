@@ -11,6 +11,6 @@ popd
 wscript.exe "%SCRIPTS_DIR%start-service-silent.vbs"
 
 :: 打开默认浏览器
-start "" "http://127.0.0.1:37210/"
+start "" "%ROOT_DIR%\settings.html"
 
 exit /b 0

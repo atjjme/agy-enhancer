@@ -503,8 +503,8 @@ async function connectAndAttach() {
                     const first = handledConsoleTokens.values().next().value;
                     handledConsoleTokens.delete(first);
                   }
-                  log(`[Open Settings] Launching settings dashboard: http://127.0.0.1:${SETTINGS_PORT}/`);
-                  exec(`start http://127.0.0.1:${SETTINGS_PORT}/`);
+                  log(`[Open Settings] Launching settings dashboard: ${settingsHtmlFile}`);
+                  exec(`start "" "${settingsHtmlFile}"`);
                 }
               }
             }
@@ -618,7 +618,7 @@ function injectEnhancer(ws) {
     const unreadCount = Object.keys(storedUnreadStates).length;
     const config = getStoredConfig();
     log(`>>> Injecting enhancer script (branch: ${branch || 'master'}, scroll memory: ${positionCount}, unread: ${unreadCount}, master: ${config.ENABLE_MASTER !== false})`);
-    const prefix = `window.__AGY_BRANCH_TAG__ = ${JSON.stringify(tag)};\nwindow.__AGY_BRANCH_NAME__ = ${JSON.stringify(branch)};\nwindow.__AGY_CONFIG__ = ${JSON.stringify(config)};\nwindow.__AGY_STORED_SCROLL_POSITIONS__ = ${JSON.stringify(storedPositions)};\nwindow.__AGY_STORED_UNREAD_STATES__ = ${JSON.stringify(storedUnreadStates)};\n`;
+    const prefix = `window.__AGY_BRANCH_TAG__ = ${JSON.stringify(tag)};\nwindow.__AGY_BRANCH_NAME__ = ${JSON.stringify(branch)};\nwindow.__AGY_CONFIG__ = ${JSON.stringify(config)};\nwindow.__AGY_STORED_SCROLL_POSITIONS__ = ${JSON.stringify(storedPositions)};\nwindow.__AGY_STORED_UNREAD_STATES__ = ${JSON.stringify(storedUnreadStates)};\nwindow.__AGY_SETTINGS_FILE__ = ${JSON.stringify(settingsHtmlFile)};\n`;
     const code = prefix + fs.readFileSync(enhancerFile, 'utf8');
     targetWs.send(JSON.stringify({
       id: Math.floor(Math.random() * 100000),

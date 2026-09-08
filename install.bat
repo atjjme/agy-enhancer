@@ -34,7 +34,7 @@ wscript.exe "%SCRIPTS_DIR%\start-service-silent.vbs"
 
 :: 稍微等待服务端口初始化并唤起设置中心网页
 timeout /t 1 >nul 2>&1
-start "" "http://127.0.0.1:37210/"
+start "" "%ROOT_DIR%\settings.html"
 
 :: 运行完成，自动关闭当前控制台窗口
 exit /b 0

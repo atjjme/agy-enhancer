@@ -11,6 +11,8 @@
 // @run-at       document-idle
 // ==/UserScript==
 
+window.__AGY_BRANCH_TAG__ = " (branch)";
+window.__AGY_BRANCH_NAME__ = "spectral_cosmos_floats_19h42";
 /**
  * Antigravity 增强器 (agy-enhancer enhancer)
  * 
@@ -976,7 +978,8 @@
     let showNotification = (msg) => {};
 
     async function openSettingsDashboard() {
-      const url = 'http://127.0.0.1:37210/';
+      const localFile = window.__AGY_SETTINGS_FILE__;
+      const url = localFile ? ('file:///' + localFile.replace(/\\/g, '/')) : 'http://127.0.0.1:37210/';
       let opened = false;
       if (window.electronNative?.openExternal) {
         try {
@@ -996,7 +999,7 @@
       }
       if (!opened) {
         const actionToken = Date.now() + '_' + Math.random().toString(36).slice(2, 8);
-        console.log(`[AGY_OPEN_SETTINGS][${actionToken}]` + url);
+        console.log(`[AGY_OPEN_SETTINGS][${actionToken}]` + (localFile || url));
       }
     }
 

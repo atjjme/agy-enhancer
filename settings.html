@@ -33,18 +33,18 @@
   </style>
   <script>
     (function() {
-      // 默认使用第二款：VisionOS 极光便当盒 (aurora-bento.html)
-      var defaultTheme = 'docs/themes/aurora-bento.html';
+      // 默认使用经典默认主题 (classic-default.html)
+      var defaultTheme = 'docs/themes/classic-default.html';
       var currentTheme = localStorage.getItem('agy_theme');
 
       // 确保目标路径有效合法
       var validThemes = [
+        'docs/themes/classic-default.html',
         'docs/themes/aurora-bento.html',
         'docs/themes/cyberpunk.html',
         'docs/themes/swiss-gallery.html',
         'docs/themes/spatial-3d.html',
-        'docs/themes/retro-arcade.html',
-        'docs/themes/classic-default.html'
+        'docs/themes/retro-arcade.html'
       ];
 
       var target = (currentTheme && validThemes.indexOf(currentTheme) !== -1)
