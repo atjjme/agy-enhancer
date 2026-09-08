@@ -3,7 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Antigravity 增强器 - 3D 空间浮岛控制台 (Spatial Deck)</title>
+  <title data-i18n="app_title">Antigravity 增强器 - 3D 空间浮岛控制台</title>
+  <script src="i18n.js"></script>
   <style>
     :root {
       --space-bg: #060913;
@@ -580,25 +581,35 @@
             <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
           </svg>
         </div>
-        <span class="header-spatial-title">Antigravity 增强器 • 空间浮岛</span>
+        <span class="header-spatial-title" data-i18n="brand_title">Antigravity 增强器 • 空间浮岛</span>
       </div>
 
-      <div style="display: flex; align-items: center; gap: 14px;">
+      <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
         <div class="theme-nav-pill">
           <span>🎨 </span>
-          <select onchange="changeGlobalTheme(this.value)">
-            <option value="aurora-bento.html">极光便当盒 (默认)</option>
-            <option value="cyberpunk.html">赛博全息</option>
-            <option value="swiss-gallery.html">瑞士画廊钛金</option>
-            <option value="spatial-3d.html" selected>3D 空间浮岛</option>
-            <option value="retro-arcade.html">霓虹复古像素</option>
-            <option value="classic-default.html">原版经典沉浸</option>
+          <select id="agyThemeSelect" onchange="changeGlobalTheme(this.value)">
+            <option value="aurora-bento.html" data-i18n="theme_bento">极光便当盒 (默认)</option>
+            <option value="cyberpunk.html" data-i18n="theme_cyber">赛博全息</option>
+            <option value="swiss-gallery.html" data-i18n="theme_swiss">瑞士画廊钛金</option>
+            <option value="spatial-3d.html" selected data-i18n="theme_spatial">3D 空间浮岛</option>
+            <option value="retro-arcade.html" data-i18n="theme_arcade">霓虹复古像素</option>
+            <option value="classic-default.html" data-i18n="theme_classic">原版经典沉浸</option>
+          </select>
+        </div>
+
+        <div class="theme-nav-pill">
+          <span>🌐 </span>
+          <select id="agyLangSelect" onchange="I18N.setLanguage(this.value)">
+            <option value="auto" data-i18n="lang_auto">🌐 跟随系统</option>
+            <option value="en" data-i18n="lang_en">English</option>
+            <option value="zh-CN" data-i18n="lang_zh_cn">简体中文</option>
+            <option value="zh-TW" data-i18n="lang_zh_tw">繁體中文</option>
           </select>
         </div>
 
         <div class="spatial-pill" id="connCapsule">
           <span class="orb-pulse"></span>
-          <span id="connLabel">守护信标连接中...</span>
+          <span id="connLabel" data-i18n="conn_connecting">守护信标连接中...</span>
         </div>
       </div>
     </header>
@@ -606,17 +617,17 @@
     <!-- 离线提示 -->
     <div class="spatial-offline-banner" id="offlineBanner">
       <div class="banner-left">
-        <h4>空间信标通信未激活</h4>
-        <p>受沙盒安全限制，请双击运行 <strong>install.bat</strong> 启动后台守护服务，点亮本浮岛矩阵。</p>
+        <h4 data-i18n="offline_welcome">空间信标通信未激活</h4>
+        <p data-i18n="offline_notice">受沙盒安全限制，请双击运行 install.bat 启动后台守护服务，点亮本浮岛矩阵。</p>
       </div>
-      <button class="btn-spatial-reprobe" id="retryConnBtn" type="button">探测连接</button>
+      <button class="btn-spatial-reprobe" id="retryConnBtn" type="button" data-i18n="offline_btn_retry">探测连接</button>
     </div>
 
     <!-- 核心浮空城堡 Hero -->
     <div class="master-citadel" id="heroMasterCard">
       <div>
         <div class="citadel-status-badge" id="heroMasterStatusTag">● 空间浮岛运转中</div>
-        <h2 class="citadel-title">增强器全局总开关</h2>
+        <h2 class="citadel-title" data-i18n="master_title">增强器全局总开关</h2>
         <p class="citadel-desc" id="heroMasterDesc">
           开启时全面激活各项空间注入；断电关闭时浮岛沉降休眠，客户端不挂载任何事件，100% 恢复官方原生纯净状态。
         </p>
@@ -634,13 +645,13 @@
       <div class="spatial-card">
         <div class="island-head">
           <div class="island-badge-icon" style="color: #38bdf8;">💻</div>
-          <span class="island-head-title">系统守护浮岛</span>
+          <span class="island-head-title" data-i18n="sec_system_title">系统守护浮岛</span>
         </div>
 
         <div class="island-row">
           <div class="island-row-info">
-            <div class="island-row-name">Windows 开机静默自启动</div>
-            <div class="island-row-desc">随系统开机自动载入后台静默驻留，零感保障。</div>
+            <div class="island-row-name" data-i18n="sw_autostart_title">Windows 开机静默自启动</div>
+            <div class="island-row-desc" data-i18n="sw_autostart_desc">随系统开机自动载入后台静默驻留，零感保障。</div>
           </div>
           <label class="spatial-switch">
             <input type="checkbox" id="ENABLE_AUTOSTART">
@@ -653,13 +664,13 @@
       <div class="spatial-card">
         <div class="island-head">
           <div class="island-badge-icon" style="color: #a78bfa;">🎯</div>
-          <span class="island-head-title">交互接管浮岛</span>
+          <span class="island-head-title" data-i18n="sec_visual_title">交互接管浮岛</span>
         </div>
 
         <div class="island-row">
           <div class="island-row-info">
-            <div class="island-row-name">全局右键功能增强</div>
-            <div class="island-row-desc">接管侧边栏与消息代码复制。关闭后彻底不拦截原生右键。</div>
+            <div class="island-row-name" data-i18n="sw_context_menu_title">全局右键功能增强</div>
+            <div class="island-row-desc" data-i18n="sw_context_menu_desc">接管侧边栏与消息代码复制。关闭后彻底不拦截原生右键。</div>
           </div>
           <label class="spatial-switch">
             <input type="checkbox" id="ENABLE_CONTEXT_MENU">
@@ -670,8 +681,8 @@
         <div class="island-sub-deck" id="quotePopupSubPanel">
           <div class="island-row" style="padding: 2px 0;">
             <div class="island-row-info">
-              <div class="island-row-name" style="font-size: 13px;">屏蔽划词选中文本时的 Quote 浮窗</div>
-              <div class="island-row-desc" style="font-size: 11.5px;">选中文本时不再弹出官方气泡，受右键总开关约束。</div>
+              <div class="island-row-name" style="font-size: 13px;" data-i18n="sw_block_quote_title">屏蔽划词选中文本时的 Quote 浮窗</div>
+              <div class="island-row-desc" style="font-size: 11.5px;" data-i18n="sw_block_quote_desc">选中文本时不再弹出官方气泡，受右键总开关约束。</div>
             </div>
             <label class="spatial-switch">
               <input type="checkbox" id="ENABLE_BLOCK_QUOTE_POPUP">
@@ -685,13 +696,13 @@
       <div class="spatial-card">
         <div class="island-head">
           <div class="island-badge-icon" style="color: #34d399;">🎨</div>
-          <span class="island-head-title">视觉指示浮岛</span>
+          <span class="island-head-title" data-i18n="sec_visual_title">视觉指示浮岛</span>
         </div>
 
         <div class="island-row">
           <div class="island-row-info">
-            <div class="island-row-name">右上角常驻运行指示点</div>
-            <div class="island-row-desc">在客户端顶部实时显示微量运行态绿点与启动反馈。</div>
+            <div class="island-row-name" data-i18n="sw_status_indicator_title">右上角常驻运行指示点</div>
+            <div class="island-row-desc" data-i18n="sw_status_indicator_desc">在客户端顶部实时显示微量运行态绿点与启动反馈。</div>
           </div>
           <label class="spatial-switch">
             <input type="checkbox" id="ENABLE_STATUS_INDICATOR">
@@ -701,8 +712,8 @@
 
         <div class="island-row">
           <div class="island-row-info">
-            <div class="island-row-name">右下角常驻智能翻页双按钮</div>
-            <div class="island-row-desc">向上（↑）/向下（↓）智能翻阅长对话，双击直达最新回复。</div>
+            <div class="island-row-name" data-i18n="sw_nav_buttons_title">右下角常驻智能翻页双按钮</div>
+            <div class="island-row-desc" data-i18n="sw_nav_buttons_desc">向上（↑）/向下（↓）智能翻阅长对话，双击直达最新回复。</div>
           </div>
           <label class="spatial-switch">
             <input type="checkbox" id="ENABLE_NAV_BUTTONS">
@@ -712,8 +723,8 @@
 
         <div class="island-row">
           <div class="island-row-info">
-            <div class="island-row-name">左侧项目折叠与归档抽屉</div>
-            <div class="island-row-desc">鼠标悬停一键收纳暂不处理的项目，侧栏配备专用抽屉。</div>
+            <div class="island-row-name" data-i18n="sw_project_archiver_title">左侧项目折叠与归档抽屉</div>
+            <div class="island-row-desc" data-i18n="sw_project_archiver_desc">鼠标悬停一键收纳暂不处理的项目，侧栏配备专用抽屉。</div>
           </div>
           <label class="spatial-switch">
             <input type="checkbox" id="ENABLE_PROJECT_ARCHIVER">
@@ -726,13 +737,13 @@
       <div class="spatial-card">
         <div class="island-head">
           <div class="island-badge-icon" style="color: #fbbf24;">🧠</div>
-          <span class="island-head-title">记忆引擎浮岛</span>
+          <span class="island-head-title" data-i18n="sec_memory_title">记忆引擎浮岛</span>
         </div>
 
         <div class="island-row">
           <div class="island-row-info">
-            <div class="island-row-name">多会话阅读进度记忆与自动回滚</div>
-            <div class="island-row-desc">精确还原各会话离开时的浏览位置，关闭后完全卸载监听。</div>
+            <div class="island-row-name" data-i18n="sw_scroll_persist_title">多会话阅读进度记忆与自动回滚</div>
+            <div class="island-row-desc" data-i18n="sw_scroll_persist_desc">精确还原各会话离开时的浏览位置，关闭后完全卸载监听。</div>
           </div>
           <label class="spatial-switch">
             <input type="checkbox" id="ENABLE_SCROLL_PERSISTENCE">
@@ -742,8 +753,8 @@
 
         <div class="island-row">
           <div class="island-row-info">
-            <div class="island-row-name">智能未读/已读状态追踪</div>
-            <div class="island-row-desc">长文阅读触底判定与未读圆点提示，关闭停止后台定时器。</div>
+            <div class="island-row-name" data-i18n="sw_smart_unread_title">智能未读/已读状态追踪</div>
+            <div class="island-row-desc" data-i18n="sw_smart_unread_desc">长文阅读触底判定与未读圆点提示，关闭停止后台定时器。</div>
           </div>
           <label class="spatial-switch">
             <input type="checkbox" id="ENABLE_SMART_UNREAD">
@@ -760,11 +771,11 @@
   <div class="spatial-dock">
     <div class="spatial-dock-hint" id="dockInfo">
       <span>🌐</span>
-      <span id="dockHint">浮岛状态就绪，更改将即时热生效</span>
+      <span id="dockHint" data-i18n="dock_ready">浮岛状态就绪，更改将即时热生效</span>
     </div>
     <div class="spatial-dock-btns">
-      <button class="btn-spatial btn-spatial-reset" id="resetBtn" type="button">恢复默认</button>
-      <button class="btn-spatial btn-spatial-save" id="saveBtn" type="button">保存配置</button>
+      <button class="btn-spatial btn-spatial-reset" id="resetBtn" type="button" data-i18n="btn_reset">恢复默认</button>
+      <button class="btn-spatial btn-spatial-save" id="saveBtn" type="button" data-i18n="btn_save">保存配置</button>
     </div>
   </div>
 
@@ -834,7 +845,7 @@
 
     function markDirty() {
       isDirty = true;
-      document.getElementById('dockHint').innerHTML = '<span style="color: #fbbf24;">● 检测到浮岛有未同步配置</span>';
+      document.getElementById('dockHint').innerHTML = '<span style="color: #fbbf24;">' + I18N.t('dock_modified') + '</span>';
     }
 
     function updateHierarchyVisuals() {
@@ -846,13 +857,13 @@
 
       if (masterCheck) {
         heroCard.classList.remove('dormant');
-        heroStatusTag.textContent = '● 空间浮岛运转中';
-        heroDesc.textContent = '各项空间注入已全面激活，正在全速提供增强辅助支撑。';
+        heroStatusTag.textContent = I18N.t('master_active_tag');
+        heroDesc.textContent = I18N.t('master_active_desc');
         featuresContainer.classList.remove('master-dormant');
       } else {
         heroCard.classList.add('dormant');
-        heroStatusTag.textContent = '○ 浮岛沉降休眠中';
-        heroDesc.textContent = '总闸已关闭。客户端内不挂载任何事件，100% 原生纯净运行。';
+        heroStatusTag.textContent = I18N.t('master_dormant_tag');
+        heroDesc.textContent = I18N.t('master_dormant_desc');
         featuresContainer.classList.add('master-dormant');
       }
 
@@ -897,7 +908,7 @@
             if (data.success && data.config) {
               stopOfflineProbe();
               applyLiveConfig(data.config);
-              toast('✨ 空间信标已重新点亮');
+              toast(I18N.t('conn_reconnected'));
             }
           }
         } catch (e) {}
@@ -911,7 +922,7 @@
 
       capsule.classList.remove('disconnected');
       banner.classList.remove('active');
-      label.textContent = '守护服务活跃 (3D 矩阵)';
+      label.textContent = I18N.t('conn_online');
 
       SWITCH_KEYS.forEach(key => {
         const el = document.getElementById(key);
@@ -926,7 +937,7 @@
 
       isDirty = false;
       updateHierarchyVisuals();
-      document.getElementById('dockHint').textContent = '已拉取本地最新浮岛参数';
+      document.getElementById('dockHint').textContent = I18N.t('dock_synced');
     }
 
     async function fetchLiveConfig() {
@@ -945,9 +956,9 @@
         }
       } catch (err) {
         capsule.classList.add('disconnected');
-        label.textContent = '守护信标离线 (请运行 install.bat)';
+        label.textContent = I18N.t('conn_offline');
         banner.classList.add('active');
-        document.getElementById('dockHint').textContent = '⚠️ 等待后台服务就绪';
+        document.getElementById('dockHint').textContent = I18N.t('dock_ready');
         startOfflineProbe();
       }
     }
@@ -983,20 +994,20 @@
         const data = await res.json();
         if (data.success) {
           isDirty = false;
-          toast('✅ 3D 浮岛配置已同步并热重载！');
-          document.getElementById('dockHint').textContent = '已保存于 ' + new Date().toLocaleTimeString();
+          toast(I18N.t('toast_saved'));
+          document.getElementById('dockHint').textContent = I18N.t('dock_saved_at') + new Date().toLocaleTimeString();
         } else {
-          alert('保存失败: ' + (data.error || '未知错误'));
+          alert(I18N.t('save_failed') + (data.error || '未知错误'));
         }
       } catch (e) {
-        alert('无法保存：后台服务未响应，请先运行 install.bat 启动服务。');
+        alert(I18N.t('daemon_unresponsive'));
       } finally {
         saveBtn.disabled = false;
       }
     }
 
     function handleReset() {
-      if (!confirm('确定将所有浮岛配置恢复为默认值吗？')) return;
+      if (!confirm(I18N.t('dialog_reset_confirm'))) return;
       SWITCH_KEYS.forEach(k => {
         const el = document.getElementById(k);
         if (el && typeof DEFAULTS[k] === 'boolean') {
@@ -1005,8 +1016,17 @@
       });
       markDirty();
       updateHierarchyVisuals();
-      toast('已恢复为默认推荐参数');
+      toast(I18N.t('toast_reset'));
     }
+
+    window.addEventListener('agy-lang-changed', () => {
+      updateHierarchyVisuals();
+      if (!isDirty) {
+        document.getElementById('dockHint').textContent = I18N.t('dock_ready');
+      } else {
+        markDirty();
+      }
+    });
 
     document.getElementById('saveBtn').addEventListener('click', handleSave);
     document.getElementById('resetBtn').addEventListener('click', handleReset);

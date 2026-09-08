@@ -3,7 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Antigravity 增强器 - 霓虹复古像素 (8-Bit Arcade)</title>
+  <title data-i18n="app_title">Antigravity 增强器 - 霓虹复古像素</title>
+  <script src="i18n.js"></script>
   <style>
     :root {
       --pixel-bg: #0d0c1d;
@@ -525,27 +526,37 @@
       <div class="arcade-brand">
         <div class="pixel-heart">★</div>
         <div class="arcade-title-box">
-          <h1>Antigravity 增强控制台</h1>
-          <p>ARCADE_EDITION • 8-BIT SYSTEM CONTROLLER</p>
+          <h1 data-i18n="brand_title">Antigravity 增强控制台</h1>
+          <p data-i18n="brand_subtitle">ARCADE_EDITION • 8-BIT SYSTEM CONTROLLER</p>
         </div>
       </div>
 
-      <div style="display: flex; align-items: center; gap: 12px;">
+      <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
         <div class="theme-nav-pill">
           <span>🎨 </span>
-          <select onchange="changeGlobalTheme(this.value)">
-            <option value="aurora-bento.html">极光便当盒 (默认)</option>
-            <option value="cyberpunk.html">赛博全息</option>
-            <option value="swiss-gallery.html">瑞士画廊钛金</option>
-            <option value="spatial-3d.html">3D 空间浮岛</option>
-            <option value="retro-arcade.html" selected>霓虹复古像素</option>
-            <option value="classic-default.html">原版经典沉浸</option>
+          <select id="agyThemeSelect" onchange="changeGlobalTheme(this.value)">
+            <option value="aurora-bento.html" data-i18n="theme_bento">极光便当盒 (默认)</option>
+            <option value="cyberpunk.html" data-i18n="theme_cyber">赛博全息</option>
+            <option value="swiss-gallery.html" data-i18n="theme_swiss">瑞士画廊钛金</option>
+            <option value="spatial-3d.html" data-i18n="theme_spatial">3D 空间浮岛</option>
+            <option value="retro-arcade.html" selected data-i18n="theme_arcade">霓虹复古像素</option>
+            <option value="classic-default.html" data-i18n="theme_classic">原版经典沉浸</option>
+          </select>
+        </div>
+
+        <div class="theme-nav-pill">
+          <span>🌐 </span>
+          <select id="agyLangSelect" onchange="I18N.setLanguage(this.value)">
+            <option value="auto" data-i18n="lang_auto">🌐 跟随系统</option>
+            <option value="en" data-i18n="lang_en">English</option>
+            <option value="zh-CN" data-i18n="lang_zh_cn">简体中文</option>
+            <option value="zh-TW" data-i18n="lang_zh_tw">繁體中文</option>
           </select>
         </div>
 
         <div class="pixel-badge" id="connCapsule">
           <span class="blink-square"></span>
-          <span id="connLabel">LINK: ONLINE</span>
+          <span id="connLabel" data-i18n="conn_connecting">LINK: ONLINE</span>
         </div>
       </div>
     </header>
@@ -553,17 +564,17 @@
     <!-- 离线提示 -->
     <div class="pixel-banner" id="offlineBanner">
       <div class="banner-text">
-        <h4>[!] INSERT DISK: DAEMON OFFLINE</h4>
-        <p>浏览器安全机制生效中，请双击运行 <strong>install.bat</strong> 启动后台微服务！</p>
+        <h4 data-i18n="offline_welcome">[!] INSERT DISK: DAEMON OFFLINE</h4>
+        <p data-i18n="offline_notice">浏览器安全机制生效中，请双击运行 install.bat 启动后台微服务！</p>
       </div>
-      <button class="btn-pixel-retry" id="retryConnBtn" type="button">RETRY LINK</button>
+      <button class="btn-pixel-retry" id="retryConnBtn" type="button" data-i18n="offline_btn_retry">RETRY LINK</button>
     </div>
 
     <!-- 顶级总闸 Hero -->
     <div class="master-arcade-card" id="heroMasterCard">
       <div>
         <div class="master-status-tag" id="heroMasterStatusTag">● 1P READY // SYSTEM ACTIVE</div>
-        <h2 class="master-title">增强器全局总开关 (POWER)</h2>
+        <h2 class="master-title" data-i18n="master_title">增强器全局总开关 (POWER)</h2>
         <p class="master-desc" id="heroMasterDesc">
           开启时全面激活各项像素注入；关闭时彻底休眠，客户端不挂载任何拦截，100% 恢复官方原生纯净体验。
         </p>
@@ -576,16 +587,16 @@
 
     <!-- 功能区域 -->
     <div class="pixel-features-wrap" id="featuresContainer">
-      <div class="game-over-banner">--- GAME PAUSED // 全局总控已断开 ---</div>
+      <div class="game-over-banner" data-i18n="master_dormant_banner">--- GAME PAUSED // 全局总控已断开 ---</div>
 
       <!-- 模块 1: 系统服务 -->
       <div class="pixel-group-box">
-        <span class="group-tag-bar">[STAGE 1] HOST SYSTEM BASE</span>
+        <span class="group-tag-bar" data-i18n="sec_system_title">[STAGE 1] HOST SYSTEM BASE</span>
 
         <div class="pixel-row">
           <div class="pixel-row-text">
-            <div class="pixel-row-name">Windows 开机静默自启动</div>
-            <div class="pixel-row-desc">随系统开机自动载入后台静默驻留，零感保障。</div>
+            <div class="pixel-row-name" data-i18n="sw_autostart_title">Windows 开机静默自启动</div>
+            <div class="pixel-row-desc" data-i18n="sw_autostart_desc">随系统开机自动载入后台静默驻留，零感保障。</div>
           </div>
           <label class="pixel-switch">
             <input type="checkbox" id="ENABLE_AUTOSTART">
@@ -596,12 +607,12 @@
 
       <!-- 模块 2: 交互与视觉 -->
       <div class="pixel-group-box">
-        <span class="group-tag-bar">[STAGE 2] VISUAL & INPUT SUITE</span>
+        <span class="group-tag-bar" data-i18n="sec_visual_title">[STAGE 2] VISUAL & INPUT SUITE</span>
 
         <div class="pixel-row">
           <div class="pixel-row-text">
-            <div class="pixel-row-name">全局右键功能增强</div>
-            <div class="pixel-row-desc">接管侧边栏会话、项目管理与代码块复制。关闭恢复原生右键。</div>
+            <div class="pixel-row-name" data-i18n="sw_context_menu_title">全局右键功能增强</div>
+            <div class="pixel-row-desc" data-i18n="sw_context_menu_desc">接管侧边栏会话、项目管理与代码块复制。关闭恢复原生右键。</div>
           </div>
           <label class="pixel-switch">
             <input type="checkbox" id="ENABLE_CONTEXT_MENU">
@@ -612,8 +623,8 @@
         <div class="pixel-sub-block" id="quotePopupSubPanel">
           <div class="pixel-row" style="padding: 2px 0;">
             <div class="pixel-row-text">
-              <div class="pixel-row-name" style="font-size: 13px; color: var(--p-yellow);">屏蔽划词选中文本时的 Quote 浮窗</div>
-              <div class="pixel-row-desc" style="font-size: 11px;">选中文本时不再弹出官方 Quote (Ctrl+L) 气泡，杜绝卡顿。</div>
+              <div class="pixel-row-name" style="font-size: 13px; color: var(--p-yellow);" data-i18n="sw_block_quote_title">屏蔽划词选中文本时的 Quote 浮窗</div>
+              <div class="pixel-row-desc" style="font-size: 11px;" data-i18n="sw_block_quote_desc">选中文本时不再弹出官方 Quote (Ctrl+L) 气泡，杜绝卡顿。</div>
             </div>
             <label class="pixel-switch">
               <input type="checkbox" id="ENABLE_BLOCK_QUOTE_POPUP">
@@ -624,8 +635,8 @@
 
         <div class="pixel-row">
           <div class="pixel-row-text">
-            <div class="pixel-row-name">右上角常驻绿色运行指示点</div>
-            <div class="pixel-row-desc">在客户端顶部实时显示微量运行态绿点与启动反馈。</div>
+            <div class="pixel-row-name" data-i18n="sw_status_indicator_title">右上角常驻绿色运行指示点</div>
+            <div class="pixel-row-desc" data-i18n="sw_status_indicator_desc">在客户端顶部实时显示微量运行态绿点与启动反馈。</div>
           </div>
           <label class="pixel-switch">
             <input type="checkbox" id="ENABLE_STATUS_INDICATOR">
@@ -635,8 +646,8 @@
 
         <div class="pixel-row">
           <div class="pixel-row-text">
-            <div class="pixel-row-name">右下角常驻智能翻页双按钮</div>
-            <div class="pixel-row-desc">向上（↑）/向下（↓）智能翻阅长对话，双击直达最新回复。</div>
+            <div class="pixel-row-name" data-i18n="sw_nav_buttons_title">右下角常驻智能翻页双按钮</div>
+            <div class="pixel-row-desc" data-i18n="sw_nav_buttons_desc">向上（↑）/向下（↓）智能翻阅长对话，双击直达最新回复。</div>
           </div>
           <label class="pixel-switch">
             <input type="checkbox" id="ENABLE_NAV_BUTTONS">
@@ -646,8 +657,8 @@
 
         <div class="pixel-row">
           <div class="pixel-row-text">
-            <div class="pixel-row-name">左侧项目折叠与归档抽屉</div>
-            <div class="pixel-row-desc">鼠标悬停一键隐藏暂缓项目，并在侧栏提供专属收纳抽屉。</div>
+            <div class="pixel-row-name" data-i18n="sw_project_archiver_title">左侧项目折叠与归档抽屉</div>
+            <div class="pixel-row-desc" data-i18n="sw_project_archiver_desc">鼠标悬停一键隐藏暂缓项目，并在侧栏提供专属收纳抽屉。</div>
           </div>
           <label class="pixel-switch">
             <input type="checkbox" id="ENABLE_PROJECT_ARCHIVER">
@@ -658,12 +669,12 @@
 
       <!-- 模块 3: 记忆与状态 -->
       <div class="pixel-group-box">
-        <span class="group-tag-bar">[STAGE 3] COGNITION & MEMORY</span>
+        <span class="group-tag-bar" data-i18n="sec_memory_title">[STAGE 3] COGNITION & MEMORY</span>
 
         <div class="pixel-row">
           <div class="pixel-row-text">
-            <div class="pixel-row-name">多会话阅读进度记忆与自动回滚</div>
-            <div class="pixel-row-desc">精确还原离开时的浏览位置，关停后停止滚动容器监听。</div>
+            <div class="pixel-row-name" data-i18n="sw_scroll_persist_title">多会话阅读进度记忆与自动回滚</div>
+            <div class="pixel-row-desc" data-i18n="sw_scroll_persist_desc">精确还原离开时的浏览位置，关停后停止滚动容器监听。</div>
           </div>
           <label class="pixel-switch">
             <input type="checkbox" id="ENABLE_SCROLL_PERSISTENCE">
@@ -673,8 +684,8 @@
 
         <div class="pixel-row">
           <div class="pixel-row-text">
-            <div class="pixel-row-name">智能未读/已读状态追踪</div>
-            <div class="pixel-row-desc">长文阅读触底判定与侧栏圆点提示，关闭停止后台定时器。</div>
+            <div class="pixel-row-name" data-i18n="sw_smart_unread_title">智能未读/已读状态追踪</div>
+            <div class="pixel-row-desc" data-i18n="sw_smart_unread_desc">长文阅读触底判定与侧栏圆点提示，关闭停止后台定时器。</div>
           </div>
           <label class="pixel-switch">
             <input type="checkbox" id="ENABLE_SMART_UNREAD">
@@ -688,11 +699,11 @@
     <!-- 底部操作底栏 -->
     <footer class="arcade-dock">
       <div class="arcade-hint-text" id="dockInfo">
-        <span id="dockHint">READY TO PLAY // 点击保存生效</span>
+        <span id="dockHint" data-i18n="dock_ready">READY TO PLAY // 点击保存生效</span>
       </div>
       <div class="arcade-btn-group">
-        <button class="btn-arcade btn-arcade-reset" id="resetBtn" type="button">RESTORE</button>
-        <button class="btn-arcade btn-arcade-save" id="saveBtn" type="button">SAVE GAME</button>
+        <button class="btn-arcade btn-arcade-reset" id="resetBtn" type="button" data-i18n="btn_reset">RESTORE</button>
+        <button class="btn-arcade btn-arcade-save" id="saveBtn" type="button" data-i18n="btn_save">SAVE GAME</button>
       </div>
     </footer>
 
@@ -743,7 +754,7 @@
 
     function markDirty() {
       isDirty = true;
-      document.getElementById('dockHint').innerHTML = '<span style="color: var(--p-yellow);">★ MODIFIED // 存在未保存配置</span>';
+      document.getElementById('dockHint').innerHTML = '<span style="color: var(--p-yellow);">' + I18N.t('dock_modified') + '</span>';
     }
 
     function updateHierarchyVisuals() {
@@ -755,13 +766,13 @@
 
       if (masterCheck) {
         heroCard.classList.remove('dormant');
-        heroStatusTag.textContent = '● 1P READY // SYSTEM ACTIVE';
-        heroDesc.textContent = '像素注入功能已全线挂载，毫秒响应。';
+        heroStatusTag.textContent = I18N.t('master_active_tag');
+        heroDesc.textContent = I18N.t('master_active_desc');
         featuresContainer.classList.remove('master-dormant');
       } else {
         heroCard.classList.add('dormant');
-        heroStatusTag.textContent = '○ GAME OVER // SYSTEM SLEEP';
-        heroDesc.textContent = '总闸已关闭。客户端内不挂载任何事件，100% 原生纯净运行。';
+        heroStatusTag.textContent = I18N.t('master_dormant_tag');
+        heroDesc.textContent = I18N.t('master_dormant_desc');
         featuresContainer.classList.add('master-dormant');
       }
 
@@ -806,7 +817,7 @@
             if (data.success && data.config) {
               stopOfflineProbe();
               applyLiveConfig(data.config);
-              toast('★ LINK RESTORED! ★');
+              toast(I18N.t('conn_reconnected'));
             }
           }
         } catch (e) {}
@@ -820,7 +831,7 @@
 
       capsule.classList.remove('disconnected');
       banner.classList.remove('active');
-      label.textContent = 'LINK: ONLINE';
+      label.textContent = I18N.t('conn_online');
 
       SWITCH_KEYS.forEach(key => {
         const el = document.getElementById(key);
@@ -835,7 +846,7 @@
 
       isDirty = false;
       updateHierarchyVisuals();
-      document.getElementById('dockHint').textContent = 'SYNCED WITH ROM // 已就绪';
+      document.getElementById('dockHint').textContent = I18N.t('dock_synced');
     }
 
     async function fetchLiveConfig() {
@@ -854,9 +865,9 @@
         }
       } catch (err) {
         capsule.classList.add('disconnected');
-        label.textContent = 'LINK: OFFLINE';
+        label.textContent = I18N.t('conn_offline');
         banner.classList.add('active');
-        document.getElementById('dockHint').textContent = '⚠️ 请先运行 install.bat 点亮服务';
+        document.getElementById('dockHint').textContent = I18N.t('dock_ready');
         startOfflineProbe();
       }
     }
@@ -892,20 +903,20 @@
         const data = await res.json();
         if (data.success) {
           isDirty = false;
-          toast('★ GAME SAVED SUCCESSFULLY! ★');
-          document.getElementById('dockHint').textContent = 'SAVED AT ' + new Date().toLocaleTimeString();
+          toast(I18N.t('toast_saved'));
+          document.getElementById('dockHint').textContent = I18N.t('dock_saved_at') + new Date().toLocaleTimeString();
         } else {
-          alert('保存失败: ' + (data.error || '未知错误'));
+          alert(I18N.t('save_failed') + (data.error || '未知错误'));
         }
       } catch (e) {
-        alert('无法保存：后台服务未响应，请先运行 install.bat 启动服务。');
+        alert(I18N.t('daemon_unresponsive'));
       } finally {
         saveBtn.disabled = false;
       }
     }
 
     function handleReset() {
-      if (!confirm('确定将所有设置恢复为出厂设定吗？')) return;
+      if (!confirm(I18N.t('dialog_reset_confirm'))) return;
       SWITCH_KEYS.forEach(k => {
         const el = document.getElementById(k);
         if (el && typeof DEFAULTS[k] === 'boolean') {
@@ -914,8 +925,17 @@
       });
       markDirty();
       updateHierarchyVisuals();
-      toast('RESET TO DEFAULT');
+      toast(I18N.t('toast_reset'));
     }
+
+    window.addEventListener('agy-lang-changed', () => {
+      updateHierarchyVisuals();
+      if (!isDirty) {
+        document.getElementById('dockHint').textContent = I18N.t('dock_ready');
+      } else {
+        markDirty();
+      }
+    });
 
     document.getElementById('saveBtn').addEventListener('click', handleSave);
     document.getElementById('resetBtn').addEventListener('click', handleReset);

@@ -3,7 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Antigravity 增强器 - 设置中心 (经典默认)</title>
+  <title data-i18n="app_title">Antigravity 增强器 - 设置中心</title>
+  <script src="i18n.js"></script>
   <style>
     :root {
       --bg-gradient: radial-gradient(circle at 50% -10%, #1e2436 0%, #111218 50%, #090a0d 100%);
@@ -662,29 +663,39 @@
               <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
             </svg>
           </div>
-          <h1 class="brand-title">Antigravity 增强器控制台</h1>
+          <h1 class="brand-title" data-i18n="brand_title">Antigravity 增强器控制台</h1>
         </div>
 
-        <div style="display: flex; align-items: center; gap: 10px;">
+        <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
           <div class="theme-nav-pill">
             <span>🎨 </span>
-            <select onchange="changeGlobalTheme(this.value)">
-              <option value="aurora-bento.html">极光便当盒 (默认)</option>
-              <option value="cyberpunk.html">赛博全息</option>
-              <option value="swiss-gallery.html">瑞士画廊钛金</option>
-              <option value="spatial-3d.html">3D 空间浮岛</option>
-              <option value="retro-arcade.html">霓虹复古像素</option>
-              <option value="classic-default.html" selected>原版经典沉浸</option>
+            <select id="agyThemeSelect" onchange="changeGlobalTheme(this.value)">
+              <option value="aurora-bento.html" data-i18n="theme_bento">极光便当盒 (默认)</option>
+              <option value="cyberpunk.html" data-i18n="theme_cyber">赛博全息</option>
+              <option value="swiss-gallery.html" data-i18n="theme_swiss">瑞士画廊钛金</option>
+              <option value="spatial-3d.html" data-i18n="theme_spatial">3D 空间浮岛</option>
+              <option value="retro-arcade.html" data-i18n="theme_arcade">霓虹复古像素</option>
+              <option value="classic-default.html" selected data-i18n="theme_classic">原版经典沉浸</option>
+            </select>
+          </div>
+
+          <div class="theme-nav-pill">
+            <span>🌐 </span>
+            <select id="agyLangSelect" onchange="I18N.setLanguage(this.value)">
+              <option value="auto" data-i18n="lang_auto">🌐 跟随系统</option>
+              <option value="en" data-i18n="lang_en">English</option>
+              <option value="zh-CN" data-i18n="lang_zh_cn">简体中文</option>
+              <option value="zh-TW" data-i18n="lang_zh_tw">繁體中文</option>
             </select>
           </div>
 
           <div class="status-capsule" id="connCapsule">
             <span class="pulse-dot"></span>
-            <span id="connLabel">正在连接守护服务...</span>
+            <span id="connLabel" data-i18n="conn_connecting">正在连接守护服务...</span>
           </div>
         </div>
       </div>
-      <p class="header-subtitle">
+      <p class="header-subtitle" data-i18n="brand_subtitle">
         可视化管理注入组件与守护服务行为。开关状态实时反映本地配置，点击保存立即热重载。
       </p>
     </div>
@@ -693,10 +704,10 @@
     <div class="offline-banner" id="offlineBanner">
       <div class="offline-icon">👋</div>
       <div class="offline-content">
-        <div class="offline-title">欢迎！您正在打开设置中心</div>
-        <div class="offline-desc">受浏览器安全限制，你需要双击运行 <strong>install.bat</strong> 以启动本服务，即可点亮本页面并开启全部功能！</div>
+        <div class="offline-title" data-i18n="offline_welcome">欢迎！您正在打开设置中心</div>
+        <div class="offline-desc" data-i18n="offline_notice">受浏览器安全限制，你需要双击运行 install.bat 以启动本服务，即可点亮本页面并开启全部功能！</div>
       </div>
-      <button class="btn-retry-conn" id="retryConnBtn" type="button">检测服务</button>
+      <button class="btn-retry-conn" id="retryConnBtn" type="button" data-i18n="offline_btn_retry">检测服务</button>
     </div>
 
     <!-- 🌟 顶级总控卡片 (Master Switch) -->
@@ -705,7 +716,7 @@
         <div class="hero-tag">
           <span id="heroMasterStatusTag">● 运行状态监控</span>
         </div>
-        <div class="hero-title">增强器全局总开关</div>
+        <div class="hero-title" data-i18n="master_title">增强器全局总开关</div>
         <div class="hero-desc" id="heroMasterDesc">
           开启时全面激活各项注入功能；关闭时彻底休眠，客户端不挂载任何事件，100% 恢复官方原生纯净状态。
         </div>
@@ -721,14 +732,14 @@
       <div class="card-header-bar">
         <div class="card-title-group">
           <div class="card-icon" style="color: #60a5fa;">💻</div>
-          <span class="card-title">Windows 系统与自启服务</span>
+          <span class="card-title" data-i18n="sec_system_title">Windows 系统与自启服务</span>
         </div>
       </div>
 
       <div class="control-row">
         <div class="control-text">
-          <div class="control-label">Windows 开机静默自启动</div>
-          <div class="control-subtext">根据实际系统 Startup 目录自动增删静默启动快捷方式，随开机自动驻留后台。</div>
+          <div class="control-label" data-i18n="sw_autostart_title">Windows 开机静默自启动</div>
+          <div class="control-subtext" data-i18n="sw_autostart_desc">根据实际系统 Startup 目录自动增删静默启动快捷方式，随开机自动驻留后台。</div>
         </div>
         <label class="switch-ui">
           <input type="checkbox" id="ENABLE_AUTOSTART">
@@ -739,8 +750,7 @@
 
     <!-- 🎛️ 增强功能层级容器 -->
     <div class="features-container" id="featuresContainer">
-      <span class="dormant-watermark">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+      <span class="dormant-watermark" data-i18n="master_dormant_banner">
         已随全局总开关全面休眠停用
       </span>
 
@@ -749,14 +759,14 @@
         <div class="card-header-bar">
           <div class="card-title-group">
             <div class="card-icon" style="color: #38bdf8;">🎨</div>
-            <span class="card-title">界面视觉与辅助工具</span>
+            <span class="card-title" data-i18n="sec_visual_title">界面视觉与辅助工具</span>
           </div>
         </div>
 
         <div class="control-row">
           <div class="control-text">
-            <div class="control-label">全局右键功能增强</div>
-            <div class="control-subtext">统一接管侧边栏会话与项目管理、消息与代码块复制及媒体图片快捷操作。关闭后彻底不拦截原生右键。</div>
+            <div class="control-label" data-i18n="sw_context_menu_title">全局右键功能增强</div>
+            <div class="control-subtext" data-i18n="sw_context_menu_desc">统一接管侧边栏会话与项目管理、消息与代码块复制及媒体图片快捷操作。关闭后彻底不拦截原生右键。</div>
           </div>
           <label class="switch-ui">
             <input type="checkbox" id="ENABLE_CONTEXT_MENU">
@@ -767,8 +777,8 @@
         <div class="sub-tree-panel" id="quotePopupSubPanel">
           <div class="sub-control-row">
             <div class="control-text" style="padding-right: 12px;">
-              <div class="sub-control-label" style="font-weight: 500;">屏蔽划词选中文本时的 Quote 浮窗</div>
-              <div class="control-subtext" style="font-size: 11.5px; margin-top: 2px;">选中文本时不再弹出官方 Quote (Ctrl+L) 气泡，彻底杜绝输入卡顿。</div>
+              <div class="sub-control-label" style="font-weight: 500;" data-i18n="sw_block_quote_title">屏蔽划词选中文本时的 Quote 浮窗</div>
+              <div class="control-subtext" style="font-size: 11.5px; margin-top: 2px;" data-i18n="sw_block_quote_desc">选中文本时不再弹出官方 Quote (Ctrl+L) 气泡，彻底杜绝输入卡顿。</div>
             </div>
             <label class="switch-ui mini-switch">
               <input type="checkbox" id="ENABLE_BLOCK_QUOTE_POPUP">
@@ -779,8 +789,8 @@
 
         <div class="control-row">
           <div class="control-text">
-            <div class="control-label">右上角常驻绿色运行指示点</div>
-            <div class="control-subtext">在 Antigravity 客户端右上角显示极小状态小圆点与启动时的展开提示。</div>
+            <div class="control-label" data-i18n="sw_status_indicator_title">右上角常驻绿色运行指示点</div>
+            <div class="control-subtext" data-i18n="sw_status_indicator_desc">在 Antigravity 客户端右上角显示极小状态小圆点与启动时的展开提示。</div>
           </div>
           <label class="switch-ui">
             <input type="checkbox" id="ENABLE_STATUS_INDICATOR">
@@ -790,8 +800,8 @@
 
         <div class="control-row">
           <div class="control-text">
-            <div class="control-label">右下角常驻智能翻页双按钮</div>
-            <div class="control-subtext">向上（↑）/向下（↓）智能翻阅长对话，双击直达全页最新消息。</div>
+            <div class="control-label" data-i18n="sw_nav_buttons_title">右下角常驻智能翻页双按钮</div>
+            <div class="control-subtext" data-i18n="sw_nav_buttons_desc">向上（↑）/向下（↓）智能翻阅长对话，双击直达全页最新消息。</div>
           </div>
           <label class="switch-ui">
             <input type="checkbox" id="ENABLE_NAV_BUTTONS">
@@ -801,8 +811,8 @@
 
         <div class="control-row">
           <div class="control-text">
-            <div class="control-label">左侧项目折叠与归档抽屉</div>
-            <div class="control-subtext">鼠标悬停一键隐藏暂不处理的项目，并在侧栏 Projects 旁提供归档抽屉。</div>
+            <div class="control-label" data-i18n="sw_project_archiver_title">左侧项目折叠与归档抽屉</div>
+            <div class="control-subtext" data-i18n="sw_project_archiver_desc">鼠标悬停一键隐藏暂不处理的项目，并在侧栏 Projects 旁提供归档抽屉。</div>
           </div>
           <label class="switch-ui">
             <input type="checkbox" id="ENABLE_PROJECT_ARCHIVER">
@@ -816,14 +826,14 @@
         <div class="card-header-bar">
           <div class="card-title-group">
             <div class="card-icon" style="color: #34d399;">🧠</div>
-            <span class="card-title">阅读进度记忆与状态追踪</span>
+            <span class="card-title" data-i18n="sec_memory_title">阅读进度记忆与状态追踪</span>
           </div>
         </div>
 
         <div class="control-row">
           <div class="control-text">
-            <div class="control-label">多会话阅读进度记忆与自动回滚</div>
-            <div class="control-subtext">切换多会话时精确还原离开时的浏览位置，关停后可停止滚动容器监听。</div>
+            <div class="control-label" data-i18n="sw_scroll_persist_title">多会话阅读进度记忆与自动回滚</div>
+            <div class="control-subtext" data-i18n="sw_scroll_persist_desc">切换多会话时精确还原离开时的浏览位置，关停后可停止滚动容器监听。</div>
           </div>
           <label class="switch-ui">
             <input type="checkbox" id="ENABLE_SCROLL_PERSISTENCE">
@@ -833,8 +843,8 @@
 
         <div class="control-row">
           <div class="control-text">
-            <div class="control-label">智能未读/已读状态追踪</div>
-            <div class="control-subtext">长文阅读触底判定与侧栏圆点提示。关闭后彻底停止后台阅读定时器，释放 CPU 开销。</div>
+            <div class="control-label" data-i18n="sw_smart_unread_title">智能未读/已读状态追踪</div>
+            <div class="control-subtext" data-i18n="sw_smart_unread_desc">长文阅读触底判定与侧栏圆点提示。关闭后彻底停止后台阅读定时器，释放 CPU 开销。</div>
           </div>
           <label class="switch-ui">
             <input type="checkbox" id="ENABLE_SMART_UNREAD">
@@ -851,11 +861,11 @@
   <div class="dock-container">
     <div class="dock-status-text" id="dockInfo">
       <span style="font-size: 14px;">💡</span>
-      <span id="dockHint">修改后点击应用即可热重载生效</span>
+      <span id="dockHint" data-i18n="dock_ready">修改后点击应用即可热重载生效</span>
     </div>
     <div class="dock-buttons">
-      <button class="btn-action btn-reset" id="resetBtn" type="button">恢复默认</button>
-      <button class="btn-action btn-save" id="saveBtn" type="button">
+      <button class="btn-action btn-reset" id="resetBtn" type="button" data-i18n="btn_reset">恢复默认</button>
+      <button class="btn-action btn-save" id="saveBtn" type="button" data-i18n="btn_save">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
         保存设置
       </button>
@@ -907,7 +917,7 @@
 
     function markDirty() {
       isDirty = true;
-      document.getElementById('dockHint').innerHTML = '<span style="color: #f59e0b;">● 有未保存的修改</span>';
+      document.getElementById('dockHint').innerHTML = '<span style="color: #f59e0b;">' + I18N.t('dock_modified') + '</span>';
     }
 
     function updateHierarchyVisuals() {
@@ -919,13 +929,13 @@
 
       if (masterCheck) {
         heroCard.classList.remove('dormant');
-        heroStatusTag.textContent = '● 增强器已激活';
-        heroDesc.textContent = '各项增强功能已开启。根据下方设置按需工作，毫秒级响应。';
+        heroStatusTag.textContent = I18N.t('master_active_tag');
+        heroDesc.textContent = I18N.t('master_active_desc');
         featuresContainer.classList.remove('master-dormant');
       } else {
         heroCard.classList.add('dormant');
-        heroStatusTag.textContent = '○ 增强器已全面断电休眠';
-        heroDesc.textContent = '总闸已关闭。客户端内不挂载任何事件或注入组件，100% 官方原生纯净运行。';
+        heroStatusTag.textContent = I18N.t('master_dormant_tag');
+        heroDesc.textContent = I18N.t('master_dormant_desc');
         featuresContainer.classList.add('master-dormant');
       }
 
@@ -970,7 +980,7 @@
             if (data.success && data.config) {
               stopOfflineProbe();
               applyLiveConfig(data.config);
-              toast('✨ 服务已就绪！页面已点亮并同步配置');
+              toast(I18N.t('conn_reconnected'));
             }
           }
         } catch (e) {}
@@ -984,7 +994,7 @@
 
       capsule.classList.remove('disconnected');
       banner.classList.remove('active');
-      label.textContent = '守护服务就绪 (实时同步)';
+      label.textContent = I18N.t('conn_online');
 
       SWITCH_KEYS.forEach(key => {
         const el = document.getElementById(key);
@@ -999,7 +1009,7 @@
 
       isDirty = false;
       updateHierarchyVisuals();
-      document.getElementById('dockHint').textContent = '已同步当前系统实际配置';
+      document.getElementById('dockHint').textContent = I18N.t('dock_synced');
     }
 
     async function fetchLiveConfig() {
@@ -1018,9 +1028,9 @@
         }
       } catch (err) {
         capsule.classList.add('disconnected');
-        label.textContent = '等待服务启动 (请运行 install.bat)';
+        label.textContent = I18N.t('conn_offline');
         banner.classList.add('active');
-        document.getElementById('dockHint').textContent = '⚠️ 等待运行 install.bat 点亮本页面';
+        document.getElementById('dockHint').textContent = I18N.t('dock_ready');
         startOfflineProbe();
       }
     }
@@ -1056,20 +1066,20 @@
         const data = await res.json();
         if (data.success) {
           isDirty = false;
-          toast('✅ 配置已保存并即时生效！');
-          document.getElementById('dockHint').textContent = '最近保存于 ' + new Date().toLocaleTimeString();
+          toast(I18N.t('toast_saved'));
+          document.getElementById('dockHint').textContent = I18N.t('dock_saved_at') + new Date().toLocaleTimeString();
         } else {
-          alert('保存失败: ' + (data.error || '未知错误'));
+          alert(I18N.t('save_failed') + (data.error || '未知错误'));
         }
       } catch (e) {
-        alert('无法保存：后台服务未响应，请先运行 install.bat 启动服务。');
+        alert(I18N.t('daemon_unresponsive'));
       } finally {
         saveBtn.disabled = false;
       }
     }
 
     function handleReset() {
-      if (!confirm('确定将所有设置项恢复为推荐默认值吗？')) return;
+      if (!confirm(I18N.t('dialog_reset_confirm'))) return;
       SWITCH_KEYS.forEach(k => {
         const el = document.getElementById(k);
         if (el && typeof DEFAULTS[k] === 'boolean') {
@@ -1078,8 +1088,17 @@
       });
       markDirty();
       updateHierarchyVisuals();
-      toast('已重置为推荐默认值（点击保存生效）');
+      toast(I18N.t('toast_reset'));
     }
+
+    window.addEventListener('agy-lang-changed', () => {
+      updateHierarchyVisuals();
+      if (!isDirty) {
+        document.getElementById('dockHint').textContent = I18N.t('dock_ready');
+      } else {
+        markDirty();
+      }
+    });
 
     document.getElementById('saveBtn').addEventListener('click', handleSave);
     document.getElementById('resetBtn').addEventListener('click', handleReset);

@@ -3,7 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Antigravity 增强器 - 赛博全息指挥舱 (HUD Deck)</title>
+  <title data-i18n="app_title">Antigravity 增强器 - 赛博全息指挥舱</title>
+  <script src="i18n.js"></script>
   <style>
     :root {
       --cyber-bg: #07090e;
@@ -688,27 +689,37 @@
           </svg>
         </div>
         <div class="hud-title-wrap">
-          <h1>Antigravity // 战术指挥舱</h1>
-          <div class="hud-subtitle">PROMPT_INJECTOR_DAEMON • 守护进程与增强模块实时调配控制台</div>
+          <h1 data-i18n="brand_title">Antigravity // 战术指挥舱</h1>
+          <div class="hud-subtitle" data-i18n="brand_subtitle">PROMPT_INJECTOR_DAEMON • 守护进程与增强模块实时调配控制台</div>
         </div>
       </div>
 
-      <div style="display: flex; align-items: center; gap: 14px;">
+      <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
         <div class="theme-nav-pill">
           <span>🎨 </span>
-          <select onchange="changeGlobalTheme(this.value)">
-            <option value="aurora-bento.html">极光便当盒 (默认)</option>
-            <option value="cyberpunk.html" selected>赛博全息</option>
-            <option value="swiss-gallery.html">瑞士画廊钛金</option>
-            <option value="spatial-3d.html">3D 空间浮岛</option>
-            <option value="retro-arcade.html">霓虹复古像素</option>
-            <option value="classic-default.html">原版经典沉浸</option>
+          <select id="agyThemeSelect" onchange="changeGlobalTheme(this.value)">
+            <option value="aurora-bento.html" data-i18n="theme_bento">极光便当盒 (默认)</option>
+            <option value="cyberpunk.html" selected data-i18n="theme_cyber">赛博全息</option>
+            <option value="swiss-gallery.html" data-i18n="theme_swiss">瑞士画廊钛金</option>
+            <option value="spatial-3d.html" data-i18n="theme_spatial">3D 空间浮岛</option>
+            <option value="retro-arcade.html" data-i18n="theme_arcade">霓虹复古像素</option>
+            <option value="classic-default.html" data-i18n="theme_classic">原版经典沉浸</option>
+          </select>
+        </div>
+
+        <div class="theme-nav-pill">
+          <span>🌐 </span>
+          <select id="agyLangSelect" onchange="I18N.setLanguage(this.value)">
+            <option value="auto" data-i18n="lang_auto">🌐 跟随系统</option>
+            <option value="en" data-i18n="lang_en">English</option>
+            <option value="zh-CN" data-i18n="lang_zh_cn">简体中文</option>
+            <option value="zh-TW" data-i18n="lang_zh_tw">繁體中文</option>
           </select>
         </div>
 
         <div class="hud-conn-capsule" id="connCapsule">
           <span class="radar-blip"></span>
-          <span id="connLabel">INITIALIZING_LINK...</span>
+          <span id="connLabel" data-i18n="conn_connecting">INITIALIZING_LINK...</span>
         </div>
       </div>
     </header>
@@ -718,11 +729,11 @@
       <div class="hud-alert-content">
         <div class="hud-alert-icon">⚠️</div>
         <div class="hud-alert-text">
-          <h4>[LINK_OFFLINE] 守护进程通信信道未就绪</h4>
-          <p>受浏览器跨域与沙盒机制限制，请双击运行根目录下的 <strong>install.bat</strong> 启动后台守护微服务。</p>
+          <h4 data-i18n="offline_welcome">[LINK_OFFLINE] 守护进程通信信道未就绪</h4>
+          <p data-i18n="offline_notice">受浏览器跨域与沙盒机制限制，请双击运行根目录下的 install.bat 启动后台守护微服务。</p>
         </div>
       </div>
-      <button class="hud-btn-check" id="retryConnBtn" type="button">RETRY_LINK</button>
+      <button class="hud-btn-check" id="retryConnBtn" type="button" data-i18n="offline_btn_retry">RETRY_LINK</button>
     </div>
 
     <!-- 战术双栏平台 -->
@@ -736,7 +747,7 @@
           <div class="hud-card-header">
             <div class="card-label-group">
               <span class="card-label-icon">⚡</span>
-              <span class="card-label-title">CORE_REACTOR // 能量中枢</span>
+              <span class="card-label-title" data-i18n="master_title">CORE_REACTOR // 能量中枢</span>
             </div>
             <span class="hud-row-tag">PRIORITY_0</span>
           </div>
@@ -761,14 +772,14 @@
           <div class="hud-card-header">
             <div class="card-label-group">
               <span class="card-label-icon">💻</span>
-              <span class="card-label-title">HOST_OS // 系统守护</span>
+              <span class="card-label-title" data-i18n="sec_system_title">HOST_OS // 系统守护</span>
             </div>
           </div>
 
           <div class="hud-row">
             <div class="hud-row-info">
-              <div class="hud-row-title">Windows 开机静默自启动</div>
-              <div class="hud-row-desc">随系统开机自动载入后台静默驻留，零感保障。</div>
+              <div class="hud-row-title" data-i18n="sw_autostart_title">Windows 开机静默自启动</div>
+              <div class="hud-row-desc" data-i18n="sw_autostart_desc">随系统开机自动载入后台静默驻留，零感保障。</div>
             </div>
             <label class="cyber-switch">
               <input type="checkbox" id="ENABLE_AUTOSTART">
@@ -781,14 +792,14 @@
 
       <!-- 右栏：战术功能矩阵 -->
       <div class="tactical-matrix" id="featuresContainer">
-        <div class="dormant-barrier">⚠️ 能量中枢已切断 - 全矩阵休眠离线中</div>
+        <div class="dormant-barrier" data-i18n="master_dormant_banner">⚠️ 能量中枢已切断 - 全矩阵休眠离线中</div>
 
         <!-- 界面与交互战术阵列 -->
         <div class="hud-card">
           <div class="hud-card-header">
             <div class="card-label-group">
               <span class="card-label-icon">🎛️</span>
-              <span class="card-label-title">MATRIX_A // 界面交互阵列</span>
+              <span class="card-label-title" data-i18n="sec_visual_title">MATRIX_A // 界面交互阵列</span>
             </div>
             <span class="hud-row-tag">HOOK_CLIENT</span>
           </div>
@@ -797,10 +808,10 @@
           <div class="hud-row">
             <div class="hud-row-info">
               <div class="hud-row-title">
-                全局右键功能增强
+                <span data-i18n="sw_context_menu_title">全局右键功能增强</span>
                 <span class="hud-row-tag">CONTEXT_MENU</span>
               </div>
-              <div class="hud-row-desc">接管侧边栏会话与项目管理、消息与代码块复制。关闭后彻底不拦截原生右键。</div>
+              <div class="hud-row-desc" data-i18n="sw_context_menu_desc">接管侧边栏会话与项目管理、消息与代码块复制。关闭后彻底不拦截原生右键。</div>
             </div>
             <label class="cyber-switch">
               <input type="checkbox" id="ENABLE_CONTEXT_MENU">
@@ -812,10 +823,10 @@
           <div class="hud-sub-panel" id="quotePopupSubPanel">
             <div class="hud-row" style="padding: 4px 0;">
               <div class="hud-row-info">
-                <div class="hud-row-title" style="font-size: 13px; color: var(--neon-cyan);">
+                <div class="hud-row-title" style="font-size: 13px; color: var(--neon-cyan);" data-i18n="sw_block_quote_title">
                   屏蔽划词选中文本时的 Quote 浮窗
                 </div>
-                <div class="hud-row-desc">选中文本时不再弹出官方 Quote (Ctrl+L) 气泡，杜绝卡顿。受右键总开关约束。</div>
+                <div class="hud-row-desc" data-i18n="sw_block_quote_desc">选中文本时不再弹出官方 Quote (Ctrl+L) 气泡，杜绝卡顿。受右键总开关约束。</div>
               </div>
               <label class="cyber-switch">
                 <input type="checkbox" id="ENABLE_BLOCK_QUOTE_POPUP">
@@ -827,8 +838,8 @@
           <!-- 右上角指示点 -->
           <div class="hud-row">
             <div class="hud-row-info">
-              <div class="hud-row-title">右上角常驻绿色运行指示点</div>
-              <div class="hud-row-desc">在客户端顶部实时显示微量运行态绿点与启动反馈。</div>
+              <div class="hud-row-title" data-i18n="sw_status_indicator_title">右上角常驻绿色运行指示点</div>
+              <div class="hud-row-desc" data-i18n="sw_status_indicator_desc">在客户端顶部实时显示微量运行态绿点与启动反馈。</div>
             </div>
             <label class="cyber-switch">
               <input type="checkbox" id="ENABLE_STATUS_INDICATOR">
@@ -839,8 +850,8 @@
           <!-- 右下角双翻页按钮 -->
           <div class="hud-row">
             <div class="hud-row-info">
-              <div class="hud-row-title">右下角常驻智能翻页双按钮</div>
-              <div class="hud-row-desc">向上（↑）/向下（↓）智能翻阅长对话，双击直达最新回复。</div>
+              <div class="hud-row-title" data-i18n="sw_nav_buttons_title">右下角常驻智能翻页双按钮</div>
+              <div class="hud-row-desc" data-i18n="sw_nav_buttons_desc">向上（↑）/向下（↓）智能翻阅长对话，双击直达最新回复。</div>
             </div>
             <label class="cyber-switch">
               <input type="checkbox" id="ENABLE_NAV_BUTTONS">
@@ -851,8 +862,8 @@
           <!-- 左侧项目归档抽屉 -->
           <div class="hud-row">
             <div class="hud-row-info">
-              <div class="hud-row-title">左侧项目折叠与归档抽屉</div>
-              <div class="hud-row-desc">鼠标悬停一键隐藏暂不处理的项目，并在侧栏提供收纳抽屉。</div>
+              <div class="hud-row-title" data-i18n="sw_project_archiver_title">左侧项目折叠与归档抽屉</div>
+              <div class="hud-row-desc" data-i18n="sw_project_archiver_desc">鼠标悬停一键隐藏暂不处理的项目，并在侧栏提供收纳抽屉。</div>
             </div>
             <label class="cyber-switch">
               <input type="checkbox" id="ENABLE_PROJECT_ARCHIVER">
@@ -866,7 +877,7 @@
           <div class="hud-card-header">
             <div class="card-label-group">
               <span class="card-label-icon">🧠</span>
-              <span class="card-label-title">MATRIX_B // 记忆与状态追踪</span>
+              <span class="card-label-title" data-i18n="sec_memory_title">MATRIX_B // 记忆与状态追踪</span>
             </div>
             <span class="hud-row-tag">PERF_CRITICAL</span>
           </div>
@@ -874,8 +885,8 @@
           <!-- 阅读进度持久化 -->
           <div class="hud-row">
             <div class="hud-row-info">
-              <div class="hud-row-title">多会话阅读进度记忆与自动回滚</div>
-              <div class="hud-row-desc">切换多会话时精确还原离开时的浏览位置，关停后停止滚动容器监听。</div>
+              <div class="hud-row-title" data-i18n="sw_scroll_persist_title">多会话阅读进度记忆与自动回滚</div>
+              <div class="hud-row-desc" data-i18n="sw_scroll_persist_desc">切换多会话时精确还原离开时的浏览位置，关停后停止滚动容器监听。</div>
             </div>
             <label class="cyber-switch">
               <input type="checkbox" id="ENABLE_SCROLL_PERSISTENCE">
@@ -886,8 +897,8 @@
           <!-- 智能未读追踪 -->
           <div class="hud-row">
             <div class="hud-row-info">
-              <div class="hud-row-title">智能未读/已读状态追踪</div>
-              <div class="hud-row-desc">长文阅读触底判定与侧栏圆点提示。关闭后停止阅读定时器释放资源。</div>
+              <div class="hud-row-title" data-i18n="sw_smart_unread_title">智能未读/已读状态追踪</div>
+              <div class="hud-row-desc" data-i18n="sw_smart_unread_desc">长文阅读触底判定与侧栏圆点提示。关闭后停止阅读定时器释放资源。</div>
             </div>
             <label class="cyber-switch">
               <input type="checkbox" id="ENABLE_SMART_UNREAD">
@@ -904,11 +915,11 @@
     <div class="hud-dock-bar">
       <div class="dock-status-readout" id="dockInfo">
         <span>● [BUFFER]</span>
-        <span id="dockHint">READY // 随时准备写入配置</span>
+        <span id="dockHint" data-i18n="dock_ready">READY // 随时准备写入配置</span>
       </div>
       <div class="dock-btn-group">
-        <button class="hud-btn hud-btn-reset" id="resetBtn" type="button">RESTORE_DEF</button>
-        <button class="hud-btn hud-btn-commit" id="saveBtn" type="button">COMMIT_CONFIG</button>
+        <button class="hud-btn hud-btn-reset" id="resetBtn" type="button" data-i18n="btn_reset">RESTORE_DEF</button>
+        <button class="hud-btn hud-btn-commit" id="saveBtn" type="button" data-i18n="btn_save">COMMIT_CONFIG</button>
       </div>
     </div>
 
@@ -959,7 +970,7 @@
 
     function markDirty() {
       isDirty = true;
-      document.getElementById('dockHint').innerHTML = '<span style="color: var(--neon-amber);">● [MODIFIED] 存在未提交的更改</span>';
+      document.getElementById('dockHint').innerHTML = '<span style="color: var(--neon-amber);">' + I18N.t('dock_modified') + '</span>';
     }
 
     function updateHierarchyVisuals() {
@@ -971,13 +982,13 @@
 
       if (masterCheck) {
         heroCard.classList.remove('dormant');
-        heroStatusTag.textContent = 'ONLINE // 高能运转中';
-        heroDesc.textContent = '各项增强注入已全面激活，正在全速提供增强辅助支撑。';
+        heroStatusTag.textContent = I18N.t('master_active_tag');
+        heroDesc.textContent = I18N.t('master_active_desc');
         featuresContainer.classList.remove('master-dormant');
       } else {
         heroCard.classList.add('dormant');
-        heroStatusTag.textContent = 'OFFLINE // 全面休眠断电';
-        heroDesc.textContent = '总闸已关闭。客户端内不挂载任何事件，100% 原生纯净运行。';
+        heroStatusTag.textContent = I18N.t('master_dormant_tag');
+        heroDesc.textContent = I18N.t('master_dormant_desc');
         featuresContainer.classList.add('master-dormant');
       }
 
@@ -1022,7 +1033,7 @@
             if (data.success && data.config) {
               stopOfflineProbe();
               applyLiveConfig(data.config);
-              toast('✨ [LINK_UP] 服务通信信道已恢复，配置已同步');
+              toast(I18N.t('conn_reconnected'));
             }
           }
         } catch (e) {}
@@ -1036,7 +1047,7 @@
 
       capsule.classList.remove('disconnected');
       banner.classList.remove('active');
-      label.textContent = 'LINKED // 守护进程就绪';
+      label.textContent = I18N.t('conn_online');
 
       SWITCH_KEYS.forEach(key => {
         const el = document.getElementById(key);
@@ -1051,7 +1062,7 @@
 
       isDirty = false;
       updateHierarchyVisuals();
-      document.getElementById('dockHint').textContent = 'SYNCED // 已同步硬件系统当前状态';
+      document.getElementById('dockHint').textContent = I18N.t('dock_synced');
     }
 
     async function fetchLiveConfig() {
@@ -1070,9 +1081,9 @@
         }
       } catch (err) {
         capsule.classList.add('disconnected');
-        label.textContent = 'DISCONNECTED // 等待守护进程';
+        label.textContent = I18N.t('conn_offline');
         banner.classList.add('active');
-        document.getElementById('dockHint').textContent = '⚠️ 等待运行 install.bat 激活服务';
+        document.getElementById('dockHint').textContent = I18N.t('dock_ready');
         startOfflineProbe();
       }
     }
@@ -1108,20 +1119,20 @@
         const data = await res.json();
         if (data.success) {
           isDirty = false;
-          toast('✅ [SAVED] 战术配置已更新并热重载！');
-          document.getElementById('dockHint').textContent = 'COMMIT_AT: ' + new Date().toLocaleTimeString();
+          toast(I18N.t('toast_saved'));
+          document.getElementById('dockHint').textContent = I18N.t('dock_saved_at') + new Date().toLocaleTimeString();
         } else {
-          alert('保存失败: ' + (data.error || '未知错误'));
+          alert(I18N.t('save_failed') + (data.error || 'Unknown error'));
         }
       } catch (e) {
-        alert('无法保存：后台服务未响应，请先运行 install.bat 启动服务。');
+        alert(I18N.t('daemon_unresponsive'));
       } finally {
         saveBtn.disabled = false;
       }
     }
 
     function handleReset() {
-      if (!confirm('确定将所有战术配置恢复为出厂默认值吗？')) return;
+      if (!confirm(I18N.t('dialog_reset_confirm'))) return;
       SWITCH_KEYS.forEach(k => {
         const el = document.getElementById(k);
         if (el && typeof DEFAULTS[k] === 'boolean') {
@@ -1130,8 +1141,17 @@
       });
       markDirty();
       updateHierarchyVisuals();
-      toast('[RESET] 已重置为推荐默认值（点击提交生效）');
+      toast(I18N.t('toast_reset'));
     }
+
+    window.addEventListener('agy-lang-changed', () => {
+      updateHierarchyVisuals();
+      if (!isDirty) {
+        document.getElementById('dockHint').textContent = I18N.t('dock_ready');
+      } else {
+        markDirty();
+      }
+    });
 
     document.getElementById('saveBtn').addEventListener('click', handleSave);
     document.getElementById('resetBtn').addEventListener('click', handleReset);
