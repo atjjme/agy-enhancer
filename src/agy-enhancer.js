@@ -122,6 +122,7 @@
   let notifyPromptSubmittedForUnread = null;
   let unreadScrollHandler = null;
   let unreadWheelHandler = null;
+  let unreadScrollRafId = null;
   let windowUnloadHandler = null;
   let interruptRestoration = null;
   let isInternalEnhancerScroll = false;
@@ -242,6 +243,10 @@
     if (unreadWheelHandler) {
       window.removeEventListener('wheel', unreadWheelHandler, true);
       unreadWheelHandler = null;
+    }
+    if (unreadScrollRafId) {
+      cancelAnimationFrame(unreadScrollRafId);
+      unreadScrollRafId = null;
     }
     if (userInteractionHandler) {
       ['wheel', 'pointerdown', 'mousedown', 'keydown', 'touchmove'].forEach(type => {
@@ -3007,6 +3012,10 @@
               for (let n = 0; n < mut.addedNodes.length; n++) {
                 const node = mut.addedNodes[n];
                 if (node.nodeType === 1) {
+                  // 性能关键短路：若变动发生在深层富文本聊天流容器或代码编辑器内部，绝对不属于顶层弹出菜单，直接跳过
+                  if (node.parentElement !== document.body && node.closest?.('.scrollbar-hide.md-table-bleed, .overflow-y-auto.md-table-bleed, .monaco-editor, .relative.flex.flex-col.gap-y-3')) {
+                    continue;
+                  }
                   if (node.getAttribute?.('role') === 'menu' ||
                       node.hasAttribute?.('data-radix-popper-content-wrapper') ||
                       node.classList?.contains?.('agy-options-dropdown') ||
@@ -4912,6 +4921,10 @@
       let viewingSessionType = null; // 'long' | 'short'
 
       function cleanupViewingSession() {
+        if (unreadScrollRafId) {
+          cancelAnimationFrame(unreadScrollRafId);
+          unreadScrollRafId = null;
+        }
         if (longTextBottomTimer) {
           clearTimeout(longTextBottomTimer);
           longTextBottomTimer = null;
@@ -5021,13 +5034,17 @@
         }
       }
 
-      // 监听全局滚动捕获与鼠标滚轮事件
+      // 监听全局滚动捕获与鼠标滚轮事件（使用 requestAnimationFrame 平滑调度，杜绝频繁回流）
       unreadScrollHandler = (e) => {
         if (unreadConvosMap.size === 0) return;
         const container = getChatScrollContainer();
         if (!container) return;
         if (e.target === container || e.target === document || container.contains(e.target)) {
-          handleViewingScroll();
+          if (unreadScrollRafId) return;
+          unreadScrollRafId = requestAnimationFrame(() => {
+            unreadScrollRafId = null;
+            handleViewingScroll();
+          });
         }
       };
       window.addEventListener('scroll', unreadScrollHandler, true);
@@ -5037,7 +5054,11 @@
         const container = getChatScrollContainer();
         if (!container) return;
         if (container.contains(e.target) || e.target === container) {
-          setTimeout(handleViewingScroll, 16);
+          if (unreadScrollRafId) return;
+          unreadScrollRafId = requestAnimationFrame(() => {
+            unreadScrollRafId = null;
+            handleViewingScroll();
+          });
         }
       };
       window.addEventListener('wheel', unreadWheelHandler, { capture: true, passive: true });
@@ -5088,9 +5109,12 @@
         return null;
       }
 
-      function checkGeneratingAndUnreadState() {
+      // 统合侧边栏扫描：单次遍历合并状态检查与红点同步，大幅削减 DOM 重复查询与主线程开销
+      function checkAndSyncSidebar() {
         if (isUserTyping()) return;
         const rows = document.querySelectorAll('[data-testid="conversation-row-sidebar"]');
+        if (!rows.length) return;
+
         const container = getChatScrollContainer();
         const activeConvoId = (container ? getContainerConvoId(container) : null) || getCurrentUrlConvoId();
         const activeChatStopBtn = getActiveChatStopButton();
@@ -5104,15 +5128,46 @@
           const id = row.getAttribute('data-cascade-id');
           if (!id) return;
 
+          // 1. 生成中状态检测 (spinner 或 stopBtn)
           const hasSpinner = !!row.querySelector('[data-testid="status-loading-spinner"]');
           const hasStopBtn = !!row.querySelector('button[aria-label*="Stop execution"], button[aria-label*="Stop Task"]');
           if (hasSpinner || hasStopBtn) {
             rowGeneratingIds.add(id);
           }
 
-          const hasNativeDot = !!row.querySelector('[data-testid="status-unread-dot"]');
-          if (hasNativeDot) {
+          // 2. 原生未读点检测与红点指示器无缝同步
+          const nativeDot = row.querySelector('[data-testid="status-unread-dot"]');
+          if (nativeDot) {
             rowNativeDotIds.add(id);
+          }
+
+          const isUnread = unreadConvosMap.has(id);
+          let badge = row.querySelector('.agy-unread-dot-badge');
+
+          if (isUnread) {
+            if (nativeDot) {
+              // 1. 原生未读点已存在：直接复用原生点，绝不重复插入插件徽标！
+              nativeDot.style.removeProperty('display');
+              if (badge) badge.remove();
+            } else {
+              // 2. 原生点已被系统移除：无缝接管单一点位
+              const timeContainer = row.querySelector('.flex.items-center.gap-1\\.5') ||
+                                    row.querySelector('[data-screenshot-volatile="true"]')?.parentElement;
+              if (timeContainer && !badge) {
+                badge = document.createElement('div');
+                badge.className = 'agy-unread-dot-badge';
+                badge.title = 'Unread (auto-clears after viewing)';
+                badge.innerHTML = `
+                  <div class="agy-unread-dot-pulse"></div>
+                  <div class="agy-unread-dot-core"></div>
+                `;
+                timeContainer.insertBefore(badge, timeContainer.firstChild);
+              }
+            }
+          } else {
+            // 已读状态：彻底消除插件点，若有残留原生点也一并隐藏
+            if (badge) badge.remove();
+            if (nativeDot) nativeDot.style.setProperty('display', 'none', 'important');
           }
         });
 
@@ -5178,11 +5233,8 @@
 
         // 5. 遍历生成追踪集合，判定生成完成事件
         for (const [genId, record] of Array.from(activelyGeneratingConvos.entries())) {
-          // 如果该对话处于刚提交的等待期内（未满 2.5 秒且尚未渲染出 spinner），保持等待
           const isPending = promptSubmittedConvos.has(genId) && (now - promptSubmittedConvos.get(genId) < 2500);
-          if (isPending) {
-            continue;
-          }
+          if (isPending) continue;
 
           if (genId === activeConvoId) {
             // 当前在前台的对话：必须在主界面 stopBtn 消失 且 侧边栏不再有 spinner 时判定前台完成
@@ -5210,58 +5262,7 @@
         }
       }
 
-      // 同步侧边栏指示点：与系统合二为一，共用单一点位，绝不出现双点！
-      function syncSidebarIndicators() {
-        if (isUserTyping()) return;
-        const rows = document.querySelectorAll('[data-testid="conversation-row-sidebar"]');
-        rows.forEach(row => {
-          const id = row.getAttribute('data-cascade-id');
-          if (!id) return;
-          const isUnread = unreadConvosMap.has(id);
-          const nativeDot = row.querySelector('[data-testid="status-unread-dot"]');
-          let badge = row.querySelector('.agy-unread-dot-badge');
-
-          if (isUnread) {
-            if (nativeDot) {
-              // 1. 原生未读点已存在：直接复用原生点，绝不重复插入插件徽标！
-              nativeDot.style.removeProperty('display');
-              if (badge) badge.remove();
-            } else {
-              // 2. 原生点已被系统移除（如用户点开查看或增强器记录的未读）：
-              // 将插件点精准挂载在原生点所在的时间右侧容器内，无缝接管单一点位！
-              const timeContainer = row.querySelector('.flex.items-center.gap-1\\.5') ||
-                                    row.querySelector('[data-screenshot-volatile="true"]')?.parentElement;
-              if (timeContainer) {
-                if (!badge) {
-                  badge = document.createElement('div');
-                  badge.className = 'agy-unread-dot-badge';
-                  badge.title = 'Unread (auto-clears after viewing)';
-                  badge.innerHTML = `
-                    <div class="agy-unread-dot-pulse"></div>
-                    <div class="agy-unread-dot-core"></div>
-                  `;
-                  timeContainer.insertBefore(badge, timeContainer.firstChild);
-                }
-              }
-            }
-          } else {
-            // 已读状态：彻底消除插件点，若有残留原生点也一并隐藏
-            if (badge) {
-              badge.remove();
-            }
-            if (nativeDot) {
-              nativeDot.style.setProperty('display', 'none', 'important');
-            }
-          }
-        });
-      }
-
-      // 统合侧边栏扫描：单次遍历合并状态检查与红点同步，大幅削减 DOM 重复查询与主线程开销
-      function checkAndSyncSidebar() {
-        if (isUserTyping()) return;
-        checkGeneratingAndUnreadState();
-        syncSidebarIndicators();
-      }
+      const syncSidebarIndicators = checkAndSyncSidebar;
 
       onHeartbeatSmartUnread = () => {
         handleViewingScroll();

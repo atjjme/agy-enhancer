@@ -499,6 +499,10 @@ async function connectAndAttach() {
               if (tokenTime >= connectionEstablishedTime - 500 && (Date.now() - tokenTime) <= 5000) {
                 if (!handledConsoleTokens.has(token)) {
                   handledConsoleTokens.add(token);
+                  if (handledConsoleTokens.size > 500) {
+                    const first = handledConsoleTokens.values().next().value;
+                    handledConsoleTokens.delete(first);
+                  }
                   log(`[Open Settings] Launching settings dashboard: http://127.0.0.1:${SETTINGS_PORT}/`);
                   exec(`start http://127.0.0.1:${SETTINGS_PORT}/`);
                 }
@@ -627,9 +631,9 @@ function injectEnhancer(ws) {
   }
 }
 
-// 平衡轮询：未连接时每 1200ms 检测一次连接状态，每 1800ms 主动探测页面就绪状态
+// 平衡轮询：未连接时每 1200ms 检测一次连接状态，每 3500ms 主动探测页面就绪状态
 setInterval(connectAndAttach, 1200);
-setInterval(checkPageReadiness, 1800);
+setInterval(checkPageReadiness, 3500);
 connectAndAttach();
 
 // 监听源码变动：修改保存时防抖同步到窗口
@@ -759,6 +763,7 @@ function startEmbeddedSettingsServer() {
             if (oldPid && oldPid !== process.pid) {
               log(`[Settings Server] Terminating previous daemon PID: ${oldPid}`);
               try { process.kill(oldPid, 'SIGKILL'); } catch (_) {}
+              try { execSync(`taskkill /F /PID ${oldPid}`, { stdio: 'ignore' }); } catch (_) {}
               setTimeout(() => {
                 server.listen(SETTINGS_PORT, '127.0.0.1', () => {
                   log(`[Settings Server] Embedded settings server listening at http://127.0.0.1:${SETTINGS_PORT}`);
