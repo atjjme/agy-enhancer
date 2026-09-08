@@ -24,22 +24,18 @@ if "%ROOT_DIR:~-1%"=="\" set "ROOT_DIR=%ROOT_DIR:~0,-1%"
 set "SCRIPTS_DIR=%ROOT_DIR%\scripts"
 
 :: 2. 配置 Windows 开机静默自启
-echo [1/3] 配置 Windows 开机静默自启快捷方式...
+echo [1/2] 配置 Windows 开机静默自启快捷方式...
 call "%SCRIPTS_DIR%\setup-autostart.bat" --nopause
 
-:: 3. 静默启动后台守护注入服务 (loader.js)
+:: 3. 静默启动后台守护注入服务与设置中心 (loader.js)
 echo.
-echo [2/3] 启动后台守护注入服务...
+echo [2/2] 启动后台守护注入服务与设置中心...
 wscript.exe "%SCRIPTS_DIR%\start-service-silent.vbs"
 
-:: 4. 唤起轻量设置微服务并打开设置中心网页
-echo.
-echo [3/3] 唤起设置中心 (settings.html)...
-wscript.exe "%SCRIPTS_DIR%\start-service-silent.vbs" "%SCRIPTS_DIR%\settings-server.js"
-
+:: 稍微等待服务端口初始化并唤起设置中心网页
+timeout /t 1 >nul 2>&1
 start "" "http://127.0.0.1:37210/"
 
 :: 运行完成，自动关闭当前控制台窗口
-timeout /t 1 >nul 2>&1
 exit /b 0
 

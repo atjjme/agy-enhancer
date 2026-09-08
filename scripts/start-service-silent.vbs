@@ -11,9 +11,10 @@ End If
 
 nodeExe = "node"
 If fso.FileExists("C:\Program Files\nodejs\node.exe") Then
-    nodeExe = """C:\Program Files\nodejs\node.exe"""
+    nodeExe = Chr(34) & "C:\Program Files\nodejs\node.exe" & Chr(34)
 ElseIf fso.FileExists("D:\Program Files\nodejs\node.exe") Then
-    nodeExe = """D:\Program Files\nodejs\node.exe"""
+    nodeExe = Chr(34) & "D:\Program Files\nodejs\node.exe" & Chr(34)
 End If
 
-ws.Run nodeExe & " """ & targetJs & """", 0, False
+cmd = nodeExe & " " & Chr(34) & targetJs & Chr(34)
+ws.Run cmd, 0, False

@@ -3160,8 +3160,9 @@ window.__AGY_BRANCH_NAME__ = "local_web_settings_dashboard";
 
       function copyImageFile(filePath) {
         if (!filePath) return;
+        const actionToken = Date.now() + '_' + Math.random().toString(36).slice(2, 8);
         // 1. 发送给后台守护进程直接将真实图片写入系统原生剪贴板
-        console.log('[AGY_COPY_IMAGE]' + filePath);
+        console.log(`[AGY_COPY_IMAGE][${actionToken}]` + filePath);
 
         // 2. 如果当前页面存在该图片的 img 节点，同时尝试通过浏览器写入剪贴板
         try {
@@ -3175,7 +3176,8 @@ window.__AGY_BRANCH_NAME__ = "local_web_settings_dashboard";
 
       function revealPath(pathStr) {
         if (!pathStr) return;
-        console.log('[AGY_REVEAL_PATH]' + pathStr);
+        const actionToken = Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+        console.log(`[AGY_REVEAL_PATH][${actionToken}]` + pathStr);
       }
 
       function openExternalUrl(url) {

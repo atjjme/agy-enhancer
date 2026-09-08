@@ -42,11 +42,13 @@ if %ERRORLEVEL% equ 0 (
     echo The service will start silently on every system login.
     echo.
 
-    :: 检查当前后台是否已在运行
-    powershell -NoProfile -ExecutionPolicy Bypass -Command ^
-        "$proc = Get-CimInstance Win32_Process -Filter \"Name = 'node.exe'\" | Where-Object { $_.CommandLine -like '*loader.js*' };" ^
-        "if ($proc) { Write-Host ('[Status] Daemon is already running in background (PID: ' + $proc.ProcessId + ').') -ForegroundColor Yellow }" ^
-        "else { Start-Process -FilePath 'wscript.exe' -ArgumentList '\"%VBS_PATH%\"'; Write-Host '[Status] Daemon started in background.' -ForegroundColor Green }"
+    :: 仅在独立运行（非 install.bat 调用）时检查并启动后台服务
+    if "%1" neq "--nopause" (
+        powershell -NoProfile -ExecutionPolicy Bypass -Command ^
+            "$proc = Get-CimInstance Win32_Process -Filter \"Name = 'node.exe'\" | Where-Object { $_.CommandLine -like '*loader.js*' };" ^
+            "if ($proc) { Write-Host ('[Status] Daemon is already running in background (PID: ' + $proc.ProcessId + ').') -ForegroundColor Yellow }" ^
+            "else { Start-Process -FilePath 'wscript.exe' -ArgumentList '\"%VBS_PATH%\"'; Write-Host '[Status] Daemon started in background.' -ForegroundColor Green }"
+    )
 ) else (
     echo [Failed] Failed to create shortcut. Please check permissions or antivirus settings.
 )

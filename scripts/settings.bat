@@ -7,8 +7,8 @@ pushd "%SCRIPTS_DIR%.."
 set "ROOT_DIR=%CD%"
 popd
 
-:: 按需静默启动轻量设置微服务（若已在运行则自动忽略端口占用）
-wscript.exe "%SCRIPTS_DIR%start-service-silent.vbs" "%SCRIPTS_DIR%settings-server.js"
+:: 确保后台守护注入与设置服务运行（单实例安全守护）
+wscript.exe "%SCRIPTS_DIR%start-service-silent.vbs"
 
 :: 打开默认浏览器
 start "" "http://127.0.0.1:37210/"

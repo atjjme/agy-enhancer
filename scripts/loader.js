@@ -320,8 +320,12 @@ async function connectAndAttach() {
     const ws = new WebSocket(page.webSocketDebuggerUrl);
     currentWs = ws;
 
+    let connectionEstablishedTime = 0;
+    const handledConsoleTokens = new Set();
+
     ws.onopen = () => {
       isConnecting = false;
+      connectionEstablishedTime = Date.now();
       log(`CDP connected [port: ${port}], enabling Page & Runtime`);
       ws.send(JSON.stringify({ id: 1, method: 'Page.enable' }));
       ws.send(JSON.stringify({ id: 2, method: 'Runtime.enable' }));
@@ -346,7 +350,34 @@ async function connectAndAttach() {
             log(`Persisting unread states to disk: ` + jsonStr);
             saveStoredUnreadStates(jsonStr);
           } else if (typeof text === 'string' && text.startsWith('[AGY_REVEAL_PATH]')) {
-            const rawPath = text.slice('[AGY_REVEAL_PATH]'.length).trim();
+            let rawPath = text.slice('[AGY_REVEAL_PATH]'.length).trim();
+            // 防重放拦截 1：必须携带合法 actionToken [timestamp_random]，历史无 Token 旧日志一律彻底丢弃
+            const tokenMatch = rawPath.match(/^\[([0-9]+)_([a-zA-Z0-9]+)\](.*)/);
+            if (!tokenMatch) {
+              log(`[Legacy/Untokened Ignored] Ignored untokened revealPath: ` + rawPath);
+              return;
+            }
+            const tokenTime = parseInt(tokenMatch[1], 10);
+            const token = tokenMatch[1] + '_' + tokenMatch[2];
+            rawPath = tokenMatch[3].trim();
+
+            // 防重放拦截 2：时间戳校验。早于当前连接建立时间，或距今超过 5 秒，视为历史缓存重放
+            if (tokenTime < connectionEstablishedTime - 500 || (Date.now() - tokenTime) > 5000) {
+              log(`[Stale Token Ignored] Ignored stale revealPath token: ` + token);
+              return;
+            }
+
+            // 防重放拦截 3：校验唯一 actionToken 去重
+            if (handledConsoleTokens.has(token)) {
+              log(`[Duplicate Ignored] Ignored duplicate revealPath token: ` + token);
+              return;
+            }
+            handledConsoleTokens.add(token);
+            if (handledConsoleTokens.size > 500) {
+              const first = handledConsoleTokens.values().next().value;
+              handledConsoleTokens.delete(first);
+            }
+
             log(`Revealing path in Explorer: ` + rawPath);
             try {
               let cleanPath = rawPath.replace(/^file:\/\/\/?/i, '').replace(/\//g, '\\');
@@ -406,7 +437,34 @@ async function connectAndAttach() {
               log(`Failed to reveal path: ` + e.message);
             }
           } else if (typeof text === 'string' && text.startsWith('[AGY_COPY_IMAGE]')) {
-            const rawPath = text.slice('[AGY_COPY_IMAGE]'.length).trim();
+            let rawPath = text.slice('[AGY_COPY_IMAGE]'.length).trim();
+            // 防重放拦截 1：必须携带合法 actionToken [timestamp_random]，历史无 Token 旧日志一律彻底丢弃
+            const tokenMatch = rawPath.match(/^\[([0-9]+)_([a-zA-Z0-9]+)\](.*)/);
+            if (!tokenMatch) {
+              log(`[Legacy/Untokened Ignored] Ignored untokened copyImage: ` + rawPath);
+              return;
+            }
+            const tokenTime = parseInt(tokenMatch[1], 10);
+            const token = tokenMatch[1] + '_' + tokenMatch[2];
+            rawPath = tokenMatch[3].trim();
+
+            // 防重放拦截 2：时间戳校验
+            if (tokenTime < connectionEstablishedTime - 500 || (Date.now() - tokenTime) > 5000) {
+              log(`[Stale Token Ignored] Ignored stale copyImage token: ` + token);
+              return;
+            }
+
+            // 防重放拦截 3：校验唯一 actionToken 去重
+            if (handledConsoleTokens.has(token)) {
+              log(`[Duplicate Ignored] Ignored duplicate copyImage token: ` + token);
+              return;
+            }
+            handledConsoleTokens.add(token);
+            if (handledConsoleTokens.size > 500) {
+              const first = handledConsoleTokens.values().next().value;
+              handledConsoleTokens.delete(first);
+            }
+
             log(`Requested copy image: ` + rawPath);
             try {
               let cleanPath = rawPath;
@@ -430,7 +488,7 @@ async function connectAndAttach() {
                 });
               }
             } catch (e) {
-              log('Failed to copy image: ' + e.message);
+              log(`Failed to copy image: ` + e.message);
             }
           }
         } else if (data.id === 77777) {
@@ -592,3 +650,122 @@ function setupConfigFileWatcher(targetFile) {
 }
 setupConfigFileWatcher(configFile);
 setupConfigFileWatcher(localConfigFile);
+
+// ==================== 内置轻量设置微服务 (Embedded Settings Server) ====================
+function startEmbeddedSettingsServer() {
+  const server = http.createServer((req, res) => {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+    if (req.method === 'OPTIONS') {
+      res.writeHead(204);
+      res.end();
+      return;
+    }
+
+    const urlPath = req.url.split('?')[0];
+
+    if (req.method === 'GET' && (urlPath === '/' || urlPath === '/settings.html')) {
+      if (fs.existsSync(settingsHtmlFile)) {
+        res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+        fs.createReadStream(settingsHtmlFile).pipe(res);
+      } else {
+        res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
+        res.end('settings.html not found in project directory');
+      }
+      return;
+    }
+
+    if (req.method === 'GET' && urlPath === '/api/config') {
+      const config = getStoredConfig();
+      config.ENABLE_AUTOSTART = isAutostartEnabled();
+
+      res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+      res.end(JSON.stringify({
+        success: true,
+        config,
+        status: {
+          serverPid: process.pid,
+          daemonRunning: true,
+          daemonPid: process.pid
+        }
+      }));
+      return;
+    }
+
+    if (req.method === 'POST' && urlPath === '/api/config') {
+      let body = '';
+      req.on('data', chunk => {
+        body += chunk;
+        if (body.length > 1e6) req.destroy();
+      });
+      req.on('end', () => {
+        try {
+          const newConfig = JSON.parse(body);
+          if (typeof newConfig.ENABLE_AUTOSTART === 'boolean') {
+            setAutostart(newConfig.ENABLE_AUTOSTART);
+          }
+          const saved = saveStoredConfig(newConfig);
+
+          // 核心优势：配置保存瞬间，直接内存热重载注入客户端！
+          if (currentWs) {
+            log('[Settings API] Instant hot-reload triggered by user config save');
+            injectEnhancer(currentWs);
+          }
+
+          res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+          res.end(JSON.stringify({
+            success: true,
+            message: '配置已成功保存并同步落盘与热重载',
+            config: saved
+          }));
+        } catch (err) {
+          res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
+          res.end(JSON.stringify({ success: false, error: err?.message || 'Invalid JSON' }));
+        }
+      });
+      return;
+    }
+
+    res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
+    res.end('Not Found');
+  });
+
+  server.on('error', (err) => {
+    if (err.code === 'EADDRINUSE') {
+      log(`[Settings Server] Port ${SETTINGS_PORT} is in use, attempting graceful takeover...`);
+      const probeReq = http.get(`http://127.0.0.1:${SETTINGS_PORT}/api/config`, (res) => {
+        let data = '';
+        res.on('data', chunk => { data += chunk; });
+        res.on('end', () => {
+          try {
+            const json = JSON.parse(data);
+            const oldPid = json?.status?.daemonPid || json?.status?.serverPid;
+            if (oldPid && oldPid !== process.pid) {
+              log(`[Settings Server] Terminating previous daemon PID: ${oldPid}`);
+              try { process.kill(oldPid, 'SIGKILL'); } catch (_) {}
+              setTimeout(() => {
+                server.listen(SETTINGS_PORT, '127.0.0.1', () => {
+                  log(`[Settings Server] Embedded settings server listening at http://127.0.0.1:${SETTINGS_PORT}`);
+                });
+              }, 400);
+            }
+          } catch (e) {
+            log('[Settings Server] Failed to parse takeover response:', e.message);
+          }
+        });
+      });
+      probeReq.on('error', (e) => {
+        log('[Settings Server] Probe error during takeover:', e.message);
+      });
+    } else {
+      log('[Settings Server Error]:', err.message);
+    }
+  });
+
+  server.listen(SETTINGS_PORT, '127.0.0.1', () => {
+    log(`[Settings Server] Embedded settings server listening at http://127.0.0.1:${SETTINGS_PORT}`);
+  });
+}
+startEmbeddedSettingsServer();

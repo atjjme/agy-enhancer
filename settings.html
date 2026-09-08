@@ -963,7 +963,7 @@
 
       capsule.classList.remove('disconnected');
       banner.classList.remove('active');
-      label.textContent = '设置服务就绪 (按需运行)';
+      label.textContent = '守护服务就绪 (实时同步)';
 
       SWITCH_KEYS.forEach(key => {
         const el = document.getElementById(key);
@@ -1040,7 +1040,7 @@
         const data = await res.json();
         if (data.success) {
           isDirty = false;
-          toast('✅ 配置已保存并即时生效！您可以直接关闭本页面');
+          toast('✅ 配置已保存并即时生效！');
           document.getElementById('dockHint').textContent = '最近保存于 ' + new Date().toLocaleTimeString();
         } else {
           alert('保存失败: ' + (data.error || '未知错误'));
@@ -1070,16 +1070,7 @@
     document.getElementById('resetBtn').addEventListener('click', handleReset);
     document.getElementById('retryConnBtn').addEventListener('click', fetchLiveConfig);
 
-    // 当用户关闭或离开网页时，静默通知后台设置微服务退出，自动释放 37210 端口
-    window.addEventListener('pagehide', () => {
-      try {
-        if (navigator.sendBeacon) {
-          navigator.sendBeacon(`${API_BASE}/api/exit`);
-        }
-      } catch (e) {}
-    });
-
-    // 页面初次加载时读取一次实际配置，彻底没有任何后台定时器循环执行！
+    // 页面加载时读取一次实际配置
     fetchLiveConfig();
   </script>
 </body>
