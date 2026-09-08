@@ -110,25 +110,31 @@
   let contextMenuDocClickHandler = null;
   let contextMenuDocKeydownHandler = null;
   let convoSwitchPopstateHandler = null;
-  let nativeMenuRafId = null;
-  let restorationRafId = null;
-  let checkConvoSwitchRafId = null;
-  let cachedChatScrollContainer = null;
-  let cachedPM = null;
-  let cachedTSP = null;
-  let cachedFiberHooks = null;
+  let typingKeydownHandler = null;
   let onHeartbeatProjectArchiver = null;
   let onHeartbeatScrollPersistence = null;
   let onHeartbeatSmartUnread = null;
 
-  // 轻量级全局用户打字感知：输入期间主动抑制后台高频 DOM 扫描与布局测量
-  function isUserTyping() {
-    const ae = document.activeElement;
-    if (!ae) return false;
-    const tag = ae.tagName;
-    if (tag === 'INPUT' || tag === 'TEXTAREA' || ae.isContentEditable) return true;
-    return !!ae.closest?.('input, textarea, [contenteditable="true"], .monaco-editor');
+  // 精准全局用户按键打字感知：仅在用户真实按键输入的 350ms 内抑制后台轮询，光标常驻聚焦不影响功能
+  let lastTypingTime = 0;
+  function markUserTyping() {
+    lastTypingTime = Date.now();
   }
+
+  function isUserTyping() {
+    return (Date.now() - lastTypingTime) < 350;
+  }
+
+  typingKeydownHandler = (e) => {
+    const target = e.target;
+    if (!target) return;
+    if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable || target.closest?.('input, textarea, [contenteditable="true"], .monaco-editor')) {
+      lastTypingTime = Date.now();
+    }
+  };
+  window.addEventListener('keydown', typingKeydownHandler, { capture: true, passive: true });
+  window.addEventListener('compositionstart', markUserTyping, { capture: true, passive: true });
+  window.addEventListener('compositionupdate', markUserTyping, { capture: true, passive: true });
 
   window.__AGY_ENHANCER_CLEANUP__ = function () {
     activeTimers.forEach(id => {
@@ -137,22 +143,13 @@
     });
     activeTimers.length = 0;
 
-    if (nativeMenuRafId) {
-      cancelAnimationFrame(nativeMenuRafId);
-      nativeMenuRafId = null;
+    if (typingKeydownHandler) {
+      window.removeEventListener('keydown', typingKeydownHandler, true);
+      typingKeydownHandler = null;
     }
-    if (restorationRafId) {
-      cancelAnimationFrame(restorationRafId);
-      restorationRafId = null;
-    }
-    if (checkConvoSwitchRafId) {
-      cancelAnimationFrame(checkConvoSwitchRafId);
-      checkConvoSwitchRafId = null;
-    }
-    cachedChatScrollContainer = null;
-    cachedPM = null;
-    cachedTSP = null;
-    cachedFiberHooks = null;
+    window.removeEventListener('compositionstart', markUserTyping, true);
+    window.removeEventListener('compositionupdate', markUserTyping, true);
+
     onHeartbeatProjectArchiver = null;
     onHeartbeatScrollPersistence = null;
     onHeartbeatSmartUnread = null;
@@ -995,14 +992,9 @@
     // ==================== 3. 核心容器与纸张坐标算法 ====================
 
     function getChatScrollContainer() {
-      if (cachedChatScrollContainer && document.body.contains(cachedChatScrollContainer) && cachedChatScrollContainer.clientHeight > 200) {
-        return cachedChatScrollContainer;
-      }
-
       const candidate = document.querySelector('.scrollbar-hide.md-table-bleed') ||
                         document.querySelector('.overflow-y-auto.md-table-bleed');
       if (candidate && candidate.clientHeight > 200) {
-        cachedChatScrollContainer = candidate;
         return candidate;
       }
 
@@ -1013,7 +1005,6 @@
         while (p && p !== document.body) {
           const s = window.getComputedStyle(p);
           if ((s.overflowY === 'auto' || s.overflowY === 'scroll') && p.clientHeight > 200) {
-            cachedChatScrollContainer = p;
             return p;
           }
           p = p.parentElement;
@@ -1239,15 +1230,13 @@
 
     // ==================== 项目与对话底层数据及文件夹工具 (Core Helpers) ====================
     function getPM() {
-      if (cachedPM?.projectsStateProvider) return cachedPM;
       const header = document.querySelector('[data-testid="section-header"][data-title="Projects"]');
       if (!header) return null;
       const fiberKey = Object.keys(header).find(k => k.startsWith('__reactFiber$'));
       let fiber = header ? header[fiberKey] : null;
       while (fiber) {
         if (fiber.memoizedProps?.value?.projectManagementFeature) {
-          cachedPM = fiber.memoizedProps.value.projectManagementFeature;
-          return cachedPM;
+          return fiber.memoizedProps.value.projectManagementFeature;
         }
         fiber = fiber.return;
       }
@@ -1255,15 +1244,13 @@
     }
 
     function getTSP() {
-      if (cachedTSP?.getState) return cachedTSP;
       const els = Array.from(document.querySelectorAll('[data-testid="section-header"]'));
       for (const el of els) {
         const k = Object.keys(el).find(k => k.startsWith('__reactFiber$'));
         let fiber = el[k];
         while (fiber) {
           if (fiber.memoizedProps?.value?.trajectorySummariesProvider) {
-            cachedTSP = fiber.memoizedProps.value.trajectorySummariesProvider;
-            return cachedTSP;
+            return fiber.memoizedProps.value.trajectorySummariesProvider;
           }
           fiber = fiber.return;
         }
@@ -2949,34 +2936,19 @@
           }
         }
 
-        function scheduleNativeMenuCheck() {
-          if (nativeMenuRafId) return;
-          nativeMenuRafId = requestAnimationFrame(() => {
-            nativeMenuRafId = null;
-            checkAndPositionNativeMenu();
-            checkAndEnhanceNativeMenu();
-          });
-        }
-
         nativeMenuObserver = new MutationObserver((mutations) => {
-          // 打字期间短路跳过，彻底消除输入时的微卡顿
-          if (isUserTyping()) return;
-
           let hasMenuRelevantNode = false;
           for (let m = 0; m < mutations.length; m++) {
             const mut = mutations[m];
-            // Radix Portal 弹窗必定作为 document.body 的直接子节点挂载，深层变动直接跳过
-            if (mut.target !== document.body) continue;
-
-            const added = mut.addedNodes;
-            if (added && added.length > 0) {
-              for (let n = 0; n < added.length; n++) {
-                const node = added[n];
+            if (mut.addedNodes && mut.addedNodes.length > 0) {
+              for (let n = 0; n < mut.addedNodes.length; n++) {
+                const node = mut.addedNodes[n];
                 if (node.nodeType === 1) {
                   if (node.getAttribute?.('role') === 'menu' ||
                       node.hasAttribute?.('data-radix-popper-content-wrapper') ||
                       node.classList?.contains?.('agy-options-dropdown') ||
-                      (node.firstElementChild && (node.firstElementChild.getAttribute?.('role') === 'menu' || node.firstElementChild.hasAttribute?.('data-radix-popper-content-wrapper')))) {
+                      node.querySelector?.('[role="menu"]') ||
+                      node.querySelector?.('[data-radix-popper-content-wrapper]')) {
                     hasMenuRelevantNode = true;
                     break;
                   }
@@ -2987,7 +2959,8 @@
           }
           if (!hasMenuRelevantNode) return;
 
-          scheduleNativeMenuCheck();
+          checkAndPositionNativeMenu();
+          checkAndEnhanceNativeMenu();
         });
         nativeMenuObserver.observe(document.body, { childList: true, subtree: true });
       }
@@ -4348,16 +4321,6 @@
       let observedContainer = null;
       let restorationTimeoutId = null;
 
-      function scheduleApplyRestoration() {
-        if (restorationRafId) return;
-        restorationRafId = requestAnimationFrame(() => {
-          restorationRafId = null;
-          if (activeRestoringConvoId) {
-            applyRestoration();
-          }
-        });
-      }
-
       function ensureObserver(container) {
         if (!container || observedContainer === container) return;
         if (restorationObserver) {
@@ -4367,7 +4330,7 @@
         try {
           restorationObserver = new MutationObserver(() => {
             if (activeRestoringConvoId) {
-              scheduleApplyRestoration();
+              applyRestoration();
             }
           });
           restorationObserver.observe(container, { childList: true, subtree: true });
@@ -4380,11 +4343,6 @@
           activeRestoringConvoId = null;
           activeRestoringTarget = null;
           observedContainer = null;
-          cachedFiberHooks = null;
-          if (restorationRafId) {
-            cancelAnimationFrame(restorationRafId);
-            restorationRafId = null;
-          }
           if (restorationObserver) {
             try { restorationObserver.disconnect(); } catch (e) {}
             restorationObserver = null;
@@ -4456,17 +4414,12 @@
         if (saveTimer) clearTimeout(saveTimer);
         saveTimer = setTimeout(() => {
           recordConvoPosition(convoId);
-        }, 250);
+        }, 80);
       }
 
       function syncFiberAutoScrollDisabled(container) {
         if (!container) return;
         try {
-          if (cachedFiberHooks && cachedFiberHooks.container === container) {
-            if (cachedFiberHooks.hRef) cachedFiberHooks.hRef.current = false;
-            if (cachedFiberHooks.lRef) cachedFiberHooks.lRef.current = container.scrollTop;
-            return;
-          }
           const k = Object.keys(container).find(key => key.startsWith('__reactFiber$'));
           let cur = container[k];
           while (cur) {
@@ -4474,12 +4427,15 @@
             while (hook) {
               if (hook.memoizedState?.current === container) {
                 // 安全校验 hook.next.next 是否确实是包含 boolean current 的 RefObject (shouldAutoScroll)
-                const hRef = (hook.next?.next?.memoizedState && typeof hook.next.next.memoizedState === 'object' && Object.prototype.hasOwnProperty.call(hook.next.next.memoizedState, 'current') && typeof hook.next.next.memoizedState.current === 'boolean') ? hook.next.next.memoizedState : null;
-                if (hRef) hRef.current = false;
+                const hRef = hook.next?.next?.memoizedState;
+                if (hRef && typeof hRef === 'object' && Object.prototype.hasOwnProperty.call(hRef, 'current') && typeof hRef.current === 'boolean') {
+                  hRef.current = false;
+                }
                 // 安全校验 hook.next.next.next.next 是否确实是包含 number current 的 RefObject (lastScrollTop)
-                const lRef = (hook.next?.next?.next?.next?.memoizedState && typeof hook.next.next.next.next.memoizedState === 'object' && Object.prototype.hasOwnProperty.call(hook.next.next.next.next.memoizedState, 'current') && typeof hook.next.next.next.next.memoizedState.current === 'number') ? hook.next.next.next.next.memoizedState : null;
-                if (lRef) lRef.current = container.scrollTop;
-                cachedFiberHooks = { container, hRef, lRef };
+                const lRef = hook.next?.next?.next?.next?.memoizedState;
+                if (lRef && typeof lRef === 'object' && Object.prototype.hasOwnProperty.call(lRef, 'current') && typeof lRef.current === 'number') {
+                  lRef.current = container.scrollTop;
+                }
                 return;
               }
               hook = hook.next;
@@ -4495,7 +4451,7 @@
         const container = getChatScrollContainer();
         if (!container || container.clientHeight <= 0) return;
 
-        const containerId = getCurrentUrlConvoId() || getContainerConvoId(container);
+        const containerId = getContainerConvoId(container);
         if (containerId && containerId !== activeRestoringConvoId) {
           return;
         }
@@ -4540,7 +4496,7 @@
 
         applyRestoration();
 
-        const checkDelays = [80, 250, 700, 1800];
+        const checkDelays = [15, 40, 80, 140, 220, 340, 500, 750, 1100, 1600, 2300, 3200, 4500];
         checkDelays.forEach(ms => {
           addTimeout(() => {
             if (activeRestoringConvoId === convoId) {
@@ -4575,7 +4531,7 @@
           if (options && typeof options.top === 'number') {
             syncFiberAutoScrollDisabled(this);
             if (activeRestoringTarget) {
-              scheduleApplyRestoration();
+              applyRestoration();
             }
             return; // 拦截阻止该次原生滚底调用
           }
@@ -4585,13 +4541,13 @@
 
       // 监听全局滚动捕获：关键守护——只有用户真实交互导致的滚动才记录！
       scrollCaptureHandler = (e) => {
-        if (!isUserInteracting || activeRestoringConvoId) {
-          // 系统自动滚动、重绘布局变化或处于恢复期间，绝对不保存！
-          return;
-        }
         const container = getChatScrollContainer();
         if (e.target === container) {
-          const convoId = getCurrentUrlConvoId() || getContainerConvoId(container);
+          if (!isUserInteracting || activeRestoringConvoId) {
+            // 系统自动滚动、重绘布局变化或处于恢复期间，绝对不保存！
+            return;
+          }
+          const convoId = getContainerConvoId(container) || getCurrentUrlConvoId();
           if (convoId) {
             scheduleSavePosition(convoId);
           }
@@ -4622,8 +4578,6 @@
         } else if (e.type === 'keydown') {
           const navKeys = ['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Home', 'End', 'Space'];
           if (!navKeys.includes(e.key) && !navKeys.includes(e.code)) return;
-          // 打字区域直接短路退出，消除打字时的按键监听开销
-          if (e.target.isContentEditable || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'INPUT') return;
           if (e.target.closest('textarea, input, [contenteditable="true"]')) return;
         } else if (e.type === 'touchmove') {
           if (!container.contains(e.target)) return;
@@ -4644,14 +4598,11 @@
       let currentActiveConvoId = null;
 
       function handleConvoSwitch() {
-        const urlConvoId = getCurrentUrlConvoId();
-        // 1. 纯字符串正则秒级匹配：当前会话未变更时直接快速退出，绝不触碰 DOM/Fiber
-        if (urlConvoId && urlConvoId === currentActiveConvoId) {
-          return;
-        }
-
         const container = getChatScrollContainer();
-        const effectiveConvoId = urlConvoId || (container ? getContainerConvoId(container) : null);
+        const containerConvoId = getContainerConvoId(container);
+        const urlConvoId = getCurrentUrlConvoId();
+
+        const effectiveConvoId = containerConvoId || urlConvoId;
         if (!effectiveConvoId) return;
 
         if (effectiveConvoId !== currentActiveConvoId) {
@@ -4660,7 +4611,6 @@
             recordConvoPosition(currentActiveConvoId);
           }
           currentActiveConvoId = effectiveConvoId;
-          cachedFiberHooks = null;
 
           const saved = convoPositionsMap.get(effectiveConvoId);
           if (saved && !saved.isBottom && saved.scrollTop > 5) {
@@ -4852,7 +4802,13 @@
           }
         }
 
-        return maxScroll > container.clientHeight * USER_CONFIG.LONG_TEXT_RATIO;
+        const { pages } = getPagesInfo();
+        if (!pages || pages.length === 0) {
+          return maxScroll > container.clientHeight * 0.8;
+        }
+        const lastTurn = pages[pages.length - 1];
+        if (!lastTurn || typeof lastTurn.height !== 'number') return false;
+        return lastTurn.height >= (container.clientHeight * USER_CONFIG.LONG_TEXT_RATIO);
       }
 
       function markConvoAsUnread(convoId, reason) {
@@ -4943,16 +4899,15 @@
           if (currentViewingConvoId) cleanupViewingSession();
           return;
         }
-        if (isUserTyping()) return;
 
-        const effectiveConvoId = getCurrentUrlConvoId();
+        const container = getChatScrollContainer();
+        if (!container) return;
+
+        const effectiveConvoId = (container ? getContainerConvoId(container) : null) || getCurrentUrlConvoId();
         if (!effectiveConvoId || !unreadConvosMap.has(effectiveConvoId)) {
           if (currentViewingConvoId) cleanupViewingSession();
           return;
         }
-
-        const container = getChatScrollContainer();
-        if (!container) return;
 
         if (currentViewingConvoId !== effectiveConvoId) {
           setupViewingSession(effectiveConvoId);
@@ -5023,19 +4978,15 @@
       // 对话切换监测（与会话切换事件联动，免除独立高频轮询）
       let trackedConvoId = null;
       function checkConvoSwitchForUnread(forceConvoId) {
-        const effectiveConvoId = forceConvoId || getCurrentUrlConvoId();
+        const container = getChatScrollContainer();
+        const effectiveConvoId = forceConvoId || (container ? getContainerConvoId(container) : null) || getCurrentUrlConvoId();
         if (effectiveConvoId && effectiveConvoId !== trackedConvoId) {
           trackedConvoId = effectiveConvoId;
-          if (checkConvoSwitchRafId) cancelAnimationFrame(checkConvoSwitchRafId);
-          // 延迟到下一帧，等待新会话 DOM 挂载稳定后再判定长短文，避免初次挂载时的强制重排
-          checkConvoSwitchRafId = requestAnimationFrame(() => {
-            checkConvoSwitchRafId = null;
-            if (unreadConvosMap.has(effectiveConvoId)) {
-              setupViewingSession(effectiveConvoId);
-            } else {
-              cleanupViewingSession();
-            }
-          });
+          if (unreadConvosMap.has(effectiveConvoId)) {
+            setupViewingSession(effectiveConvoId);
+          } else {
+            cleanupViewingSession();
+          }
         }
       }
       window.__AGY_ON_CONVO_SWITCH__ = checkConvoSwitchForUnread;
@@ -5073,7 +5024,8 @@
       function checkGeneratingAndUnreadState() {
         if (isUserTyping()) return;
         const rows = document.querySelectorAll('[data-testid="conversation-row-sidebar"]');
-        const activeConvoId = getCurrentUrlConvoId();
+        const container = getChatScrollContainer();
+        const activeConvoId = (container ? getContainerConvoId(container) : null) || getCurrentUrlConvoId();
         const activeChatStopBtn = getActiveChatStopButton();
         const now = Date.now();
 
@@ -5368,10 +5320,7 @@
 
       // 仅监听 DOM 新增节点（严禁监听 attributes，彻底杜绝死循环和主线程卡死）
       quoteObserver = new MutationObserver((mutations) => {
-        // 核心性能短路 1：打字时绝对不可能是聊天消息区划词引用，直接 0 成本退出
-        if (isUserTyping()) return;
-
-        // 核心性能短路 2：只有用户存在非空划词选区时才可能弹出 Quote 浮窗。
+        // 核心性能短路：只有用户存在非空划词选区时才可能弹出 Quote 浮窗。
         // 在大模型高速流式打字输出时，选区为空，直接 0 成本退出，杜绝 querySelectorAll 带来的卡顿
         const sel = window.getSelection();
         if (!sel || sel.isCollapsed || sel.rangeCount === 0) {
@@ -5379,9 +5328,6 @@
         }
 
         for (const m of mutations) {
-          // 悬浮工具栏/气泡必为 document.body 的直接挂载或顶层悬浮容器，内部微小变动直接过滤
-          if (m.target !== document.body && !m.target.hasAttribute?.('data-radix-popper-content-wrapper')) continue;
-
           for (const added of m.addedNodes) {
             if (added.nodeType === Node.ELEMENT_NODE) {
               inspectNode(added);
@@ -5406,7 +5352,7 @@
     // ==================== 12. 全局统一后台心跳调度器 (Unified Heartbeat Dispatcher) ====================
     let heartbeatTickCount = 0;
     function heartbeatDispatcher() {
-      // 1. 全局打字休眠保护：用户正在输入文字时，整轮后台轮询全部静默，保证 0 性能损耗
+      // 1. 全局打字休眠保护：用户按键输入文字的 350ms 内，整轮后台轮询全部静默避让
       if (isUserTyping()) return;
 
       heartbeatTickCount++;
@@ -5422,8 +5368,8 @@
         onHeartbeatSmartUnread();
       }
 
-      // 模块 3：项目折叠归档面板与快捷按钮保活（每 5000ms 即每 5 次心跳）
-      if (heartbeatTickCount % 5 === 0 && onHeartbeatProjectArchiver) {
+      // 模块 3：项目折叠归档面板与快捷按钮保活（每 2000ms 即每 2 次心跳）
+      if (heartbeatTickCount % 2 === 0 && onHeartbeatProjectArchiver) {
         onHeartbeatProjectArchiver();
       }
     }
