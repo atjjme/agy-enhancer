@@ -20,39 +20,24 @@ if %ERRORLEVEL% neq 0 (
 )
 
 set "ROOT_DIR=%~dp0"
-set "SCRIPTS_DIR=%ROOT_DIR%scripts\"
+if "%ROOT_DIR:~-1%"=="\" set "ROOT_DIR=%ROOT_DIR:~0,-1%"
+set "SCRIPTS_DIR=%ROOT_DIR%\scripts"
 
 :: 2. 配置 Windows 开机静默自启
 echo [1/3] 配置 Windows 开机静默自启快捷方式...
-call "%SCRIPTS_DIR%setup-autostart.bat" --nopause
+call "%SCRIPTS_DIR%\setup-autostart.bat" --nopause
 
 :: 3. 静默启动后台守护注入服务 (loader.js)
 echo.
 echo [2/3] 启动后台守护注入服务...
-wscript.exe "%SCRIPTS_DIR%start-service-silent.vbs"
+wscript.exe "%SCRIPTS_DIR%\start-service-silent.vbs"
 
 :: 4. 唤起轻量设置微服务并打开设置中心网页
 echo.
 echo [3/3] 唤起设置中心 (settings.html)...
-powershell -NoProfile -ExecutionPolicy Bypass -Command ^
-    "$client = New-Object System.Net.Sockets.TcpClient;" ^
-    "try {" ^
-    "    $client.Connect('127.0.0.1', 37210);" ^
-    "    $client.Close();" ^
-    "} catch {" ^
-    "    Start-Process -FilePath 'node.exe' -ArgumentList '\"%SCRIPTS_DIR%settings-server.js\"' -WorkingDirectory '%ROOT_DIR%' -WindowStyle Hidden;" ^
-    "    for ($i = 0; $i -lt 20; $i++) {" ^
-    "        Start-Sleep -Milliseconds 200;" ^
-    "        try {" ^
-    "            $t = New-Object System.Net.Sockets.TcpClient;" ^
-    "            $t.Connect('127.0.0.1', 37210);" ^
-    "            $t.Close();" ^
-    "            break;" ^
-    "        } catch {}" ^
-    "    }" ^
-    "}"
+wscript.exe "%SCRIPTS_DIR%\start-service-silent.vbs" "%SCRIPTS_DIR%\settings-server.js"
 
-start http://127.0.0.1:37210/
+start "" "http://127.0.0.1:37210/"
 
 :: 运行完成，自动关闭当前控制台窗口
 timeout /t 1 >nul 2>&1

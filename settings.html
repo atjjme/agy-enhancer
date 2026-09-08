@@ -1006,9 +1006,11 @@
       }
     }
 
-    // 监听右键总开关：当关闭右键时，自动关闭屏蔽划词
+    // 监听右键总开关：手动开启右键时，一并开启屏蔽划词；手动关闭右键时，一并关闭屏蔽划词
     document.getElementById('ENABLE_CONTEXT_MENU').addEventListener('change', (e) => {
-      if (!e.target.checked) {
+      if (e.target.checked) {
+        document.getElementById('ENABLE_BLOCK_QUOTE_POPUP').checked = true;
+      } else {
         document.getElementById('ENABLE_BLOCK_QUOTE_POPUP').checked = false;
       }
     });
