@@ -11,6 +11,8 @@
 // @run-at       document-idle
 // ==/UserScript==
 
+window.__AGY_BRANCH_TAG__ = " (branch)";
+window.__AGY_BRANCH_NAME__ = "implement_split_screen";
 /**
  * Antigravity 增强器 (agy-enhancer enhancer)
  * 
@@ -424,7 +426,9 @@
         gap: ${USER_CONFIG.BUTTON_GAP}px;
         user-select: none;
         opacity: ${USER_CONFIG.BUTTON_OPACITY};
-        transition: opacity 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+        transition: opacity 0.25s cubic-bezier(0.16, 1, 0.3, 1),
+                    right 0.25s cubic-bezier(0.16, 1, 0.3, 1),
+                    bottom 0.25s cubic-bezier(0.16, 1, 0.3, 1);
       }
       #agy-page-nav-group:hover {
         opacity: ${USER_CONFIG.BUTTON_HOVER_OPACITY};
@@ -1062,26 +1066,138 @@
       document.getElementById('agy-enhancer-toast')?.remove();
     }
 
-    // ==================== 3. 核心容器与纸张坐标算法 ====================
+    // ==================== 3. 核心容器与纸张坐标算法（支持分屏与多会话） ====================
 
-    function getChatScrollContainer() {
-      const candidate = document.querySelector('.scrollbar-hide.md-table-bleed') ||
-                        document.querySelector('.overflow-y-auto.md-table-bleed');
+    let lastInteractedPane = null;
+
+    /**
+     * 获取当前处于激活/聚焦状态的分屏窗格 (Active Split Pane)
+     */
+    function getActivePane() {
+      // 1. 如果当前获得焦点的元素处于某个分屏内
+      if (document.activeElement && document.activeElement !== document.body) {
+        const paneFromActive = document.activeElement.closest?.('.group\\/pane[data-pane-id], [data-pane-id]');
+        if (paneFromActive && paneFromActive.isConnected) {
+          return paneFromActive.classList?.contains('group/pane') ? paneFromActive : (paneFromActive.querySelector?.('.group\\/pane') || paneFromActive);
+        }
+      }
+
+      // 2. 查找官方 Antigravity 标记为激活状态的分屏：
+      // 在多会话分屏布局中，官方聚焦的窗格没有 data-pane-unfocused 属性，失焦窗格带有 data-pane-unfocused=""
+      const activePanes = Array.from(document.querySelectorAll('.group\\/pane[data-pane-id]:not([data-pane-unfocused])'));
+      if (activePanes.length > 0) {
+        if (lastInteractedPane && lastInteractedPane.isConnected && activePanes.includes(lastInteractedPane)) {
+          return lastInteractedPane;
+        }
+        const validWithChat = activePanes.find(p => p.querySelector?.('.scrollbar-hide.md-table-bleed, .overflow-y-auto.md-table-bleed, .relative.flex.flex-col.gap-y-3, .flex.flex-col.gap-y-3'));
+        if (validWithChat) return validWithChat;
+        return activePanes[0];
+      }
+
+      // 3. 用户最近一次交互或鼠标悬停的分屏
+      if (lastInteractedPane && lastInteractedPane.isConnected) {
+        return lastInteractedPane;
+      }
+
+      // 4. 通用降级：查找任何带有 [data-pane-id] 且未失焦的分屏
+      const fallbackActive = document.querySelector('[data-pane-id]:not([data-pane-unfocused])');
+      if (fallbackActive) {
+        return fallbackActive.querySelector?.('.group\\/pane') || fallbackActive;
+      }
+
+      return null;
+    }
+
+    /**
+     * 全局捕获用户在不同分屏内的交互动作，实时更新激活分屏记忆
+     */
+    function setupPaneInteractionTracker() {
+      if (window.__AGY_PANE_TRACKER_BOUND__) return;
+      window.__AGY_PANE_TRACKER_BOUND__ = true;
+
+      const handlePaneInteraction = (e) => {
+        const pane = e.target?.closest?.('.group\\/pane[data-pane-id], [data-pane-id]');
+        if (pane) {
+          const inner = pane.classList?.contains('group/pane') ? pane : (pane.querySelector?.('.group\\/pane') || pane);
+          if (inner && inner !== lastInteractedPane) {
+            lastInteractedPane = inner;
+            updatePageNavButtonsPosition();
+          }
+        }
+      };
+
+      window.addEventListener('pointerdown', handlePaneInteraction, { capture: true, passive: true });
+      window.addEventListener('focusin', handlePaneInteraction, { capture: true, passive: true });
+      window.addEventListener('wheel', handlePaneInteraction, { capture: true, passive: true });
+      window.addEventListener('pointerover', (e) => {
+        // 忽略悬停在浮动导航按钮本身的动作，避免遮挡或改变当前正在阅读的分屏目标
+        if (e.target?.closest?.('#agy-page-nav-group, .agy-nav-btn')) return;
+        handlePaneInteraction(e);
+      }, { capture: true, passive: true });
+    }
+    setupPaneInteractionTracker();
+
+    /**
+     * 动态同步右侧常驻导航按钮组的位置（自适应停靠在激活分屏右下角）
+     */
+    function updatePageNavButtonsPosition() {
+      const group = document.getElementById('agy-page-nav-group');
+      if (!group) return;
+
+      const activePane = getActivePane();
+      if (activePane) {
+        const paneRect = activePane.getBoundingClientRect();
+        // 确保按钮停留在当前激活分屏的右下角位置
+        const rightOffset = Math.max(USER_CONFIG.NAV_RIGHT, window.innerWidth - paneRect.right + USER_CONFIG.NAV_RIGHT);
+        const bottomOffset = Math.max(USER_CONFIG.NAV_BOTTOM, window.innerHeight - paneRect.bottom + USER_CONFIG.NAV_BOTTOM);
+        group.style.right = `${Math.round(rightOffset)}px`;
+        group.style.bottom = `${Math.round(bottomOffset)}px`;
+      } else {
+        group.style.right = `${USER_CONFIG.NAV_RIGHT}px`;
+        group.style.bottom = `${USER_CONFIG.NAV_BOTTOM}px`;
+      }
+    }
+
+    /**
+     * 获取聊天主滚动容器（优先在激活的分屏窗格中查找）
+     */
+    function getChatScrollContainer(targetPane = null) {
+      const root = targetPane || getActivePane() || document;
+
+      // 1. 优先在指定/激活分屏范围内查找官方特征类
+      const candidate = root.querySelector?.('.scrollbar-hide.md-table-bleed') ||
+                        root.querySelector?.('.overflow-y-auto.md-table-bleed');
       if (candidate && candidate.clientHeight > 200) {
         return candidate;
       }
 
-      const turnContainer = document.querySelector('.relative.flex.flex-col.gap-y-3') ||
-                            document.querySelector('.flex.flex-col.gap-y-3');
+      // 2. 根据回合列表向上追溯可滚动容器
+      const turnContainer = root.querySelector?.('.relative.flex.flex-col.gap-y-3, .flex.flex-col.gap-y-3');
       if (turnContainer) {
         let p = turnContainer.parentElement;
-        while (p && p !== document.body) {
+        const boundary = (root !== document && root.parentElement) ? root.parentElement : document.body;
+        while (p && p !== boundary && p !== document.body) {
           const s = window.getComputedStyle(p);
           if ((s.overflowY === 'auto' || s.overflowY === 'scroll') && p.clientHeight > 200) {
             return p;
           }
           p = p.parentElement;
         }
+      }
+
+      // 3. 在当前分屏内部寻找任意高度 > 200 的可滚动区域
+      if (root !== document && root.querySelector) {
+        const anyScrollable = root.querySelector('.overflow-y-auto');
+        if (anyScrollable && anyScrollable.clientHeight > 200) {
+          return anyScrollable;
+        }
+      }
+
+      // 4. 全局降级兜底
+      if (root !== document) {
+        const fallback = document.querySelector('.scrollbar-hide.md-table-bleed') ||
+                         document.querySelector('.overflow-y-auto.md-table-bleed');
+        if (fallback && fallback.clientHeight > 200) return fallback;
       }
 
       return null;
@@ -1091,18 +1207,28 @@
      * 获取所有“纸张”（问答回合 Turn）的几何边界
      */
     function getPagesInfo() {
-      const container = getChatScrollContainer();
+      const activePane = getActivePane();
+      const container = getChatScrollContainer(activePane);
       if (!container) return { container: null, pages: [] };
 
-      const turnContainer = document.querySelector('.relative.flex.flex-col.gap-y-3') ||
-                            document.querySelector('.flex.flex-col.gap-y-3');
+      // 关键修复：优先且严格在当前滚动容器或激活分屏内查找问答列表，坚决避免全局查找误锁死在最左侧分屏
+      const turnContainer = container.querySelector?.('.relative.flex.flex-col.gap-y-3, .flex.flex-col.gap-y-3') ||
+                            activePane?.querySelector?.('.relative.flex.flex-col.gap-y-3, .flex.flex-col.gap-y-3') ||
+                            document.querySelector('.relative.flex.flex-col.gap-y-3, .flex.flex-col.gap-y-3');
       if (!turnContainer || turnContainer.children.length === 0) {
         return { container, pages: [] };
       }
 
+      const containerRect = container.getBoundingClientRect();
       const containerHeight = container.clientHeight;
+
       const pages = Array.from(turnContainer.children).map((el, idx) => {
-        const top = el.offsetTop;
+        const elRect = el.getBoundingClientRect();
+        // 使用相对视口计算 + 当前滚动偏移，彻底免疫 offsetParent 层级差异与分屏 CSS 定位影响
+        const top = (containerRect.height > 0 && elRect.height > 0)
+          ? Math.round(elRect.top - containerRect.top + container.scrollTop)
+          : el.offsetTop;
+
         const isLast = (idx === turnContainer.children.length - 1);
         let sumChildHeight = 0;
         if (el.children.length > 0) {
@@ -1114,9 +1240,9 @@
         // 如果是最后一页且带有 min-height 撑开样式，使用真实内容高度，避免滚动与长短文测量失真
         const height = (isLast && el.style.minHeight) ? realContentHeight : el.offsetHeight;
         // 页头：该问答开始提问的位置（预留 8px 视口呼吸边距）
-        const headScrollTop = Math.max(0, top - 8);
+        const headScrollTop = Math.max(0, Math.round(top - 8));
         // 页脚：该问答回复末尾的最佳舒适视口位置
-        const footScrollTop = Math.max(headScrollTop, top + height - containerHeight + 20);
+        const footScrollTop = Math.max(headScrollTop, Math.round(top + height - containerHeight + 20));
 
         return {
           index: idx,
@@ -1186,17 +1312,17 @@
 
       // 如果当前视口距离本页页头较远（说明在纸张内向下读了一段），点一下回到本页页头
       if (currentScroll > curPage.headScrollTop + threshold) {
-        console.log(`[agy-enhancer] Back to turn ${curIdx + 1} top`);
+        console.log(`[agy-enhancer] Back to turn ${curIdx + 1} top (pane)`);
         performEnhancerScroll(container, { top: curPage.headScrollTop, behavior: 'smooth' });
       } else {
         // 已经在当前页头附近，点一下向上翻到上一页
         if (curIdx > 0) {
           const prevPage = pages[curIdx - 1];
-          console.log(`[agy-enhancer] Up to turn ${curIdx} top`);
+          console.log(`[agy-enhancer] Up to turn ${curIdx} top (pane)`);
           performEnhancerScroll(container, { top: prevPage.headScrollTop, behavior: 'smooth' });
         } else {
           // 已经是第 1 页，直达整个页面最顶端
-          console.log('[agy-enhancer] Reached top');
+          console.log('[agy-enhancer] Reached top (pane)');
           performEnhancerScroll(container, { top: 0, behavior: 'smooth' });
         }
       }
@@ -1219,17 +1345,17 @@
 
       // 如果当前还没到底部页脚，点一下到本页页脚
       if (currentScroll < curPage.footScrollTop - threshold) {
-        console.log(`[agy-enhancer] Down to turn ${curIdx + 1} bottom`);
+        console.log(`[agy-enhancer] Down to turn ${curIdx + 1} bottom (pane)`);
         performEnhancerScroll(container, { top: curPage.footScrollTop, behavior: 'smooth' });
       } else {
         // 已经在页脚附近，翻到下一页的页头
         if (curIdx < pages.length - 1) {
           const nextPage = pages[curIdx + 1];
-          console.log(`[agy-enhancer] Down to turn ${curIdx + 2} top`);
+          console.log(`[agy-enhancer] Down to turn ${curIdx + 2} top (pane)`);
           performEnhancerScroll(container, { top: nextPage.headScrollTop, behavior: 'smooth' });
         } else {
           // 已经是最后一页，直达最新底部
-          console.log('[agy-enhancer] Reached bottom');
+          console.log('[agy-enhancer] Reached bottom (pane)');
           performEnhancerScroll(container, { top: container.scrollHeight, behavior: 'smooth' });
         }
       }
@@ -1237,12 +1363,12 @@
 
     /**
      * 【直达最底部】逻辑：
-     * 双击向下按钮时，无视当前问答位置，直接平滑滚动到整个页面的最底端
+     * 双击向下按钮时，无视当前问答位置，直接平滑滚动到激活分屏的最底端
      */
     function navigateToBottom() {
-      const container = getChatScrollContainer();
+      const container = getChatScrollContainer(getActivePane());
       if (!container) return;
-      console.log('[agy-enhancer] Double click: Scrolled to bottom');
+      console.log('[agy-enhancer] Double click: Scrolled to bottom of active pane');
       performEnhancerScroll(container, { top: container.scrollHeight, behavior: 'smooth' });
     }
 
@@ -1295,6 +1421,12 @@
       group.appendChild(upBtn);
       group.appendChild(downBtn);
       document.body.appendChild(group);
+
+      updatePageNavButtonsPosition();
+      if (!window.__AGY_NAV_RESIZE_BOUND__) {
+        window.__AGY_NAV_RESIZE_BOUND__ = true;
+        window.addEventListener('resize', updatePageNavButtonsPosition, { passive: true });
+      }
 
       return group;
     }
@@ -3894,7 +4026,8 @@
       }
 
       function resolveTurnElements(target) {
-        const chatContainer = getChatScrollContainer();
+        const targetPane = target.closest?.('.group\\/pane[data-pane-id], [data-pane-id]');
+        const chatContainer = (targetPane ? getChatScrollContainer(targetPane) : null) || getChatScrollContainer();
         if (!chatContainer || !chatContainer.contains(target)) return null;
 
         // 1. 用户提问气泡判定与按钮检索
@@ -3915,7 +4048,9 @@
         }
 
         // 2. AI 回复气泡判定与按钮检索
-        const turnContainer = document.querySelector('.relative.flex.flex-col.gap-y-3') ||
+        const turnContainer = target.closest?.('.relative.flex.flex-col.gap-y-3, .flex.flex-col.gap-y-3') ||
+                              (chatContainer ? chatContainer.querySelector('.relative.flex.flex-col.gap-y-3, .flex.flex-col.gap-y-3') : null) ||
+                              document.querySelector('.relative.flex.flex-col.gap-y-3') ||
                               document.querySelector('.flex.flex-col.gap-y-3');
         let aiTurnEl = null;
         if (turnContainer) {
@@ -4863,7 +4998,8 @@
       }
 
       function checkIsLongText() {
-        const container = getChatScrollContainer();
+        const activePane = getActivePane();
+        const container = getChatScrollContainer(activePane);
         if (!container) return false;
 
         const maxScroll = Math.max(0, container.scrollHeight - container.clientHeight);
@@ -4873,7 +5009,9 @@
         }
 
         // 2. 获取最后一轮问答实际内容高度
-        const turnContainer = document.querySelector('.relative.flex.flex-col.gap-y-3') ||
+        const turnContainer = container.querySelector?.('.relative.flex.flex-col.gap-y-3, .flex.flex-col.gap-y-3') ||
+                              activePane?.querySelector?.('.relative.flex.flex-col.gap-y-3, .flex.flex-col.gap-y-3') ||
+                              document.querySelector('.relative.flex.flex-col.gap-y-3') ||
                               document.querySelector('.flex.flex-col.gap-y-3');
         if (turnContainer && turnContainer.children.length > 0) {
           const lastTurnEl = turnContainer.children[turnContainer.children.length - 1];
