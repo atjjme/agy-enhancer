@@ -285,6 +285,10 @@
     document.getElementById('agy-universal-context-menu')?.remove();
     document.getElementById('agy-context-menu-styles')?.remove();
     document.getElementById('agy-enhancer-styles')?.remove();
+    if (window.__AGY_PANE_TRACKER_CLEANUP__) {
+      try { window.__AGY_PANE_TRACKER_CLEANUP__(); } catch (e) {}
+      window.__AGY_PANE_TRACKER_CLEANUP__ = null;
+    }
     document.getElementById('agy-page-nav-group')?.remove();
     document.getElementById('agy-scroll-bottom-btn')?.remove();
     if (USER_CONFIG.ENABLE_MASTER === false || USER_CONFIG.ENABLE_STATUS_INDICATOR === false) {
@@ -402,9 +406,11 @@
 
       /* 右侧滚动条旁常驻「翻页/页头页脚」按钮组 */
       #agy-page-nav-group {
-        position: fixed;
-        right: ${USER_CONFIG.NAV_RIGHT}px;
-        bottom: ${USER_CONFIG.NAV_BOTTOM}px;
+        position: fixed !important;
+        right: ${USER_CONFIG.NAV_RIGHT}px !important;
+        bottom: ${USER_CONFIG.NAV_BOTTOM}px !important;
+        left: auto !important;
+        top: auto !important;
         z-index: 999990;
         display: flex;
         flex-direction: column;
@@ -1095,8 +1101,10 @@
      * 全局捕获用户在不同分屏内的交互动作，实时更新激活分屏记忆
      */
     function setupPaneInteractionTracker() {
-      if (window.__AGY_PANE_TRACKER_BOUND__) return;
-      window.__AGY_PANE_TRACKER_BOUND__ = true;
+      if (window.__AGY_PANE_TRACKER_CLEANUP__) {
+        try { window.__AGY_PANE_TRACKER_CLEANUP__(); } catch (e) {}
+        window.__AGY_PANE_TRACKER_CLEANUP__ = null;
+      }
 
       const handlePaneInteraction = (e) => {
         const pane = e.target?.closest?.('.group\\/pane[data-pane-id], [data-pane-id]');
@@ -1108,14 +1116,23 @@
         }
       };
 
-      window.addEventListener('pointerdown', handlePaneInteraction, { capture: true, passive: true });
-      window.addEventListener('focusin', handlePaneInteraction, { capture: true, passive: true });
-      window.addEventListener('wheel', handlePaneInteraction, { capture: true, passive: true });
-      window.addEventListener('pointerover', (e) => {
+      const handleHover = (e) => {
         // 忽略悬停在浮动导航按钮本身的动作，避免遮挡或改变当前正在阅读的分屏目标
         if (e.target?.closest?.('#agy-page-nav-group, .agy-nav-btn')) return;
         handlePaneInteraction(e);
-      }, { capture: true, passive: true });
+      };
+
+      window.addEventListener('pointerdown', handlePaneInteraction, { capture: true, passive: true });
+      window.addEventListener('focusin', handlePaneInteraction, { capture: true, passive: true });
+      window.addEventListener('wheel', handlePaneInteraction, { capture: true, passive: true });
+      window.addEventListener('pointerover', handleHover, { capture: true, passive: true });
+
+      window.__AGY_PANE_TRACKER_CLEANUP__ = () => {
+        window.removeEventListener('pointerdown', handlePaneInteraction, { capture: true });
+        window.removeEventListener('focusin', handlePaneInteraction, { capture: true });
+        window.removeEventListener('wheel', handlePaneInteraction, { capture: true });
+        window.removeEventListener('pointerover', handleHover, { capture: true });
+      };
     }
     setupPaneInteractionTracker();
 
@@ -1381,6 +1398,7 @@
 
       group.appendChild(upBtn);
       group.appendChild(downBtn);
+      group.removeAttribute('style');
       document.body.appendChild(group);
 
       return group;
