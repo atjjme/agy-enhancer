@@ -411,9 +411,7 @@
         gap: ${USER_CONFIG.BUTTON_GAP}px;
         user-select: none;
         opacity: ${USER_CONFIG.BUTTON_OPACITY};
-        transition: opacity 0.25s cubic-bezier(0.16, 1, 0.3, 1),
-                    right 0.25s cubic-bezier(0.16, 1, 0.3, 1),
-                    bottom 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+        transition: opacity 0.25s cubic-bezier(0.16, 1, 0.3, 1);
       }
       #agy-page-nav-group:hover {
         opacity: ${USER_CONFIG.BUTTON_HOVER_OPACITY};
@@ -1106,7 +1104,6 @@
           const inner = pane.classList?.contains('group/pane') ? pane : (pane.querySelector?.('.group\\/pane') || pane);
           if (inner && inner !== lastInteractedPane) {
             lastInteractedPane = inner;
-            updatePageNavButtonsPosition();
           }
         }
       };
@@ -1121,27 +1118,6 @@
       }, { capture: true, passive: true });
     }
     setupPaneInteractionTracker();
-
-    /**
-     * 动态同步右侧常驻导航按钮组的位置（自适应停靠在激活分屏右下角）
-     */
-    function updatePageNavButtonsPosition() {
-      const group = document.getElementById('agy-page-nav-group');
-      if (!group) return;
-
-      const activePane = getActivePane();
-      if (activePane) {
-        const paneRect = activePane.getBoundingClientRect();
-        // 确保按钮停留在当前激活分屏的右下角位置
-        const rightOffset = Math.max(USER_CONFIG.NAV_RIGHT, window.innerWidth - paneRect.right + USER_CONFIG.NAV_RIGHT);
-        const bottomOffset = Math.max(USER_CONFIG.NAV_BOTTOM, window.innerHeight - paneRect.bottom + USER_CONFIG.NAV_BOTTOM);
-        group.style.right = `${Math.round(rightOffset)}px`;
-        group.style.bottom = `${Math.round(bottomOffset)}px`;
-      } else {
-        group.style.right = `${USER_CONFIG.NAV_RIGHT}px`;
-        group.style.bottom = `${USER_CONFIG.NAV_BOTTOM}px`;
-      }
-    }
 
     /**
      * 获取聊天主滚动容器（优先在激活的分屏窗格中查找）
@@ -1406,12 +1382,6 @@
       group.appendChild(upBtn);
       group.appendChild(downBtn);
       document.body.appendChild(group);
-
-      updatePageNavButtonsPosition();
-      if (!window.__AGY_NAV_RESIZE_BOUND__) {
-        window.__AGY_NAV_RESIZE_BOUND__ = true;
-        window.addEventListener('resize', updatePageNavButtonsPosition, { passive: true });
-      }
 
       return group;
     }
