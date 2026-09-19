@@ -754,7 +754,7 @@
           </label>
         </div>
 
-        <!-- 依附右键的划词子项 -->
+        <!-- 依附右键的划词子项与分叉选项 -->
         <div class="bento-sub-tile" id="quotePopupSubPanel">
           <div class="bento-item-row">
             <div class="bento-item-info">
@@ -763,6 +763,16 @@
             </div>
             <label class="vision-switch">
               <input type="checkbox" id="ENABLE_BLOCK_QUOTE_POPUP">
+              <span class="vision-slider"></span>
+            </label>
+          </div>
+          <div class="bento-item-row" style="margin-top: 10px; padding-top: 10px; border-top: 1px dashed rgba(255, 255, 255, 0.08);">
+            <div class="bento-item-info">
+              <div class="bento-item-name" style="font-size: 13px;" data-i18n="sw_fork_convo_title">AI 回复右键分叉对话 (Create fork)</div>
+              <div class="bento-item-desc" style="font-size: 11.5px;" data-i18n="sw_fork_convo_desc">在 AI 回复右键菜单中提供切片分叉与创建分支选项，关闭后仅保留复制与导出 Markdown。</div>
+            </div>
+            <label class="vision-switch">
+              <input type="checkbox" id="ENABLE_FORK_CONVERSATION">
               <span class="vision-slider"></span>
             </label>
           </div>
@@ -883,6 +893,7 @@
       'ENABLE_AUTOSTART',
       'ENABLE_CONTEXT_MENU',
       'ENABLE_BLOCK_QUOTE_POPUP',
+      'ENABLE_FORK_CONVERSATION',
       'ENABLE_STATUS_INDICATOR',
       'ENABLE_NAV_BUTTONS',
       'ENABLE_BLOCK_CHAT_BOTTOM_BUTTON',
@@ -896,6 +907,7 @@
       ENABLE_AUTOSTART: true,
       ENABLE_CONTEXT_MENU: true,
       ENABLE_BLOCK_QUOTE_POPUP: true,
+      ENABLE_FORK_CONVERSATION: true,
       ENABLE_STATUS_INDICATOR: true,
       ENABLE_NAV_BUTTONS: true,
       ENABLE_BLOCK_CHAT_BOTTOM_BUTTON: true,
@@ -937,16 +949,19 @@
         bentoContainer.classList.add('master-dormant-active');
       }
 
-      // 右键联动屏蔽划词
+      // 右键联动屏蔽划词与分叉选项
       const ctxMenuCheck = document.getElementById('ENABLE_CONTEXT_MENU').checked;
       const quoteSubPanel = document.getElementById('quotePopupSubPanel');
       const blockQuoteCheck = document.getElementById('ENABLE_BLOCK_QUOTE_POPUP');
+      const forkConvoCheck = document.getElementById('ENABLE_FORK_CONVERSATION');
       if (ctxMenuCheck && masterCheck) {
         quoteSubPanel.classList.remove('collapsed');
         blockQuoteCheck.disabled = false;
+        if (forkConvoCheck) forkConvoCheck.disabled = false;
       } else {
         quoteSubPanel.classList.add('collapsed');
         blockQuoteCheck.disabled = true;
+        if (forkConvoCheck) forkConvoCheck.disabled = true;
       }
     }
 
@@ -1004,6 +1019,9 @@
 
       if (!document.getElementById('ENABLE_CONTEXT_MENU').checked) {
         document.getElementById('ENABLE_BLOCK_QUOTE_POPUP').checked = false;
+        if (document.getElementById('ENABLE_FORK_CONVERSATION')) {
+          document.getElementById('ENABLE_FORK_CONVERSATION').checked = false;
+        }
       }
 
       isDirty = false;
@@ -1037,8 +1055,14 @@
     document.getElementById('ENABLE_CONTEXT_MENU').addEventListener('change', (e) => {
       if (e.target.checked) {
         document.getElementById('ENABLE_BLOCK_QUOTE_POPUP').checked = true;
+        if (document.getElementById('ENABLE_FORK_CONVERSATION')) {
+          document.getElementById('ENABLE_FORK_CONVERSATION').checked = true;
+        }
       } else {
         document.getElementById('ENABLE_BLOCK_QUOTE_POPUP').checked = false;
+        if (document.getElementById('ENABLE_FORK_CONVERSATION')) {
+          document.getElementById('ENABLE_FORK_CONVERSATION').checked = false;
+        }
       }
     });
 
@@ -1054,6 +1078,7 @@
 
       if (!payload.ENABLE_CONTEXT_MENU) {
         payload.ENABLE_BLOCK_QUOTE_POPUP = false;
+        payload.ENABLE_FORK_CONVERSATION = false;
       }
 
       try {

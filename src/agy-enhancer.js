@@ -27,6 +27,9 @@
     // 【选词弹窗】是否屏蔽划词选中文本时弹出的 Quote (Ctrl+L) 浮窗（依附于右键总开关）
     ENABLE_BLOCK_QUOTE_POPUP: true,
 
+    // 【会话分叉】是否在 AI 回复右键菜单中提供分叉会话 (Create fork) 选项（依附于右键总开关）
+    ENABLE_FORK_CONVERSATION: true,
+
     // 【翻页导航】右侧常驻智能翻页双按钮
     ENABLE_NAV_BUTTONS: true,
 
@@ -4368,8 +4371,11 @@
               saveFileLocally(md, filename);
               showNotification?.('已导出 Markdown 文档');
             }
-          },
-          {
+          }
+        ];
+
+        if (USER_CONFIG.ENABLE_FORK_CONVERSATION !== false) {
+          items.push({
             label: 'Create fork in current workspace',
             icon: 'fork',
             action: () => {
@@ -4394,36 +4400,36 @@
                 }, 100);
               }
             }
-          }
-        ];
-
-        if (hasWorktreeSupport) {
-          items.push({
-            label: 'Create fork in shared workspace',
-            icon: 'folder',
-            action: () => {
-              enableSystemForkingFeature();
-              let btn = aiTurn.forkBtn;
-              if (!btn && aiTurn.toolbar) {
-                btn = aiTurn.toolbar.querySelector('button[aria-label="Fork Conversation"], button[data-tooltip-id*="fork-"]');
-              }
-              if (!btn && aiTurn.turnEl) {
-                btn = aiTurn.turnEl.querySelector('button[aria-label="Fork Conversation"], button[data-tooltip-id*="fork-"]');
-              }
-              if (btn) {
-                executeForkAction(btn, 2, getCurrentConversationTitle());
-              } else {
-                setTimeout(() => {
-                  const retryBtn = (aiTurn.toolbar || aiTurn.turnEl || document).querySelector('button[aria-label="Fork Conversation"], button[data-tooltip-id*="fork-"]');
-                  if (retryBtn) {
-                    executeForkAction(retryBtn, 2, getCurrentConversationTitle());
-                  } else {
-                    showNotification?.('已激活分叉功能，请重试');
-                  }
-                }, 100);
-              }
-            }
           });
+
+          if (hasWorktreeSupport) {
+            items.push({
+              label: 'Create fork in shared workspace',
+              icon: 'folder',
+              action: () => {
+                enableSystemForkingFeature();
+                let btn = aiTurn.forkBtn;
+                if (!btn && aiTurn.toolbar) {
+                  btn = aiTurn.toolbar.querySelector('button[aria-label="Fork Conversation"], button[data-tooltip-id*="fork-"]');
+                }
+                if (!btn && aiTurn.turnEl) {
+                  btn = aiTurn.turnEl.querySelector('button[aria-label="Fork Conversation"], button[data-tooltip-id*="fork-"]');
+                }
+                if (btn) {
+                  executeForkAction(btn, 2, getCurrentConversationTitle());
+                } else {
+                  setTimeout(() => {
+                    const retryBtn = (aiTurn.toolbar || aiTurn.turnEl || document).querySelector('button[aria-label="Fork Conversation"], button[data-tooltip-id*="fork-"]');
+                    if (retryBtn) {
+                      executeForkAction(retryBtn, 2, getCurrentConversationTitle());
+                    } else {
+                      showNotification?.('已激活分叉功能，请重试');
+                    }
+                  }, 100);
+                }
+              }
+            });
+          }
         }
 
         return items;
