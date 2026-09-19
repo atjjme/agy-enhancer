@@ -835,6 +835,21 @@
             </div>
           </div>
 
+          <!-- 独立功能：会话切片分叉与分支创建 -->
+          <div class="hud-row">
+            <div class="hud-row-info">
+              <div class="hud-row-title">
+                <span data-i18n="sw_fork_convo_title">会话切片分叉与分支创建 (Create fork)</span>
+                <span class="hud-row-tag">FORK_CONVERSATION</span>
+              </div>
+              <div class="hud-row-desc" data-i18n="sw_fork_convo_desc">启用会话切片克隆与工作树分支功能，自动为新会话添加“分支：”前缀，并在 AI 消息右键菜单中提供快捷入口。</div>
+            </div>
+            <label class="cyber-switch">
+              <input type="checkbox" id="ENABLE_FORK_CONVERSATION">
+              <span class="cyber-slider"></span>
+            </label>
+          </div>
+
           <!-- 右上角指示点 -->
           <div class="hud-row">
             <div class="hud-row-info">
@@ -953,6 +968,7 @@
       'ENABLE_AUTOSTART',
       'ENABLE_CONTEXT_MENU',
       'ENABLE_BLOCK_QUOTE_POPUP',
+      'ENABLE_FORK_CONVERSATION',
       'ENABLE_STATUS_INDICATOR',
       'ENABLE_NAV_BUTTONS',
       'ENABLE_BLOCK_CHAT_BOTTOM_BUTTON',
@@ -966,6 +982,7 @@
       ENABLE_AUTOSTART: true,
       ENABLE_CONTEXT_MENU: true,
       ENABLE_BLOCK_QUOTE_POPUP: true,
+      ENABLE_FORK_CONVERSATION: true,
       ENABLE_STATUS_INDICATOR: true,
       ENABLE_NAV_BUTTONS: true,
       ENABLE_BLOCK_CHAT_BOTTOM_BUTTON: true,

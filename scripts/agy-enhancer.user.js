@@ -40,6 +40,9 @@
     // 【选词弹窗】是否屏蔽划词选中文本时弹出的 Quote (Ctrl+L) 浮窗（依附于右键总开关）
     ENABLE_BLOCK_QUOTE_POPUP: true,
 
+    // 【会话分叉】是否开启会话切片分叉与分支创建功能（独立开关，并在右键菜单中提供入口）
+    ENABLE_FORK_CONVERSATION: true,
+
     // 【翻页导航】右侧常驻智能翻页双按钮
     ENABLE_NAV_BUTTONS: true,
 
@@ -124,6 +127,9 @@
   let contextMenuHandler = null;
   let lastContextMenuPos = null;
   let activeNativeConvoId = null;
+  let activeNativeConvoTitle = '';
+  let lastNativeConvoId = null;
+  let lastNativeConvoTitle = '';
   let activeNativeProjectObj = null;
   let activeNativeProjectId = null;
   let lastProjectActionTime = 0;
@@ -1463,6 +1469,121 @@
       }
       return null;
     }
+
+    function getAgentService() {
+      const candidates = [
+        ...Array.from(document.querySelectorAll('[data-testid="section-header"]')),
+        document.getElementById('root')
+      ].filter(Boolean);
+      for (const el of candidates) {
+        const k = Object.keys(el).find(k => k.startsWith('__reactFiber$'));
+        let fiber = el ? el[k] : null;
+        while (fiber) {
+          if (fiber.memoizedProps?.value?.deleteCascadeTrajectory && fiber.memoizedProps?.value?.updateConversationAnnotations) {
+            return fiber.memoizedProps.value;
+          }
+          fiber = fiber.return;
+        }
+      }
+      return null;
+    }
+
+    function getCurrentUrlConvoId() {
+      const match = window.location.pathname.match(/\/c\/([a-f0-9-]+)/i);
+      return match ? match[1] : null;
+    }
+
+    let pendingForkBranchRename = null;
+
+    function getWorkspaceDirName(uri) {
+      if (!uri) return '';
+      let clean = decodeURIComponent(uri.replace(/^file:\/\/\/?/i, '')).replace(/[\/\\]+$/, '');
+      return clean.split(/[\/\\]/).pop() || '';
+    }
+
+    // 极致轻量：纯 O(1) 字典查找当前会话关联项目目录是否含空格，无任何 DOM/Fiber 遍历
+    function checkWorkspaceGitBranchSafety(convoId) {
+      const targetId = convoId || getCurrentUrlConvoId();
+      if (!targetId) return { safe: true, dirName: '' };
+      let wsUri = '';
+      try {
+        const s = getTSP()?.getState()?.summaries?.[targetId];
+        wsUri = s?.workspaces?.[0]?.workspaceFolderAbsoluteUri ||
+                s?.workspaces?.[0]?.gitRootAbsoluteUri ||
+                s?.workspaceUris?.[0] ||
+                s?.trajectoryMetadata?.workspaces?.[0]?.workspaceFolderAbsoluteUri ||
+                s?.trajectoryMetadata?.workspaceUris?.[0] || '';
+      } catch (e) {}
+
+      if (!wsUri) return { safe: true, dirName: '' };
+      const dirName = getWorkspaceDirName(wsUri);
+      const hasSpaceOrInvalid = /[\s~^:?*\[\\@{]/.test(dirName);
+      return {
+        safe: !hasSpaceOrInvalid,
+        dirName,
+        reason: hasSpaceOrInvalid ? `项目目录 "${dirName}" 包含空格，Git 分支名不支持空格，请使用 Create fork in current workspace` : ''
+      };
+    }
+
+    // 极致轻量：纯 O(1) 字典查找判断当前会话是否具备关联代码工作区，耗时 < 0.001ms
+    function canForkInSharedWorkspace(convoId) {
+      const targetId = convoId || getCurrentUrlConvoId();
+      if (!targetId) return false;
+      try {
+        const s = getTSP()?.getState()?.summaries?.[targetId];
+        if (s) {
+          if (Array.isArray(s.workspaces) && s.workspaces.length > 0) return true;
+          if (Array.isArray(s.workspaceUris) && s.workspaceUris.length > 0) return true;
+          const meta = s.trajectoryMetadata;
+          if (meta) {
+            if (Array.isArray(meta.workspaces) && meta.workspaces.length > 0) return true;
+            if (Array.isArray(meta.workspaceUris) && meta.workspaceUris.length > 0) return true;
+          }
+        }
+      } catch (e) {}
+      return false;
+    }
+
+    // 纯被动事件响应：由会话切换事件触发重命名，最多轻试 8 次，无常驻后台轮询
+    function applyPendingForkRename(newConvoId) {
+      if (USER_CONFIG.ENABLE_FORK_CONVERSATION === false) return;
+      if (!pendingForkBranchRename || !newConvoId) return;
+      if (pendingForkBranchRename.sourceConvoId && pendingForkBranchRename.sourceConvoId === newConvoId) return;
+      if (Date.now() - pendingForkBranchRename.timestamp > 30000) {
+        pendingForkBranchRename = null;
+        return;
+      }
+      const { newTitle } = pendingForkBranchRename;
+      pendingForkBranchRename = null;
+
+      let attempts = 0;
+      const updateTitle = async () => {
+        let backendUpdated = false;
+        let tspUpdated = false;
+        const tsp = getTSP();
+        const s = tsp?.getState()?.summaries?.[newConvoId];
+        if (s) {
+          s.summary = newTitle;
+          s.title = newTitle;
+          tspUpdated = true;
+        }
+        const as = getAgentService();
+        if (as?.updateConversationAnnotations) {
+          try {
+            await as.updateConversationAnnotations(newConvoId, { title: newTitle }, true);
+            backendUpdated = true;
+          } catch (err) {}
+        }
+        if (getCurrentUrlConvoId() === newConvoId) {
+          document.title = `${newTitle} - Antigravity`;
+        }
+        if ((!backendUpdated || !tspUpdated) && ++attempts < 8) {
+          setTimeout(updateTitle, 200);
+        }
+      };
+      setTimeout(updateTitle, 100);
+    }
+    window.__AGY_APPLY_FORK_RENAME__ = applyPendingForkRename;
 
     let cachedGeminiBaseUri = null;
     function getGeminiBaseUri() {
@@ -3050,6 +3171,8 @@
               menu.appendChild(itemToggleUnread);
             }
 
+            lastNativeConvoId = convoId;
+            lastNativeConvoTitle = convoTitle;
             activeNativeConvoId = null;
             return;
           }
@@ -4024,75 +4147,306 @@
         return null;
       }
 
-      function resolveTurnElements(target) {
-        const targetPane = target.closest?.('.group\\/pane[data-pane-id], [data-pane-id]');
-        const chatContainer = (targetPane ? getChatScrollContainer(targetPane) : null) || getChatScrollContainer();
-        if (!chatContainer || !chatContainer.contains(target)) return null;
+      function enableSystemForkingFeature() {
+        try {
+          const root = document.getElementById('root');
+          if (!root) return false;
+          const fiberKey = Object.keys(root).find(k => k.startsWith('__reactFiber$') || k.startsWith('__reactContainer$'));
+          if (!fiberKey) return false;
+          let f = root[fiberKey];
+          let registry = null;
+          function walk(node, d) {
+            if (!node || d > 35 || registry) return;
+            if (node.memoizedProps?.value && typeof node.memoizedProps.value.get === 'function') {
+              try {
+                if (node.memoizedProps.value.get('conversationView')) {
+                  registry = node.memoizedProps.value;
+                  return;
+                }
+              } catch (e) {}
+            }
+            if (node.child) walk(node.child, d + 1);
+            if (!registry && node.sibling) walk(node.sibling, d);
+          }
+          walk(f, 0);
+          if (registry) {
+            const cv = registry.get('conversationView');
+            if (cv) {
+              let updated = false;
+              if (!cv.conversationForkingEnabled) {
+                cv.conversationForkingEnabled = true;
+                updated = true;
+              }
+              if (!cv.conversationForkingHistoricalStep) {
+                cv.conversationForkingHistoricalStep = true;
+                updated = true;
+              }
+              if (!cv.conversationForkingNewWorktree) {
+                cv.conversationForkingNewWorktree = true;
+                updated = true;
+              }
+              return true;
+            }
+          }
+        } catch (err) {}
+        return false;
+      }
 
-        // 1. 用户提问气泡判定与按钮检索
-        const userStep = target.closest('.group\\/user-input-step, [class*="user-input-step"]');
-        if (userStep) {
-          const copyBtn = userStep.querySelector('button[data-tooltip-id*="copy-user-message"], button[aria-label="Copy"], .user-input-buttons-container button:first-of-type');
-          const editBtn = userStep.querySelector('button[data-testid="revert-button"], button[aria-label*="Undo" i], button[aria-label*="Edit" i], button[title*="Edit" i], .user-input-buttons-container button:last-of-type');
-          const bubbleEl = userStep.querySelector('[class*="rounded-[calc"]') || userStep;
-          const promptText = (bubbleEl.innerText || userStep.innerText || '').replace(/\s*\d{1,2}:\d{2}\s*(?:AM|PM)?\s*$/i, '').trim();
+      function triggerForkAction(forkBtn) {
+        if (!forkBtn) return;
+        try {
+          const fiberKey = Object.keys(forkBtn).find(k => k.startsWith('__reactFiber$') || k.startsWith('__reactInternalInstance$'));
+          const fiber = forkBtn[fiberKey];
+          const props = fiber?.memoizedProps;
+          if (props?.onPointerDown) {
+            props.onPointerDown({
+              preventDefault: () => {},
+              stopPropagation: () => {},
+              nativeEvent: new MouseEvent('pointerdown', { bubbles: true, cancelable: true }),
+              currentTarget: forkBtn,
+              target: forkBtn,
+              isDefaultPrevented: () => false,
+              pointerType: 'mouse',
+              button: 0,
+              isPrimary: true
+            });
+          }
+          if (props?.onClick) {
+            props.onClick({
+              preventDefault: () => {},
+              stopPropagation: () => {},
+              nativeEvent: new MouseEvent('click', { bubbles: true, cancelable: true }),
+              currentTarget: forkBtn,
+              target: forkBtn,
+              isDefaultPrevented: () => false
+            });
+          }
+          forkBtn.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true, button: 0 }));
+          forkBtn.click();
+        } catch (e) {
+          forkBtn.click();
+        }
+      }
 
-          return {
-            isUserTurn: true,
-            turnEl: userStep,
-            copyBtn,
-            editBtn,
-            promptText
-          };
+      function executeForkAction(forkBtn, targetType = 1, sourceTitle = '') {
+        if (!forkBtn) return;
+        const currentConvoId = getCurrentUrlConvoId() || '';
+        if (targetType === 2) {
+          const safety = checkWorkspaceGitBranchSafety(currentConvoId);
+          if (!safety.safe) {
+            showNotification?.(safety.reason || '项目目录包含空格，Git 无法创建分支');
+            return;
+          }
         }
 
-        // 2. AI 回复气泡判定与按钮检索
-        const turnContainer = target.closest?.('.relative.flex.flex-col.gap-y-3, .flex.flex-col.gap-y-3') ||
-                              (chatContainer ? chatContainer.querySelector('.relative.flex.flex-col.gap-y-3, .flex.flex-col.gap-y-3') : null) ||
-                              document.querySelector('.relative.flex.flex-col.gap-y-3') ||
-                              document.querySelector('.flex.flex-col.gap-y-3');
-        let aiTurnEl = null;
-        if (turnContainer) {
+        const baseTitle = (sourceTitle || getCurrentConversationTitle() || '对话').replace(/^(?:分支[：:]\s*)+/g, '').trim();
+        pendingForkBranchRename = {
+          sourceConvoId: currentConvoId,
+          newTitle: `分支：${baseTitle || '新会话'}`,
+          timestamp: Date.now()
+        };
+
+        triggerForkAction(forkBtn);
+
+        // 轮询检测到选项后自动触发对应类型 (1: 纯切片对话; 2: shared workspace / worktree)
+        let attempts = 0;
+        const poll = () => {
+          const opts = Array.from(document.querySelectorAll('[data-testid="fork-target-option"]'));
+          if (opts.length > 0) {
+            if (targetType === 1) {
+              opts[0].click();
+            } else if (targetType === 2 && opts.length > 1) {
+              opts[1].click();
+            } else {
+              opts[0].click();
+            }
+            return;
+          }
+          if (++attempts < 25) {
+            setTimeout(poll, 25);
+          }
+        };
+        setTimeout(poll, 15);
+      }
+
+      function getCurrentConversationTitle() {
+        const titleFromDoc = (document.title || '').split(' - ')[0]?.trim();
+        if (titleFromDoc && titleFromDoc !== 'Antigravity') return titleFromDoc;
+        const selectedRow = document.querySelector('[data-testid="conversation-row-sidebar"][data-selected="true"]');
+        if (selectedRow) {
+          const text = (selectedRow.innerText || '').split('\n')[0]?.trim();
+          if (text) return text;
+        }
+        return 'response';
+      }
+
+      function resolveAiResponseTurn(target) {
+        if (!target) return null;
+        // 排除输入框、右侧栏抽屉、侧边栏
+        if (target.closest('form, [contenteditable="true"], textarea, .no-focus-agent-input, #artifacts-sidebar, [aria-label="Artifact Viewer"], [role="region"][aria-label="Artifact Viewer"], [data-testid="conversation-row-sidebar"]')) {
+          return null;
+        }
+        // 排除用户提问气泡
+        if (target.closest('.group\\/user-input-step, [class*="user-input-step"]')) {
+          return null;
+        }
+        // 必须在对话区域内
+        const convoView = target.closest('[data-testid="conversation-view"], [data-testid="autoscroll-viewport"], .md-table-bleed, main, [role="main"]');
+        if (!convoView) return null;
+
+        // 寻找包含当前 target 的 AI 步骤块
+        let turnEl = target.closest('.group.w-full, [class*="scroll-mt-4"], .flex.items-start');
+        let toolbar = turnEl?.querySelector?.('[data-testid="cascade-system-message-toolbar"]');
+
+        if (!toolbar) {
+          // 向上逐层寻找包含 toolbar 的容器
           let curr = target;
-          while (curr && curr !== turnContainer) {
-            if (curr.parentElement === turnContainer) {
-              aiTurnEl = curr;
+          while (curr && curr !== convoView && !toolbar) {
+            toolbar = curr.querySelector?.('[data-testid="cascade-system-message-toolbar"]');
+            if (toolbar) {
+              turnEl = curr;
               break;
             }
             curr = curr.parentElement;
           }
         }
-        if (!aiTurnEl) {
-          aiTurnEl = target.closest('[data-testid*="turn" i], .turn-container, .group.w-full') || target;
-        }
 
-        const aiCopyBtn = aiTurnEl.querySelector?.('button[aria-label="Copy"]:not(.user-input-buttons-container button), button[data-tooltip-id*="copy-"]:not([data-tooltip-id*="copy-user-message"]):not([data-tooltip-id*="copy-code"])');
+        if (!toolbar && !turnEl) return null;
 
-        // 检索上一提问步骤对应的原生回退/重新提问按钮 (revert-button)
-        let prev = aiTurnEl ? aiTurnEl.previousElementSibling : null;
-        let prevUserTurn = null;
-        while (prev) {
-          if (prev.matches?.('.group\\/user-input-step, [class*="user-input-step"]')) {
-            prevUserTurn = prev;
-            break;
+        const copyBtn = toolbar?.querySelector('button[aria-label="Copy"], button[aria-label="Copied"], button[data-tooltip-id*="copy-"]:not([data-tooltip-id*="copy-user-message"]):not([data-tooltip-id*="copy-code"])');
+        const forkBtn = toolbar?.querySelector('button[aria-label="Fork Conversation"], button[data-tooltip-id*="fork-"]');
+
+        let markdownText = '';
+        try {
+          const fiberKey = Object.keys(toolbar || turnEl || {}).find(k => k.startsWith('__reactFiber$') || k.startsWith('__reactInternalInstance$'));
+          let f = (toolbar || turnEl)[fiberKey];
+          while (f) {
+            if (f.memoizedProps?.steps) {
+              const steps = f.memoizedProps.steps;
+              for (const s of steps) {
+                const stepObj = s.step?.value || s.step;
+                if (stepObj?.response || stepObj?.modifiedResponse) {
+                  markdownText = stepObj.modifiedResponse || stepObj.response || '';
+                  break;
+                }
+              }
+              if (markdownText) break;
+            }
+            f = f.return;
           }
-          prev = prev.previousElementSibling;
-        }
-        if (!prevUserTurn && chatContainer) {
-          const userTurns = Array.from(chatContainer.querySelectorAll('.group\\/user-input-step, [class*="user-input-step"]'));
-          prevUserTurn = userTurns[userTurns.length - 1];
-        }
-        const revertBtn = prevUserTurn?.querySelector?.('button[data-testid="revert-button"], button[aria-label*="Undo" i]');
+        } catch (e) {}
 
-        const responseMarkdown = aiTurnEl.innerText || aiTurnEl.textContent || '';
+        if (!markdownText && turnEl) {
+          const clone = turnEl.cloneNode(true);
+          clone.querySelector('[data-testid="cascade-system-message-toolbar"]')?.remove();
+          markdownText = clone.innerText?.trim() || '';
+        }
 
         return {
-          isUserTurn: false,
-          turnEl: aiTurnEl,
-          aiCopyBtn,
-          revertBtn,
-          responseMarkdown
+          turnEl,
+          toolbar,
+          copyBtn,
+          forkBtn,
+          markdownText
         };
+      }
+
+      function getAiTurnMenuItems(aiTurn) {
+        if (!aiTurn) return [];
+        const hasWorktreeSupport = canForkInSharedWorkspace();
+        const items = [
+          {
+            label: 'Copy',
+            icon: 'copy',
+            action: () => {
+              if (aiTurn.copyBtn) {
+                aiTurn.copyBtn.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true }));
+                aiTurn.copyBtn.click();
+              } else if (aiTurn.markdownText) {
+                copyText(aiTurn.markdownText);
+                showNotification?.('已复制回复内容');
+              }
+            }
+          },
+          {
+            label: 'Export as Markdown',
+            icon: 'save',
+            action: () => {
+              const md = aiTurn.markdownText;
+              if (!md) {
+                showNotification?.('未获取到回复内容');
+                return;
+              }
+              const safeTitle = getCurrentConversationTitle().replace(/[\\/:*?"<>|]/g, '_').slice(0, 30).trim();
+              const d = new Date();
+              const pad = (n) => String(n).padStart(2, '0');
+              const timeStr = `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`;
+              const filename = `${safeTitle || 'response'}_${timeStr}.md`;
+              saveFileLocally(md, filename);
+              showNotification?.('已导出 Markdown 文档');
+            }
+          }
+        ];
+
+        if (USER_CONFIG.ENABLE_FORK_CONVERSATION !== false) {
+          items.push({
+            label: 'Create fork in current workspace',
+            icon: 'fork',
+            action: () => {
+              enableSystemForkingFeature();
+              let btn = aiTurn.forkBtn;
+              if (!btn && aiTurn.toolbar) {
+                btn = aiTurn.toolbar.querySelector('button[aria-label="Fork Conversation"], button[data-tooltip-id*="fork-"]');
+              }
+              if (!btn && aiTurn.turnEl) {
+                btn = aiTurn.turnEl.querySelector('button[aria-label="Fork Conversation"], button[data-tooltip-id*="fork-"]');
+              }
+              if (btn) {
+                executeForkAction(btn, 1, getCurrentConversationTitle());
+              } else {
+                setTimeout(() => {
+                  const retryBtn = (aiTurn.toolbar || aiTurn.turnEl || document).querySelector('button[aria-label="Fork Conversation"], button[data-tooltip-id*="fork-"]');
+                  if (retryBtn) {
+                    executeForkAction(retryBtn, 1, getCurrentConversationTitle());
+                  } else {
+                    showNotification?.('已激活分叉功能，请重试');
+                  }
+                }, 100);
+              }
+            }
+          });
+
+          if (hasWorktreeSupport) {
+            items.push({
+              label: 'Create fork in shared workspace',
+              icon: 'folder',
+              action: () => {
+                enableSystemForkingFeature();
+                let btn = aiTurn.forkBtn;
+                if (!btn && aiTurn.toolbar) {
+                  btn = aiTurn.toolbar.querySelector('button[aria-label="Fork Conversation"], button[data-tooltip-id*="fork-"]');
+                }
+                if (!btn && aiTurn.turnEl) {
+                  btn = aiTurn.turnEl.querySelector('button[aria-label="Fork Conversation"], button[data-tooltip-id*="fork-"]');
+                }
+                if (btn) {
+                  executeForkAction(btn, 2, getCurrentConversationTitle());
+                } else {
+                  setTimeout(() => {
+                    const retryBtn = (aiTurn.toolbar || aiTurn.turnEl || document).querySelector('button[aria-label="Fork Conversation"], button[data-tooltip-id*="fork-"]');
+                    if (retryBtn) {
+                      executeForkAction(retryBtn, 2, getCurrentConversationTitle());
+                    } else {
+                      showNotification?.('已激活分叉功能，请重试');
+                    }
+                  }, 100);
+                }
+              }
+            });
+          }
+        }
+
+        return items;
       }
 
       // 6. 渲染菜单 DOM
@@ -4180,6 +4534,10 @@
             dismissUniversalContextMenu();
             lastContextMenuPos = { x: e.clientX, y: e.clientY, time: Date.now() };
             activeNativeConvoId = convoRow.getAttribute('data-cascade-id');
+            const titleEl = convoRow.querySelector('.truncate, [class*="truncate"]');
+            activeNativeConvoTitle = titleEl?.innerText?.trim() || convoRow.innerText?.split('\n')[0]?.trim() || '';
+            lastNativeConvoId = activeNativeConvoId;
+            lastNativeConvoTitle = activeNativeConvoTitle;
             activeNativeProjectObj = null;
             activeNativeProjectId = null;
             lastProjectActionTime = 0;
@@ -4280,6 +4638,10 @@
               showNotification?.('已复制链接地址');
             }}
           ];
+          const aiTurn = resolveAiResponseTurn(target);
+          if (aiTurn) {
+            items.push({ separator: true }, ...getAiTurnMenuItems(aiTurn));
+          }
           renderMenu(items, e.clientX, e.clientY);
           return;
         }
@@ -4300,6 +4662,10 @@
           if (isImg) {
             items.push({ label: 'Copy Image', icon: 'image', action: () => copyImageFile(localPath) });
           }
+          const aiTurn = resolveAiResponseTurn(target);
+          if (aiTurn) {
+            items.push({ separator: true }, ...getAiTurnMenuItems(aiTurn));
+          }
           renderMenu(items, e.clientX, e.clientY);
           return;
         }
@@ -4319,6 +4685,10 @@
           ];
           if (isImg) {
             items.push({ label: 'Copy Image', icon: 'image', action: () => copyImageFile(fileEntity.filePath) });
+          }
+          const aiTurn = resolveAiResponseTurn(target);
+          if (aiTurn) {
+            items.push({ separator: true }, ...getAiTurnMenuItems(aiTurn));
           }
           renderMenu(items, e.clientX, e.clientY);
           return;
@@ -4425,9 +4795,24 @@
           }
         }
 
+        // 目标 8: AI 回复气泡/正文 (AI Assistant Response - 未划选文字)
+        if (!selectedText) {
+          const aiTurn = resolveAiResponseTurn(target);
+          if (aiTurn) {
+            e.preventDefault();
+            e.stopPropagation();
+            renderMenu(getAiTurnMenuItems(aiTurn), e.clientX, e.clientY);
+            return;
+          }
+        }
+
       };
 
       document.addEventListener('contextmenu', contextMenuHandler, true);
+
+      // 初始化激活系统原生分叉特性并挂载定时巡检
+      enableSystemForkingFeature();
+      addInterval(enableSystemForkingFeature, 3000);
     }
 
     // ==================== 9. 对话滚动位置记忆与恢复 (Scroll Position Persistence) ====================
@@ -4841,6 +5226,7 @@
             endRestoration('new convo or at bottom');
           }
           try { window.__AGY_ON_CONVO_SWITCH__?.(effectiveConvoId); } catch (e) {}
+          try { window.__AGY_APPLY_FORK_RENAME__?.(effectiveConvoId); } catch (e) {}
         }
       }
 
@@ -4854,6 +5240,7 @@
         }
         const res = originalPushState.apply(this, args);
         handleConvoSwitch();
+        try { const cid = getCurrentUrlConvoId(); if (cid) window.__AGY_APPLY_FORK_RENAME__?.(cid); } catch (e) {}
         return res;
       };
 
@@ -4864,6 +5251,7 @@
         }
         const res = originalReplaceState.apply(this, args);
         handleConvoSwitch();
+        try { const cid = getCurrentUrlConvoId(); if (cid) window.__AGY_APPLY_FORK_RENAME__?.(cid); } catch (e) {}
         return res;
       };
 

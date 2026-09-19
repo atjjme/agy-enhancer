@@ -767,6 +767,18 @@
             </label>
           </div>
         </div>
+
+        <!-- 独立功能：会话切片分叉与分支创建 -->
+        <div class="bento-item-row" style="margin-top: 14px; padding-top: 14px; border-top: 1px solid rgba(255, 255, 255, 0.06);">
+          <div class="bento-item-info">
+            <div class="bento-item-name" data-i18n="sw_fork_convo_title">会话切片分叉与分支创建 (Create fork)</div>
+            <div class="bento-item-desc" data-i18n="sw_fork_convo_desc">启用会话切片克隆与工作树分支功能，自动为新会话添加“分支：”前缀，并在 AI 消息右键菜单中提供快捷入口。</div>
+          </div>
+          <label class="vision-switch">
+            <input type="checkbox" id="ENABLE_FORK_CONVERSATION">
+            <span class="vision-slider"></span>
+          </label>
+        </div>
       </div>
 
       <!-- Bento 4: 视觉与常驻微工具 -->
@@ -883,6 +895,7 @@
       'ENABLE_AUTOSTART',
       'ENABLE_CONTEXT_MENU',
       'ENABLE_BLOCK_QUOTE_POPUP',
+      'ENABLE_FORK_CONVERSATION',
       'ENABLE_STATUS_INDICATOR',
       'ENABLE_NAV_BUTTONS',
       'ENABLE_BLOCK_CHAT_BOTTOM_BUTTON',
@@ -896,6 +909,7 @@
       ENABLE_AUTOSTART: true,
       ENABLE_CONTEXT_MENU: true,
       ENABLE_BLOCK_QUOTE_POPUP: true,
+      ENABLE_FORK_CONVERSATION: true,
       ENABLE_STATUS_INDICATOR: true,
       ENABLE_NAV_BUTTONS: true,
       ENABLE_BLOCK_CHAT_BOTTOM_BUTTON: true,
