@@ -1451,6 +1451,29 @@
       return null;
     }
 
+    function getAgentService() {
+      const candidates = [
+        ...Array.from(document.querySelectorAll('[data-testid="section-header"]')),
+        document.getElementById('root')
+      ].filter(Boolean);
+      for (const el of candidates) {
+        const k = Object.keys(el).find(k => k.startsWith('__reactFiber$'));
+        let fiber = el ? el[k] : null;
+        while (fiber) {
+          if (fiber.memoizedProps?.value?.deleteCascadeTrajectory && fiber.memoizedProps?.value?.updateConversationAnnotations) {
+            return fiber.memoizedProps.value;
+          }
+          fiber = fiber.return;
+        }
+      }
+      return null;
+    }
+
+    function getCurrentUrlConvoId() {
+      const match = window.location.pathname.match(/\/c\/([a-f0-9-]+)/i);
+      return match ? match[1] : null;
+    }
+
     let cachedGeminiBaseUri = null;
     function getGeminiBaseUri() {
       if (cachedGeminiBaseUri) return cachedGeminiBaseUri;
@@ -4092,6 +4115,133 @@
         }
       }
 
+      let pendingForkBranchRename = null;
+
+      function canForkInSharedWorkspace(convoId) {
+        const targetId = convoId || getCurrentUrlConvoId();
+        // 1. 通过 TSP summaries 检查当前会话是否有代码工作区
+        try {
+          const tsp = getTSP();
+          if (tsp && targetId) {
+            const s = tsp.getState()?.summaries?.[targetId];
+            if (s) {
+              if (Array.isArray(s.workspaces) && s.workspaces.length > 0) return true;
+              if (Array.isArray(s.workspaceUris) && s.workspaceUris.length > 0) return true;
+              const meta = s.trajectoryMetadata;
+              if (meta) {
+                if (Array.isArray(meta.workspaces) && meta.workspaces.length > 0) return true;
+                if (Array.isArray(meta.workspaceUris) && meta.workspaceUris.length > 0) return true;
+              }
+            }
+          }
+        } catch (e) {}
+
+        // 2. 兜底通过 React Fiber 检查
+        try {
+          const root = document.getElementById('root');
+          const k = Object.keys(root || {}).find(k => k.startsWith('__reactFiber$'));
+          let f = root ? root[k] : null;
+          while (f) {
+            if (f.memoizedProps?.workspaceInfo) {
+              const uris = f.memoizedProps.workspaceInfo.workspaceUris || [];
+              if (uris.length > 0) return true;
+              if (f.memoizedProps.workspaceInfo.workspaceFolderAbsoluteUri) return true;
+            }
+            if (Array.isArray(f.memoizedProps?.workspaces) && f.memoizedProps.workspaces.length > 0) {
+              return true;
+            }
+            f = f.return;
+          }
+        } catch (e) {}
+        return false;
+      }
+
+      function executeForkAction(forkBtn, targetType = 1, sourceTitle = '') {
+        if (!forkBtn) return;
+        const currentConvoId = getCurrentUrlConvoId() || '';
+        const baseTitle = (sourceTitle || getCurrentConversationTitle() || '对话').replace(/^(?:分支[：:]\s*)+/g, '').trim();
+        pendingForkBranchRename = {
+          sourceConvoId: currentConvoId,
+          newTitle: `分支：${baseTitle || '新会话'}`,
+          timestamp: Date.now()
+        };
+
+        triggerForkAction(forkBtn);
+
+        // 轮询检测到选项后自动触发对应类型 (1: 纯切片对话; 2: shared workspace / worktree)
+        let attempts = 0;
+        const poll = () => {
+          const opts = Array.from(document.querySelectorAll('[data-testid="fork-target-option"]'));
+          if (opts.length > 0) {
+            if (targetType === 1) {
+              opts[0].click();
+            } else if (targetType === 2 && opts.length > 1) {
+              opts[1].click();
+            } else {
+              opts[0].click();
+            }
+            return;
+          }
+          if (++attempts < 25) {
+            setTimeout(poll, 25);
+          }
+        };
+        setTimeout(poll, 15);
+
+        // 主动轮询 URL 变化，秒级响应新分支并自动加上标题前缀
+        let urlCheckAttempts = 0;
+        const checkUrlChange = () => {
+          const newId = getCurrentUrlConvoId();
+          if (newId && newId !== currentConvoId) {
+            applyPendingForkRename(newId);
+            return;
+          }
+          if (++urlCheckAttempts < 60) {
+            setTimeout(checkUrlChange, 100);
+          }
+        };
+        setTimeout(checkUrlChange, 200);
+      }
+
+      function applyPendingForkRename(newConvoId) {
+        if (!pendingForkBranchRename || !newConvoId) return;
+        if (pendingForkBranchRename.sourceConvoId && pendingForkBranchRename.sourceConvoId === newConvoId) return;
+        if (Date.now() - pendingForkBranchRename.timestamp > 45000) {
+          pendingForkBranchRename = null;
+          return;
+        }
+        const { newTitle } = pendingForkBranchRename;
+        pendingForkBranchRename = null;
+
+        let attempts = 0;
+        const updateTitle = async () => {
+          let backendUpdated = false;
+          let tspUpdated = false;
+          const tsp = getTSP();
+          const s = tsp?.getState()?.summaries?.[newConvoId];
+          if (s) {
+            s.summary = newTitle;
+            s.title = newTitle;
+            tspUpdated = true;
+          }
+          const as = getAgentService();
+          if (as?.updateConversationAnnotations) {
+            try {
+              await as.updateConversationAnnotations(newConvoId, { title: newTitle }, true);
+              backendUpdated = true;
+            } catch (err) {}
+          }
+          if (getCurrentUrlConvoId() === newConvoId) {
+            document.title = `${newTitle} - Antigravity`;
+          }
+          if ((!backendUpdated || !tspUpdated) && ++attempts < 25) {
+            setTimeout(updateTitle, 250);
+          }
+        };
+        setTimeout(updateTitle, 150);
+      }
+      window.__AGY_APPLY_FORK_RENAME__ = applyPendingForkRename;
+
       function getCurrentConversationTitle() {
         const titleFromDoc = (document.title || '').split(' - ')[0]?.trim();
         if (titleFromDoc && titleFromDoc !== 'Antigravity') return titleFromDoc;
@@ -4176,7 +4326,8 @@
 
       function getAiTurnMenuItems(aiTurn) {
         if (!aiTurn) return [];
-        return [
+        const hasWorktreeSupport = canForkInSharedWorkspace();
+        const items = [
           {
             label: 'Copy',
             icon: 'copy',
@@ -4209,7 +4360,7 @@
             }
           },
           {
-            label: 'Branch in new chat',
+            label: 'Branch in new chat (仅切片对话)',
             icon: 'fork',
             action: () => {
               enableSystemForkingFeature();
@@ -4221,12 +4372,12 @@
                 btn = aiTurn.turnEl.querySelector('button[aria-label="Fork Conversation"], button[data-tooltip-id*="fork-"]');
               }
               if (btn) {
-                triggerForkAction(btn);
+                executeForkAction(btn, 1, getCurrentConversationTitle());
               } else {
                 setTimeout(() => {
                   const retryBtn = (aiTurn.toolbar || aiTurn.turnEl || document).querySelector('button[aria-label="Fork Conversation"], button[data-tooltip-id*="fork-"]');
                   if (retryBtn) {
-                    triggerForkAction(retryBtn);
+                    executeForkAction(retryBtn, 1, getCurrentConversationTitle());
                   } else {
                     showNotification?.('已激活分叉功能，请重试');
                   }
@@ -4235,6 +4386,37 @@
             }
           }
         ];
+
+        if (hasWorktreeSupport) {
+          items.push({
+            label: 'Branch with worktree (切片并新建代码分支)',
+            icon: 'folder',
+            action: () => {
+              enableSystemForkingFeature();
+              let btn = aiTurn.forkBtn;
+              if (!btn && aiTurn.toolbar) {
+                btn = aiTurn.toolbar.querySelector('button[aria-label="Fork Conversation"], button[data-tooltip-id*="fork-"]');
+              }
+              if (!btn && aiTurn.turnEl) {
+                btn = aiTurn.turnEl.querySelector('button[aria-label="Fork Conversation"], button[data-tooltip-id*="fork-"]');
+              }
+              if (btn) {
+                executeForkAction(btn, 2, getCurrentConversationTitle());
+              } else {
+                setTimeout(() => {
+                  const retryBtn = (aiTurn.toolbar || aiTurn.turnEl || document).querySelector('button[aria-label="Fork Conversation"], button[data-tooltip-id*="fork-"]');
+                  if (retryBtn) {
+                    executeForkAction(retryBtn, 2, getCurrentConversationTitle());
+                  } else {
+                    showNotification?.('已激活分叉功能，请重试');
+                  }
+                }, 100);
+              }
+            }
+          });
+        }
+
+        return items;
       }
 
       // 6. 渲染菜单 DOM
@@ -5010,6 +5192,7 @@
             endRestoration('new convo or at bottom');
           }
           try { window.__AGY_ON_CONVO_SWITCH__?.(effectiveConvoId); } catch (e) {}
+          try { window.__AGY_APPLY_FORK_RENAME__?.(effectiveConvoId); } catch (e) {}
         }
       }
 
@@ -5023,6 +5206,7 @@
         }
         const res = originalPushState.apply(this, args);
         handleConvoSwitch();
+        try { const cid = getCurrentUrlConvoId(); if (cid) window.__AGY_APPLY_FORK_RENAME__?.(cid); } catch (e) {}
         return res;
       };
 
@@ -5033,6 +5217,7 @@
         }
         const res = originalReplaceState.apply(this, args);
         handleConvoSwitch();
+        try { const cid = getCurrentUrlConvoId(); if (cid) window.__AGY_APPLY_FORK_RENAME__?.(cid); } catch (e) {}
         return res;
       };
 
