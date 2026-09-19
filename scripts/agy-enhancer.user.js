@@ -126,6 +126,9 @@ window.__AGY_BRANCH_NAME__ = "fix_selection_quote_popup";
   let contextMenuHandler = null;
   let lastContextMenuPos = null;
   let activeNativeConvoId = null;
+  let activeNativeConvoTitle = '';
+  let lastNativeConvoId = null;
+  let lastNativeConvoTitle = '';
   let activeNativeProjectObj = null;
   let activeNativeProjectId = null;
   let lastProjectActionTime = 0;
@@ -1488,6 +1491,133 @@ window.__AGY_BRANCH_NAME__ = "fix_selection_quote_popup";
       const match = window.location.pathname.match(/\/c\/([a-f0-9-]+)/i);
       return match ? match[1] : null;
     }
+
+    let pendingForkBranchRename = null;
+
+    function getWorkspaceDirName(uri) {
+      if (!uri) return '';
+      let clean = decodeURIComponent(uri.replace(/^file:\/\/\/?/i, '')).replace(/[\/\\]+$/, '');
+      return clean.split(/[\/\\]/).pop() || '';
+    }
+
+    function checkWorkspaceGitBranchSafety(convoId) {
+      const targetId = convoId || getCurrentUrlConvoId();
+      let wsUri = '';
+      try {
+        const tsp = getTSP();
+        if (tsp && targetId) {
+          const s = tsp.getState()?.summaries?.[targetId];
+          wsUri = s?.workspaces?.[0]?.workspaceFolderAbsoluteUri ||
+                  s?.workspaces?.[0]?.gitRootAbsoluteUri ||
+                  s?.workspaceUris?.[0] ||
+                  s?.trajectoryMetadata?.workspaces?.[0]?.workspaceFolderAbsoluteUri ||
+                  s?.trajectoryMetadata?.workspaceUris?.[0] || '';
+        }
+      } catch (e) {}
+
+      if (!wsUri) {
+        try {
+          const root = document.getElementById('root');
+          const k = Object.keys(root || {}).find(k => k.startsWith('__reactFiber$'));
+          let f = root ? root[k] : null;
+          while (f) {
+            if (f.memoizedProps?.workspaceInfo) {
+              wsUri = f.memoizedProps.workspaceInfo.workspaceFolderAbsoluteUri ||
+                      f.memoizedProps.workspaceInfo.workspaceUris?.[0] || '';
+              if (wsUri) break;
+            }
+            f = f.return;
+          }
+        } catch (e) {}
+      }
+
+      if (!wsUri) return { safe: true, dirName: '' };
+      const dirName = getWorkspaceDirName(wsUri);
+      const hasSpaceOrInvalid = /[\s~^:?*\[\\@{]/.test(dirName);
+      return {
+        safe: !hasSpaceOrInvalid,
+        dirName,
+        reason: hasSpaceOrInvalid ? `项目目录 "${dirName}" 包含空格，Git 分支名不支持空格，请使用 Branch in new chat` : ''
+      };
+    }
+
+    function canForkInSharedWorkspace(convoId) {
+      const targetId = convoId || getCurrentUrlConvoId();
+      // 1. 通过 TSP summaries 检查当前会话是否有代码工作区
+      try {
+        const tsp = getTSP();
+        if (tsp && targetId) {
+          const s = tsp.getState()?.summaries?.[targetId];
+          if (s) {
+            if (Array.isArray(s.workspaces) && s.workspaces.length > 0) return true;
+            if (Array.isArray(s.workspaceUris) && s.workspaceUris.length > 0) return true;
+            const meta = s.trajectoryMetadata;
+            if (meta) {
+              if (Array.isArray(meta.workspaces) && meta.workspaces.length > 0) return true;
+              if (Array.isArray(meta.workspaceUris) && meta.workspaceUris.length > 0) return true;
+            }
+          }
+        }
+      } catch (e) {}
+
+      // 2. 兜底通过 React Fiber 检查
+      try {
+        const root = document.getElementById('root');
+        const k = Object.keys(root || {}).find(k => k.startsWith('__reactFiber$'));
+        let f = root ? root[k] : null;
+        while (f) {
+          if (f.memoizedProps?.workspaceInfo) {
+            const uris = f.memoizedProps.workspaceInfo.workspaceUris || [];
+            if (uris.length > 0) return true;
+            if (f.memoizedProps.workspaceInfo.workspaceFolderAbsoluteUri) return true;
+          }
+          if (Array.isArray(f.memoizedProps?.workspaces) && f.memoizedProps.workspaces.length > 0) {
+            return true;
+          }
+          f = f.return;
+        }
+      } catch (e) {}
+      return false;
+    }
+
+    function applyPendingForkRename(newConvoId) {
+      if (!pendingForkBranchRename || !newConvoId) return;
+      if (pendingForkBranchRename.sourceConvoId && pendingForkBranchRename.sourceConvoId === newConvoId) return;
+      if (Date.now() - pendingForkBranchRename.timestamp > 45000) {
+        pendingForkBranchRename = null;
+        return;
+      }
+      const { newTitle } = pendingForkBranchRename;
+      pendingForkBranchRename = null;
+
+      let attempts = 0;
+      const updateTitle = async () => {
+        let backendUpdated = false;
+        let tspUpdated = false;
+        const tsp = getTSP();
+        const s = tsp?.getState()?.summaries?.[newConvoId];
+        if (s) {
+          s.summary = newTitle;
+          s.title = newTitle;
+          tspUpdated = true;
+        }
+        const as = getAgentService();
+        if (as?.updateConversationAnnotations) {
+          try {
+            await as.updateConversationAnnotations(newConvoId, { title: newTitle }, true);
+            backendUpdated = true;
+          } catch (err) {}
+        }
+        if (getCurrentUrlConvoId() === newConvoId) {
+          document.title = `${newTitle} - Antigravity`;
+        }
+        if ((!backendUpdated || !tspUpdated) && ++attempts < 25) {
+          setTimeout(updateTitle, 250);
+        }
+      };
+      setTimeout(updateTitle, 150);
+    }
+    window.__AGY_APPLY_FORK_RENAME__ = applyPendingForkRename;
 
     let cachedGeminiBaseUri = null;
     function getGeminiBaseUri() {
@@ -3075,6 +3205,8 @@ window.__AGY_BRANCH_NAME__ = "fix_selection_quote_popup";
               menu.appendChild(itemToggleUnread);
             }
 
+            lastNativeConvoId = convoId;
+            lastNativeConvoTitle = convoTitle;
             activeNativeConvoId = null;
             return;
           }
@@ -3127,6 +3259,65 @@ window.__AGY_BRANCH_NAME__ = "fix_selection_quote_popup";
 
             menu.appendChild(divider);
             menu.appendChild(itemProjectFolder);
+          }
+        }
+
+        function patchSidebarForkMenu() {
+          const items = document.querySelectorAll('[role="menuitem"], [data-radix-collection-item]');
+          if (!items.length) return;
+          const targetConvoId = activeNativeConvoId || lastNativeConvoId || getCurrentUrlConvoId();
+          const targetTitle = activeNativeConvoTitle || lastNativeConvoTitle || getCurrentConversationTitle();
+          const hasWorktree = canForkInSharedWorkspace(targetConvoId);
+
+          for (const item of items) {
+            const text = item.innerText?.trim() || '';
+            if (text.includes('Create fork in current workspace') || text === 'Create fork in current workspace') {
+              item.childNodes.forEach(cn => {
+                if (cn.textContent?.includes('Create fork in current workspace')) {
+                  cn.textContent = cn.textContent.replace('Create fork in current workspace', 'Branch in new chat');
+                }
+              });
+              if (!item.__agyForkPatched) {
+                item.__agyForkPatched = true;
+                item.addEventListener('click', () => {
+                  const baseTitle = (targetTitle || '对话').replace(/^(?:分支[：:]\s*)+/g, '').trim();
+                  pendingForkBranchRename = {
+                    sourceConvoId: targetConvoId,
+                    newTitle: `分支：${baseTitle || '新会话'}`,
+                    timestamp: Date.now()
+                  };
+                }, true);
+              }
+            } else if (text.includes('Create fork in shared workspace') || text === 'Create fork in shared workspace') {
+              if (!hasWorktree) {
+                item.style.display = 'none';
+                continue;
+              }
+              item.childNodes.forEach(cn => {
+                if (cn.textContent?.includes('Create fork in shared workspace')) {
+                  cn.textContent = cn.textContent.replace('Create fork in shared workspace', 'Branch with worktree');
+                }
+              });
+              if (!item.__agyForkPatched) {
+                item.__agyForkPatched = true;
+                item.addEventListener('click', (ev) => {
+                  const safety = checkWorkspaceGitBranchSafety(targetConvoId);
+                  if (!safety.safe) {
+                    ev.preventDefault();
+                    ev.stopPropagation();
+                    document.body.click();
+                    showNotification?.(safety.reason || '项目目录包含空格，Git 无法创建分支');
+                    return;
+                  }
+                  const baseTitle = (targetTitle || '对话').replace(/^(?:分支[：:]\s*)+/g, '').trim();
+                  pendingForkBranchRename = {
+                    sourceConvoId: targetConvoId,
+                    newTitle: `分支：${baseTitle || '新会话'}`,
+                    timestamp: Date.now()
+                  };
+                }, true);
+              }
+            }
           }
         }
 
@@ -3198,8 +3389,15 @@ window.__AGY_BRANCH_NAME__ = "fix_selection_quote_popup";
 
           checkAndPositionNativeMenu();
           checkAndEnhanceNativeMenu();
+          patchSidebarForkMenu();
         });
         nativeMenuObserver.observe(document.body, { childList: true, subtree: true });
+
+        document.addEventListener('pointerover', (e) => {
+          if (e.target?.closest?.('[role="menu"], [data-radix-popper-content-wrapper], [role="menuitem"]')) {
+            patchSidebarForkMenu();
+          }
+        }, { passive: true });
       }
 
       initNativeConvoMenuEnhancer();
@@ -4130,50 +4328,17 @@ window.__AGY_BRANCH_NAME__ = "fix_selection_quote_popup";
         }
       }
 
-      let pendingForkBranchRename = null;
-
-      function canForkInSharedWorkspace(convoId) {
-        const targetId = convoId || getCurrentUrlConvoId();
-        // 1. 通过 TSP summaries 检查当前会话是否有代码工作区
-        try {
-          const tsp = getTSP();
-          if (tsp && targetId) {
-            const s = tsp.getState()?.summaries?.[targetId];
-            if (s) {
-              if (Array.isArray(s.workspaces) && s.workspaces.length > 0) return true;
-              if (Array.isArray(s.workspaceUris) && s.workspaceUris.length > 0) return true;
-              const meta = s.trajectoryMetadata;
-              if (meta) {
-                if (Array.isArray(meta.workspaces) && meta.workspaces.length > 0) return true;
-                if (Array.isArray(meta.workspaceUris) && meta.workspaceUris.length > 0) return true;
-              }
-            }
-          }
-        } catch (e) {}
-
-        // 2. 兜底通过 React Fiber 检查
-        try {
-          const root = document.getElementById('root');
-          const k = Object.keys(root || {}).find(k => k.startsWith('__reactFiber$'));
-          let f = root ? root[k] : null;
-          while (f) {
-            if (f.memoizedProps?.workspaceInfo) {
-              const uris = f.memoizedProps.workspaceInfo.workspaceUris || [];
-              if (uris.length > 0) return true;
-              if (f.memoizedProps.workspaceInfo.workspaceFolderAbsoluteUri) return true;
-            }
-            if (Array.isArray(f.memoizedProps?.workspaces) && f.memoizedProps.workspaces.length > 0) {
-              return true;
-            }
-            f = f.return;
-          }
-        } catch (e) {}
-        return false;
-      }
-
       function executeForkAction(forkBtn, targetType = 1, sourceTitle = '') {
         if (!forkBtn) return;
         const currentConvoId = getCurrentUrlConvoId() || '';
+        if (targetType === 2) {
+          const safety = checkWorkspaceGitBranchSafety(currentConvoId);
+          if (!safety.safe) {
+            showNotification?.(safety.reason || '项目目录包含空格，Git 无法创建分支');
+            return;
+          }
+        }
+
         const baseTitle = (sourceTitle || getCurrentConversationTitle() || '对话').replace(/^(?:分支[：:]\s*)+/g, '').trim();
         pendingForkBranchRename = {
           sourceConvoId: currentConvoId,
@@ -4217,45 +4382,6 @@ window.__AGY_BRANCH_NAME__ = "fix_selection_quote_popup";
         };
         setTimeout(checkUrlChange, 200);
       }
-
-      function applyPendingForkRename(newConvoId) {
-        if (!pendingForkBranchRename || !newConvoId) return;
-        if (pendingForkBranchRename.sourceConvoId && pendingForkBranchRename.sourceConvoId === newConvoId) return;
-        if (Date.now() - pendingForkBranchRename.timestamp > 45000) {
-          pendingForkBranchRename = null;
-          return;
-        }
-        const { newTitle } = pendingForkBranchRename;
-        pendingForkBranchRename = null;
-
-        let attempts = 0;
-        const updateTitle = async () => {
-          let backendUpdated = false;
-          let tspUpdated = false;
-          const tsp = getTSP();
-          const s = tsp?.getState()?.summaries?.[newConvoId];
-          if (s) {
-            s.summary = newTitle;
-            s.title = newTitle;
-            tspUpdated = true;
-          }
-          const as = getAgentService();
-          if (as?.updateConversationAnnotations) {
-            try {
-              await as.updateConversationAnnotations(newConvoId, { title: newTitle }, true);
-              backendUpdated = true;
-            } catch (err) {}
-          }
-          if (getCurrentUrlConvoId() === newConvoId) {
-            document.title = `${newTitle} - Antigravity`;
-          }
-          if ((!backendUpdated || !tspUpdated) && ++attempts < 25) {
-            setTimeout(updateTitle, 250);
-          }
-        };
-        setTimeout(updateTitle, 150);
-      }
-      window.__AGY_APPLY_FORK_RENAME__ = applyPendingForkRename;
 
       function getCurrentConversationTitle() {
         const titleFromDoc = (document.title || '').split(' - ')[0]?.trim();
@@ -4375,7 +4501,7 @@ window.__AGY_BRANCH_NAME__ = "fix_selection_quote_popup";
             }
           },
           {
-            label: 'Branch in new chat (仅切片对话)',
+            label: 'Branch in new chat',
             icon: 'fork',
             action: () => {
               enableSystemForkingFeature();
@@ -4404,7 +4530,7 @@ window.__AGY_BRANCH_NAME__ = "fix_selection_quote_popup";
 
         if (hasWorktreeSupport) {
           items.push({
-            label: 'Branch with worktree (切片并新建代码分支)',
+            label: 'Branch with worktree',
             icon: 'folder',
             action: () => {
               enableSystemForkingFeature();
@@ -4519,6 +4645,10 @@ window.__AGY_BRANCH_NAME__ = "fix_selection_quote_popup";
             dismissUniversalContextMenu();
             lastContextMenuPos = { x: e.clientX, y: e.clientY, time: Date.now() };
             activeNativeConvoId = convoRow.getAttribute('data-cascade-id');
+            const titleEl = convoRow.querySelector('.truncate, [class*="truncate"]');
+            activeNativeConvoTitle = titleEl?.innerText?.trim() || convoRow.innerText?.split('\n')[0]?.trim() || '';
+            lastNativeConvoId = activeNativeConvoId;
+            lastNativeConvoTitle = activeNativeConvoTitle;
             activeNativeProjectObj = null;
             activeNativeProjectId = null;
             lastProjectActionTime = 0;
