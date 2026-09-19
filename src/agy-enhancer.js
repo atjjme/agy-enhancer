@@ -127,6 +127,7 @@
   let interruptRestoration = null;
   let isInternalEnhancerScroll = false;
   let quoteObserver = null;
+  let quoteSelectionHandler = null;
   let contextMenuDocClickHandler = null;
   let contextMenuDocKeydownHandler = null;
   let convoSwitchPopstateHandler = null;
@@ -267,6 +268,12 @@
     if (quoteObserver) {
       quoteObserver.disconnect();
       quoteObserver = null;
+    }
+    if (quoteSelectionHandler) {
+      ['pointerup', 'mouseup', 'selectionchange'].forEach(type => {
+        document.removeEventListener(type, quoteSelectionHandler, true);
+      });
+      quoteSelectionHandler = null;
     }
 
     document.getElementById('agy-quote-interceptor-styles')?.remove();
@@ -3656,15 +3663,16 @@
 
       function triggerNativeQuote(selectedText) {
         // 1. 尝试寻找原生浮层中的 Quote 按钮 (虽然被样式隐藏，但在 DOM 中依然存在且可点击)
-        let quoteBtn = document.querySelector('[data-testid="selection-quote-button"], [data-testid*="quote" i], button[aria-label*="Quote" i], button[title*="Quote" i]');
+        let quoteBtn = document.querySelector('[data-testid="selection-quote-button"], [data-testid="selection-popup-quote-button"], [data-testid*="quote" i], button[aria-label*="Quote" i], button[title*="Quote" i]');
         if (!quoteBtn) {
-          const blockedNodes = document.querySelectorAll('[data-agy-block-quote="true"], .agy-hide-quote-item, .selection-popup');
+          const blockedNodes = document.querySelectorAll('[data-agy-block-quote="true"], .agy-hide-quote-item, .selection-popup, .selection-quote-popup');
           for (const node of blockedNodes) {
             const btn = node.matches('button, [role="button"]') ? node : node.querySelector('button, [role="button"]');
             if (btn) {
               const text = (btn.textContent || '').trim();
               const aria = (btn.getAttribute('aria-label') || '').trim();
-              if (/Quote|引用/i.test(text) || /Quote|引用/i.test(aria)) {
+              const testid = (btn.getAttribute('data-testid') || '').trim();
+              if (/Quote|引用/i.test(text) || /Quote|引用/i.test(aria) || /quote/i.test(testid)) {
                 quoteBtn = btn;
                 break;
               }
@@ -3706,15 +3714,16 @@
 
       function triggerNativeComment(selectedText) {
         // 1. 尝试寻找原生浮层或右侧栏中的 Comment 按钮 (虽然被样式隐藏，但在 DOM 中依然存在且可点击)
-        let commentBtn = document.querySelector('[data-testid*="comment" i], button[aria-label*="Comment" i], button[title*="Comment" i], .comment-button');
+        let commentBtn = document.querySelector('[data-testid="selection-comment-button"], [data-testid*="comment" i], button[aria-label*="Comment" i], button[title*="Comment" i], .comment-button');
         if (!commentBtn) {
-          const blockedNodes = document.querySelectorAll('[data-agy-block-quote="true"], .agy-hide-quote-item, .selection-popup');
+          const blockedNodes = document.querySelectorAll('[data-agy-block-quote="true"], .agy-hide-quote-item, .selection-popup, .selection-quote-popup');
           for (const node of blockedNodes) {
             const btn = node.matches('button, [role="button"]') ? node : node.querySelector('button, [role="button"]');
             if (btn) {
               const text = (btn.textContent || '').trim();
               const aria = (btn.getAttribute('aria-label') || '').trim();
-              if (/Comment|评论/i.test(text) || /Comment|评论/i.test(aria)) {
+              const testid = (btn.getAttribute('data-testid') || '').trim();
+              if (/Comment|评论/i.test(text) || /Comment|评论/i.test(aria) || /comment/i.test(testid)) {
                 commentBtn = btn;
                 break;
               }
@@ -5411,10 +5420,17 @@
         styleEl = document.createElement('style');
         styleEl.id = styleId;
         styleEl.textContent = `
-          /* 纯 Quote / Comment 独立悬浮气泡彻底隐藏 */
+          /* 核心选择器：彻底隐藏官方主聊天区与右侧栏选中文本时弹出的 Quote 和 Comment 浮窗 */
+          .selection-popup,
+          .selection-quote-popup,
+          [data-testid="selection-quote-button"],
+          [data-testid="selection-popup-quote-button"],
+          [data-testid="selection-comment-button"],
           [data-agy-block-quote="true"] {
             display: none !important;
+            opacity: 0 !important;
             pointer-events: none !important;
+            visibility: hidden !important;
           }
           /* 工具栏中子项隐藏 */
           .agy-hide-quote-item {
@@ -5425,39 +5441,45 @@
         document.head.appendChild(styleEl);
       }
 
-      // 严格排除编辑器内部与输入框，绝对不介入编辑器 DOM
+      // 严格排除真实输入控件与文本内容行，绝不破坏代码输入与文字编辑（注意：严禁包含 monaco-workbench 或 monaco-editor，否则整个客户端或右侧栏都将被误忽略）
       function isIgnoredContainer(el) {
         if (!el || el.nodeType !== Node.ELEMENT_NODE) return true;
         const tag = el.tagName;
         if (tag === 'INPUT' || tag === 'TEXTAREA' || el.isContentEditable) return true;
-        if (el.closest?.('.monaco-editor, .view-line, .view-lines, .monaco-workbench, [contenteditable="true"], textarea, input')) {
+        if (el.closest?.('.view-line, .view-lines, [contenteditable="true"], textarea, input')) {
           return true;
         }
         return false;
       }
 
-      // 准确判断是否为 Quote 或 Comment 浮窗按钮或气泡
+      // 准确判断是否为 Quote 或 Comment 浮窗容器、按钮或气泡
       function isBlockedPopupTarget(el) {
         if (!el || el.nodeType !== Node.ELEMENT_NODE) return false;
         if (isIgnoredContainer(el)) return false;
 
+        // 1. 匹配官方原生浮窗类名
+        if (el.classList?.contains('selection-popup') || el.classList?.contains('selection-quote-popup')) {
+          return true;
+        }
+
+        // 2. 匹配官方 testid
+        const testid = (el.getAttribute?.('data-testid') || '').trim();
+        if (testid === 'selection-quote-button' || testid === 'selection-popup-quote-button' || testid === 'selection-comment-button' || /selection.*(quote|comment)/i.test(testid)) {
+          return true;
+        }
+
+        // 3. 匹配 aria-label 或 title 属性
         const ariaLabel = (el.getAttribute?.('aria-label') || '').trim();
         const title = (el.getAttribute?.('title') || '').trim();
+        if (/^(Quote|引用)(\b|\s|$)/i.test(ariaLabel) || /^(Quote|引用)(\b|\s|$)/i.test(title)) return true;
+        if (/^(Comment|评论)(\b|\s|$)/i.test(ariaLabel) || /^(Comment|评论)(\b|\s|$)/i.test(title)) return true;
 
-        // 1. 匹配 Quote / 引用 (如 Quote Ctrl+L)
-        const isQuote = /^(Quote|引用)(\s*\(?(Ctrl|⌘|\^)\+?L\)?)?$/i.test(ariaLabel) ||
-                        /^(Quote|引用)(\s*\(?(Ctrl|⌘|\^)\+?L\)?)?$/i.test(title);
-
-        // 2. 匹配 Comment / 评论 (如 Comment Ctrl+Alt+M)
-        const isComment = /^(Comment|评论)(\s*\(?(Ctrl|⌘|\^)\+?(Alt\+)?M\)?)?$/i.test(ariaLabel) ||
-                          /^(Comment|评论)(\s*\(?(Ctrl|⌘|\^)\+?(Alt\+)?M\)?)?$/i.test(title);
-
-        if (isQuote || isComment) return true;
-
-        // 3. 匹配按钮纯文本短词
+        // 4. 匹配纯文本短词（兼容包含快捷键文本，长度 <= 30）
         const text = (el.textContent || '').trim().replace(/\s+/g, ' ');
-        if (/^(Quote|引用)(\s*(Ctrl|⌘|\^)\+?L)?$/i.test(text)) return true;
-        if (/^(Comment|评论)(\s*(Ctrl|⌘|\^)\+?(Alt\+)?M)?$/i.test(text)) return true;
+        if (text.length > 0 && text.length <= 30) {
+          if (/^(Quote|引用)(\b|\s|$)/i.test(text)) return true;
+          if (/^(Comment|评论)(\b|\s|$)/i.test(text)) return true;
+        }
 
         return false;
       }
@@ -5467,13 +5489,24 @@
         if (el.closest?.('.agy-page-nav-group, #agy-archive-panel, #agy-enhancer-toast, #agy-universal-context-menu')) return;
         if (el.hasAttribute('data-agy-block-quote') || el.classList.contains('agy-hide-quote-item')) return;
 
-        // 往上寻找悬浮容器（最多向上 3 层，严禁使用 getComputedStyle）
+        // 如果本身就是浮窗容器
+        if (el.classList?.contains('selection-popup') || el.classList?.contains('selection-quote-popup')) {
+          el.setAttribute('data-agy-block-quote', 'true');
+          return;
+        }
+
+        // 往上寻找悬浮容器（最多向上 4 层，排除编辑器根容器与工件根容器）
         let container = null;
         let curr = el;
-        for (let i = 0; i < 3; i++) {
+        for (let i = 0; i < 4; i++) {
           if (!curr || curr === document.body || curr === document.documentElement) break;
+          if (curr.classList?.contains('monaco-editor') || curr.id === 'artifact-container') break;
+
           const role = curr.getAttribute?.('role');
-          if (role === 'tooltip' || role === 'toolbar' || role === 'menu' || curr.hasAttribute?.('data-radix-popper-content-wrapper')) {
+          if (curr.classList?.contains('selection-popup') ||
+              curr.classList?.contains('selection-quote-popup') ||
+              role === 'tooltip' || role === 'toolbar' || role === 'menu' ||
+              curr.hasAttribute?.('data-radix-popper-content-wrapper')) {
             container = curr;
             break;
           }
@@ -5498,26 +5531,42 @@
           return;
         }
 
-        // 仅在新增节点的直接子节点中查找候选按钮
-        const buttons = node.querySelectorAll?.('button, [role="button"], [role="tooltip"]');
-        if (buttons && buttons.length > 0) {
-          for (const btn of buttons) {
-            if (isBlockedPopupTarget(btn)) {
-              handleBlockedElement(btn);
+        const candidates = node.querySelectorAll?.('.selection-popup, .selection-quote-popup, button, [role="button"], [role="tooltip"], [data-radix-popper-content-wrapper]');
+        if (candidates && candidates.length > 0) {
+          for (const cand of candidates) {
+            if (isBlockedPopupTarget(cand)) {
+              handleBlockedElement(cand);
             }
           }
         }
       }
 
-      // 仅监听 DOM 新增节点（严禁监听 attributes，彻底杜绝死循环和主线程卡死）
-      quoteObserver = new MutationObserver((mutations) => {
-        // 核心性能短路：只有用户存在非空划词选区时才可能弹出 Quote 浮窗。
-        // 在大模型高速流式打字输出时，选区为空，直接 0 成本退出，杜绝 querySelectorAll 带来的卡顿
-        const sel = window.getSelection();
-        if (!sel || sel.isCollapsed || sel.rangeCount === 0) {
-          return;
+      function scanAndBlockAllCandidates() {
+        const candidates = document.querySelectorAll?.('.selection-popup, .selection-quote-popup, [data-testid="selection-quote-button"], [data-testid="selection-popup-quote-button"], [data-testid="selection-comment-button"], button, [role="button"], [role="tooltip"], [data-radix-popper-content-wrapper]');
+        if (candidates && candidates.length > 0) {
+          for (const cand of candidates) {
+            if (isBlockedPopupTarget(cand)) {
+              handleBlockedElement(cand);
+            }
+          }
         }
+      }
 
+      // 1. 初始化时全量扫描一次，立即隐藏常驻单例
+      scanAndBlockAllCandidates();
+
+      // 2. 注册划词松手与选区变动主动扫描兜底（彻底攻克单例复用与选区时序竞争）
+      quoteSelectionHandler = () => {
+        setTimeout(() => {
+          scanAndBlockAllCandidates();
+        }, 16);
+      };
+      document.addEventListener('pointerup', quoteSelectionHandler, { capture: true, passive: true });
+      document.addEventListener('mouseup', quoteSelectionHandler, { capture: true, passive: true });
+      document.addEventListener('selectionchange', quoteSelectionHandler, { capture: true, passive: true });
+
+      // 3. 仅监听 DOM 新增节点（严禁监听 attributes，彻底杜绝死循环和主线程卡死）
+      quoteObserver = new MutationObserver((mutations) => {
         for (const m of mutations) {
           for (const added of m.addedNodes) {
             if (added.nodeType === Node.ELEMENT_NODE) {
