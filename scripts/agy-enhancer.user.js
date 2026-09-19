@@ -11,6 +11,8 @@
 // @run-at       document-idle
 // ==/UserScript==
 
+window.__AGY_BRANCH_TAG__ = " (branch)";
+window.__AGY_BRANCH_NAME__ = "worktree_purge_management";
 /**
  * Antigravity 增强器 (agy-enhancer enhancer)
  * 
@@ -154,9 +156,11 @@
   let contextMenuDocKeydownHandler = null;
   let convoSwitchPopstateHandler = null;
   let typingKeydownHandler = null;
+  let worktreeObserver = null;
   let onHeartbeatProjectArchiver = null;
   let onHeartbeatScrollPersistence = null;
   let onHeartbeatSmartUnread = null;
+  let onHeartbeatWorktreeManagement = null;
 
   // 精准全局用户按键打字感知：仅在用户真实按键输入的 350ms 内抑制后台轮询，光标常驻聚焦不影响功能
   let lastTypingTime = 0;
@@ -311,6 +315,17 @@
       el.classList.remove('agy-hide-quote-item');
       el.style.removeProperty('display');
     });
+
+    if (worktreeObserver) {
+      worktreeObserver.disconnect();
+      worktreeObserver = null;
+    }
+    onHeartbeatWorktreeManagement = null;
+
+    document.getElementById('agy-confirm-modal-overlay')?.remove();
+    document.querySelectorAll('.agy-wt-hover-trash').forEach(el => el.remove());
+    document.querySelectorAll('[data-agy-worktree-item="true"]').forEach(el => el.removeAttribute('data-agy-worktree-item'));
+    document.querySelectorAll('[data-agy-branch-item="true"]').forEach(el => el.removeAttribute('data-agy-branch-item'));
 
     document.getElementById('agy-universal-context-menu')?.remove();
     document.getElementById('agy-context-menu-styles')?.remove();
@@ -991,6 +1006,128 @@
         0% { transform: scale(0.85); opacity: 0.45; }
         50% { transform: scale(1.65); opacity: 0.08; }
         100% { transform: scale(0.85); opacity: 0.45; }
+      }
+
+      /* 工作树/分支列表项悬停删除图标 */
+      .agy-wt-hover-trash {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 22px;
+        height: 22px;
+        border-radius: 4px;
+        border: none;
+        background: transparent;
+        color: var(--muted-foreground, rgba(125, 125, 125, 0.7));
+        opacity: 0;
+        cursor: pointer;
+        outline: none;
+        margin-left: auto;
+        flex-shrink: 0;
+        transition: opacity 0.15s ease, background 0.15s ease, color 0.15s ease, transform 0.15s ease;
+        pointer-events: auto;
+        z-index: 10;
+      }
+      *:hover > .agy-wt-hover-trash,
+      [data-testid="branch-option"]:hover .agy-wt-hover-trash,
+      [role="option"]:hover .agy-wt-hover-trash,
+      [role="menuitem"]:hover .agy-wt-hover-trash,
+      button:hover > .agy-wt-hover-trash,
+      div:hover > .agy-wt-hover-trash {
+        opacity: 0.75;
+      }
+      .agy-wt-hover-trash:hover {
+        opacity: 1 !important;
+        color: var(--destructive, #ef4444) !important;
+        background: rgba(239, 68, 68, 0.16) !important;
+        transform: scale(1.1);
+      }
+
+      /* 二次确认模态框 */
+      .agy-confirm-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 10000000;
+        background: rgba(0, 0, 0, 0.6);
+        backdrop-filter: blur(6px);
+        -webkit-backdrop-filter: blur(6px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 16px;
+        animation: agyFadeIn 0.14s ease-out;
+      }
+      .agy-confirm-overlay.fade-out {
+        opacity: 0;
+        transition: opacity 0.16s ease-out;
+      }
+      .agy-confirm-card {
+        box-sizing: border-box;
+        width: 380px;
+        max-width: calc(100vw - 32px);
+        background: var(--popover, var(--card, var(--sidebar, #1e1e24)));
+        color: var(--foreground, #ffffff);
+        border: 1px solid var(--border, rgba(125, 125, 125, 0.25));
+        border-radius: var(--radius, 10px);
+        box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4), 0 2px 10px rgba(0, 0, 0, 0.2);
+        padding: 18px 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        animation: agyCardPop 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+      }
+      @keyframes agyCardPop {
+        from { opacity: 0; transform: scale(0.95); }
+        to { opacity: 1; transform: scale(1); }
+      }
+      .agy-confirm-title {
+        font-size: 15px;
+        font-weight: 600;
+        line-height: 1.3;
+      }
+      .agy-confirm-title.danger {
+        color: var(--destructive, #ef4444);
+      }
+      .agy-confirm-body {
+        font-size: 13px;
+        line-height: 1.6;
+        color: var(--muted-foreground, rgba(255, 255, 255, 0.75));
+      }
+      .agy-confirm-footer {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 10px;
+        margin-top: 6px;
+      }
+      .agy-confirm-btn {
+        padding: 6px 15px;
+        border-radius: 6px;
+        font-size: 13px;
+        font-weight: 500;
+        cursor: pointer;
+        outline: none;
+        border: 1px solid transparent;
+        transition: all 0.15s ease;
+      }
+      .agy-confirm-cancel {
+        background: transparent;
+        border-color: var(--border, rgba(125, 125, 125, 0.25));
+        color: var(--foreground, #ffffff);
+      }
+      .agy-confirm-cancel:hover {
+        background: var(--secondary, rgba(125, 125, 125, 0.15));
+      }
+      .agy-confirm-danger {
+        background: var(--destructive, #ef4444);
+        color: #ffffff;
+      }
+      .agy-confirm-danger:hover {
+        background: #dc2626;
       }
     `;
     document.head.appendChild(styleEl);
@@ -3327,7 +3464,11 @@
         file: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path><polyline points="13 2 13 9 20 9"></polyline></svg>',
         regenerate: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>',
         fork: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="18" r="3"></circle><circle cx="6" cy="6" r="3"></circle><circle cx="18" cy="6" r="3"></circle><path d="M18 9v1a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V9"></path><path d="M12 12v3"></path></svg>',
-        edit: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>'
+        edit: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>',
+        trash: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>',
+        terminal: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"></polyline><line x1="12" y1="19" x2="20" y2="19"></line></svg>',
+        clean: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 3l3 3-9 9H9v-3l9-9z"></path><path d="M2.5 21.5l3.5-3.5"></path><path d="M6 18l3 3"></path><path d="M8 16l3 3"></path></svg>',
+        branch: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="3" x2="6" y2="15"></line><circle cx="18" cy="6" r="3"></circle><circle cx="6" cy="18" r="3"></circle><path d="M18 9a9 9 0 0 1-9 9"></path></svg>'
       };
 
       // 2. 注入菜单专属样式 (统一对齐系统主题背景、字体与字号规范)
@@ -3375,6 +3516,16 @@
           .agy-context-menu-item:hover {
             background: var(--secondary, rgba(125, 125, 125, 0.15));
             color: var(--foreground, #101010);
+          }
+          .agy-context-menu-item.danger {
+            color: var(--destructive, #ef4444) !important;
+          }
+          .agy-context-menu-item.danger .agy-context-menu-icon {
+            color: var(--destructive, #ef4444) !important;
+          }
+          .agy-context-menu-item.danger:hover {
+            background: rgba(239, 68, 68, 0.14) !important;
+            color: var(--destructive, #ef4444) !important;
           }
           .agy-context-menu-icon {
             width: 16px;
@@ -4541,7 +4692,7 @@
             return;
           }
           const row = document.createElement('div');
-          row.className = 'agy-context-menu-item';
+          row.className = 'agy-context-menu-item' + (item.danger ? ' danger' : '');
           row.innerHTML = `
             <div class="agy-context-menu-icon">${MENU_ICONS[item.icon] || ''}</div>
             <div class="agy-context-menu-label">${item.label}</div>
@@ -6104,14 +6255,487 @@
       }
     }
 
+    // ==================== 13. 分支与工作树快捷管理与一键彻底清理系统 (Worktree & Branch Management) ====================
+    function initWorktreeManagement() {
+      // 1. 二次确认模态框
+      function showWorktreeConfirmModal(options) {
+        const { title, message, danger = true, confirmText = '彻底删除', cancelText = '取消', onConfirm } = options || {};
+        document.getElementById('agy-confirm-modal-overlay')?.remove();
+
+        const overlay = document.createElement('div');
+        overlay.id = 'agy-confirm-modal-overlay';
+        overlay.className = 'agy-confirm-overlay';
+        overlay.innerHTML = `
+          <div class="agy-confirm-card">
+            <div class="agy-confirm-header">
+              <div class="agy-confirm-title ${danger ? 'danger' : ''}">${title}</div>
+            </div>
+            <div class="agy-confirm-body">
+              <p class="agy-confirm-message">${message.replace(/\n/g, '<br/>')}</p>
+            </div>
+            <div class="agy-confirm-footer">
+              <button type="button" class="agy-confirm-btn agy-confirm-cancel">${cancelText}</button>
+              <button type="button" class="agy-confirm-btn ${danger ? 'agy-confirm-danger' : 'agy-confirm-primary'}">${confirmText}</button>
+            </div>
+          </div>
+        `;
+
+        document.body.appendChild(overlay);
+
+        const cancelBtn = overlay.querySelector('.agy-confirm-cancel');
+        const confirmBtn = overlay.querySelector(danger ? '.agy-confirm-danger' : '.agy-confirm-primary');
+
+        const close = () => {
+          overlay.classList.add('fade-out');
+          setTimeout(() => overlay.remove(), 160);
+        };
+
+        cancelBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          e.preventDefault();
+          close();
+        });
+
+        confirmBtn.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          e.preventDefault();
+          confirmBtn.disabled = true;
+          confirmBtn.textContent = '清理中...';
+          try {
+            await onConfirm?.();
+          } finally {
+            close();
+          }
+        });
+
+        overlay.addEventListener('click', (e) => {
+          if (e.target === overlay) close();
+        });
+
+        const onKeydown = (e) => {
+          if (e.key === 'Escape') {
+            e.stopPropagation();
+            window.removeEventListener('keydown', onKeydown, true);
+            close();
+          } else if (e.key === 'Enter') {
+            e.stopPropagation();
+            window.removeEventListener('keydown', onKeydown, true);
+            confirmBtn.click();
+          }
+        };
+        window.addEventListener('keydown', onKeydown, true);
+      }
+
+      // 2. 当前活跃项目信息解析
+      function getCurrentProjectInfo() {
+        const pm = getPM();
+        const tsp = getTSP();
+        let projectId = null;
+        let projectName = null;
+        let projectRootPath = null;
+
+        const convoId = getCurrentUrlConvoId();
+        if (convoId && tsp) {
+          const s = tsp.getState()?.summaries?.[convoId];
+          if (s?.projectId && s.projectId !== 'outside-of-project') {
+            projectId = s.projectId;
+          }
+        }
+
+        const match = window.location.search.match(/[?&]section=([a-f0-9-]+)/i);
+        if (match && !projectId) {
+          projectId = match[1];
+        }
+
+        const projects = pm?.projectsStateProvider?.getState?.() || [];
+        if (projectId) {
+          const pItem = projects.find(p => p.project?.id === projectId);
+          if (pItem?.project) {
+            projectName = pItem.project.name;
+            projectRootPath = getProjectFolderUri(pItem.project);
+          }
+        } else if (projects.length > 0) {
+          const first = projects.find(p => !p.project?.archived) || projects[0];
+          if (first?.project) {
+            projectId = first.project.id;
+            projectName = first.project.name;
+            projectRootPath = getProjectFolderUri(first.project);
+          }
+        }
+
+        return { projectId, projectName, projectRootPath };
+      }
+
+      // 3. 解析工作树/分支项信息
+      function extractWorktreeInfo(itemEl) {
+        if (!itemEl) return null;
+        let branchName = itemEl.getAttribute('data-agy-branch-name') || '';
+        let folderUri = itemEl.getAttribute('data-agy-folder-uri') || '';
+        let isBranchOption = itemEl.getAttribute('data-testid') === 'branch-option' || itemEl.hasAttribute('data-agy-branch-item');
+
+        // 3.1 从 React Fiber 提取属性
+        try {
+          const fiberKey = Object.keys(itemEl).find(k => k.startsWith('__reactFiber$') || k.startsWith('__reactInternalInstance$'));
+          let f = itemEl[fiberKey];
+          let depth = 0;
+          while (f && depth < 20) {
+            const props = f.memoizedProps;
+            if (props) {
+              if (!branchName && typeof props.title === 'string' && props.title) {
+                branchName = props.title.trim();
+              }
+              if (!branchName && typeof props.value === 'string' && props.value) {
+                branchName = props.value.trim();
+              }
+              if (!folderUri && typeof props.worktreeUri === 'string' && props.worktreeUri) {
+                folderUri = props.worktreeUri;
+              }
+              if (!folderUri && typeof f.key === 'string' && f.key.startsWith('file:')) {
+                folderUri = f.key;
+              }
+            }
+            f = f.return;
+            depth++;
+          }
+        } catch (e) {}
+
+        // 3.2 从 DOM 提取文本
+        if (!branchName) {
+          const val = itemEl.getAttribute('data-value') || itemEl.getAttribute('value');
+          if (val) {
+            branchName = val.trim();
+          } else {
+            const textSpans = Array.from(itemEl.querySelectorAll('span, div')).filter(s => s.children.length === 0 && s.innerText?.trim());
+            if (textSpans.length > 0) {
+              branchName = textSpans[0].innerText.trim();
+            } else {
+              branchName = (itemEl.innerText || '').split('\n')[0].trim();
+            }
+          }
+        }
+
+        const { projectId, projectName, projectRootPath } = getCurrentProjectInfo();
+
+        return {
+          branchName,
+          folderUri,
+          projectId,
+          projectName,
+          projectRootPath,
+          isBranchOption
+        };
+      }
+
+      // 4. 执行一键彻底删除
+      function executePurge(info, itemEl) {
+        const { branchName, folderUri, projectId, projectName, projectRootPath } = info;
+        if (!branchName && !folderUri) return;
+
+        const lower = (branchName || '').toLowerCase();
+        if (lower === 'main' || lower === 'master' || lower === 'trunk' || lower === 'default') {
+          showNotification?.(`安全防护：禁止删除主干分支 "${branchName}"`);
+          return;
+        }
+
+        const currentBranch = window.__AGY_BRANCH_NAME__ || '';
+        if (branchName && currentBranch && branchName === currentBranch) {
+          showNotification?.(`当前分支 "${branchName}" 正在活动使用中，请先切换到其他分支`);
+          return;
+        }
+
+        showWorktreeConfirmModal({
+          title: '彻底清除分支与工作树',
+          message: `确定要彻底删除工作树/分支「${branchName}」吗？\n\n此操作将全维度彻底清除：\n1. 本地物理磁盘工作树目录\n2. Git 本地分支与工作树索引\n3. Antigravity 软件项目注册表缓存\n\n数据删除后不可撤销，请确认。`,
+          danger: true,
+          confirmText: '彻底删除',
+          onConfirm: async () => {
+            try {
+              const res = await fetch('http://127.0.0.1:37210/api/worktree/purge', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  branchName,
+                  folderUri,
+                  projectId,
+                  projectName,
+                  projectRootPath
+                })
+              }).then(r => r.json());
+
+              if (res.success) {
+                showNotification?.(`已彻底清理分支与工作树 "${branchName}"`);
+                if (itemEl && itemEl.isConnected) {
+                  itemEl.style.transition = 'all 0.25s cubic-bezier(0.16, 1, 0.3, 1)';
+                  itemEl.style.opacity = '0';
+                  itemEl.style.transform = 'translateX(10px) scale(0.95)';
+                  itemEl.style.maxHeight = '0';
+                  itemEl.style.padding = '0';
+                  itemEl.style.margin = '0';
+                  itemEl.style.overflow = 'hidden';
+                  setTimeout(() => {
+                    try { itemEl.remove(); } catch (e) {}
+                  }, 260);
+                }
+              } else {
+                showNotification?.(`清理失败: ${res.error || '未知错误'}`);
+              }
+            } catch (err) {
+              showNotification?.(`请求服务失败: ${err?.message || err}`);
+            }
+          }
+        });
+      }
+
+      // 5. 弹出工作树/分支 6 项右键上下文菜单
+      function renderWorktreeContextMenu(e, info, itemEl) {
+        const { branchName, folderUri, projectId, projectName } = info;
+        const isMainBranch = ['main', 'master', 'trunk', 'default'].includes((branchName || '').toLowerCase());
+
+        const items = [
+          {
+            label: '复制分支名称',
+            icon: 'branch',
+            action: () => {
+              if (branchName) {
+                copyText(branchName);
+                showNotification?.(`已复制分支名称: ${branchName}`);
+              }
+            }
+          },
+          {
+            label: '打开分支目录',
+            icon: 'folder',
+            action: async () => {
+              try {
+                const res = await fetch('http://127.0.0.1:37210/api/open-folder', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ folderUri, branchName, projectName, projectId })
+                }).then(r => r.json());
+                if (res.success) {
+                  showNotification?.('已在资源管理器中打开分支目录');
+                } else {
+                  showNotification?.('该分支尚无独立物理目录');
+                }
+              } catch (e) {
+                showNotification?.('该分支尚无独立物理目录');
+              }
+            }
+          },
+          {
+            label: '在终端中打开',
+            icon: 'terminal',
+            action: async () => {
+              try {
+                const res = await fetch('http://127.0.0.1:37210/api/open-terminal', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ folderUri, branchName, projectName, projectId })
+                }).then(r => r.json());
+                if (res.success) {
+                  showNotification?.('已在终端中打开分支路径');
+                } else {
+                  showNotification?.('该分支物理目录不存在');
+                }
+              } catch (e) {
+                showNotification?.('无法打开终端');
+              }
+            }
+          },
+          {
+            label: '复制绝对路径',
+            icon: 'copy',
+            action: () => {
+              let cleanPath = '';
+              if (folderUri) {
+                cleanPath = decodeURIComponent(folderUri.replace(/^file:\/\/\/?/i, '')).replace(/\//g, '\\');
+                cleanPath = cleanPath.replace(/^[\\\/]+([a-zA-Z]:)/, '$1');
+              } else if (projectName && branchName) {
+                cleanPath = `C:\\Users\\Juste\\.gemini\\antigravity\\worktrees\\${projectName}\\${branchName}`;
+              }
+              if (cleanPath) {
+                copyText(cleanPath);
+                showNotification?.(`已复制绝对路径: ${cleanPath}`);
+              } else {
+                showNotification?.('该分支暂无本地绝对路径');
+              }
+            }
+          },
+          {
+            label: '清理失效工作树',
+            icon: 'clean',
+            action: async () => {
+              try {
+                const res = await fetch('http://127.0.0.1:37210/api/worktree/prune-invalid', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ projectId, projectName })
+                }).then(r => r.json());
+                showNotification?.(res.message || '清理完成');
+              } catch (e) {
+                showNotification?.(`清理失效工作树失败: ${e.message}`);
+              }
+            }
+          },
+          { separator: true },
+          {
+            label: '删除当前分支/工作树',
+            icon: 'trash',
+            danger: true,
+            action: () => {
+              if (isMainBranch) {
+                showNotification?.(`安全防护：禁止删除主干分支 "${branchName}"`);
+                return;
+              }
+              executePurge(info, itemEl);
+            }
+          }
+        ];
+
+        renderMenu(items, e.clientX, e.clientY);
+      }
+
+      // 6. DOM 扫描与悬停垃圾桶图标注入
+      function scanAndEnhanceWorktreeDropdowns() {
+        // 6.1 位置 1：Previous Worktrees 列表项
+        const popovers = Array.from(document.querySelectorAll('[data-radix-popper-content-wrapper], [role="menu"], [data-radix-menu-content], [role="listbox"], [role="dialog"], div.w-80'));
+        
+        for (const popover of popovers) {
+          // 查找 "Previous Worktrees" 标题
+          const headers = Array.from(popover.querySelectorAll('*')).filter(el => {
+            const t = (el.innerText || '').trim();
+            return (t === 'Previous Worktrees' || t === 'Workspaces') && el.children.length === 0;
+          });
+
+          for (const header of headers) {
+            let parent = header.parentElement;
+            if (!parent) continue;
+            const siblings = Array.from(parent.children);
+            const headerIdx = siblings.indexOf(header);
+            if (headerIdx === -1) continue;
+
+            const worktreeItems = siblings.slice(headerIdx + 1);
+            for (const item of worktreeItems) {
+              if (item.classList.contains('border-t') || item.innerText?.includes('No previous worktrees') || item.innerText?.includes('Loading worktrees') || item.innerText?.includes('No environments')) {
+                continue;
+              }
+
+              if (!item.querySelector('.agy-wt-hover-trash')) {
+                item.setAttribute('data-agy-worktree-item', 'true');
+                const info = extractWorktreeInfo(item);
+                if (info.branchName) {
+                  item.setAttribute('data-agy-branch-name', info.branchName);
+                }
+                if (info.folderUri) {
+                  item.setAttribute('data-agy-folder-uri', info.folderUri);
+                }
+
+                const trashBtn = document.createElement('button');
+                trashBtn.className = 'agy-wt-hover-trash';
+                trashBtn.type = 'button';
+                trashBtn.title = '彻底删除工作树与分支';
+                trashBtn.innerHTML = `
+                  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="3 6 5 6 21 6"></polyline>
+                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                    <line x1="10" y1="11" x2="10" y2="17"></line>
+                    <line x1="14" y1="11" x2="14" y2="17"></line>
+                  </svg>
+                `;
+
+                trashBtn.addEventListener('click', (e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  const latestInfo = extractWorktreeInfo(item);
+                  executePurge(latestInfo, item);
+                });
+
+                item.appendChild(trashBtn);
+              }
+            }
+          }
+        }
+
+        // 6.2 位置 2：Select branch 分支下拉框列表项
+        const branchOptions = Array.from(document.querySelectorAll('[data-testid="branch-option"], [role="option"][data-radix-collection-item]'));
+        for (const opt of branchOptions) {
+          if (!opt.querySelector('.agy-wt-hover-trash')) {
+            opt.setAttribute('data-agy-branch-item', 'true');
+            const info = extractWorktreeInfo(opt);
+            if (info.branchName) {
+              opt.setAttribute('data-agy-branch-name', info.branchName);
+            }
+
+            const trashBtn = document.createElement('button');
+            trashBtn.className = 'agy-wt-hover-trash';
+            trashBtn.type = 'button';
+            trashBtn.title = '彻底删除本地分支与工作树';
+            trashBtn.innerHTML = `
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="3 6 5 6 21 6"></polyline>
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                <line x1="10" y1="11" x2="10" y2="17"></line>
+                <line x1="14" y1="11" x2="14" y2="17"></line>
+              </svg>
+            `;
+
+            trashBtn.addEventListener('click', (e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              const latestInfo = extractWorktreeInfo(opt);
+              executePurge(latestInfo, opt);
+            });
+
+            opt.appendChild(trashBtn);
+          }
+        }
+      }
+
+      // 7. 绑定全局右键委托
+      const handleWorktreeContextMenu = (e) => {
+        if (e.shiftKey) return;
+        const target = e.target;
+        const item = target?.closest?.('[data-agy-worktree-item="true"], [data-agy-branch-item="true"], [data-testid="branch-option"]');
+        if (item) {
+          e.preventDefault();
+          e.stopPropagation();
+          dismissUniversalContextMenu();
+          const info = extractWorktreeInfo(item);
+          renderWorktreeContextMenu(e, info, item);
+        }
+      };
+
+      document.addEventListener('contextmenu', handleWorktreeContextMenu, true);
+
+      // 8. 绑定 MutationObserver 监听动态弹出层
+      worktreeObserver = new MutationObserver((mutations) => {
+        let shouldScan = false;
+        for (const m of mutations) {
+          if (m.addedNodes.length > 0) {
+            shouldScan = true;
+            break;
+          }
+        }
+        if (shouldScan) {
+          scanAndEnhanceWorktreeDropdowns();
+        }
+      });
+
+      worktreeObserver.observe(document.body, { childList: true, subtree: true });
+
+      onHeartbeatWorktreeManagement = scanAndEnhanceWorktreeDropdowns;
+      scanAndEnhanceWorktreeDropdowns();
+    }
+
     if (USER_CONFIG.ENABLE_PROJECT_ARCHIVER !== false) initProjectArchiver();
     if (USER_CONFIG.ENABLE_CONTEXT_MENU !== false) initContextMenuSupport();
     if (USER_CONFIG.ENABLE_SCROLL_POSITION_PERSISTENCE !== false) initConversationScrollPersistence();
     if (USER_CONFIG.ENABLE_SMART_UNREAD !== false) initSmartUnreadTracker();
     if (USER_CONFIG.ENABLE_CONTEXT_MENU !== false && USER_CONFIG.ENABLE_BLOCK_QUOTE_POPUP !== false) initQuotePopupInterceptor();
     if (USER_CONFIG.ENABLE_BLOCK_CHAT_BOTTOM_BUTTON !== false) initBlockChatBottomButton();
+    initWorktreeManagement();
 
-    // ==================== 12. 全局统一后台心跳调度器 (Unified Heartbeat Dispatcher) ====================
+    // ==================== 14. 全局统一后台心跳调度器 (Unified Heartbeat Dispatcher) ====================
     let heartbeatTickCount = 0;
     function heartbeatDispatcher() {
       // 1. 全局打字休眠保护：用户按键输入文字的 350ms 内，整轮后台轮询全部静默避让
@@ -6134,11 +6758,16 @@
       if (heartbeatTickCount % 2 === 0 && onHeartbeatProjectArchiver) {
         onHeartbeatProjectArchiver();
       }
+
+      // 模块 4：工作树与分支下拉框增强保活（每 1000ms）
+      if (onHeartbeatWorktreeManagement) {
+        onHeartbeatWorktreeManagement();
+      }
     }
 
     addInterval(heartbeatDispatcher, 1000);
 
-    console.log('[agy-enhancer] Page navigator, project archiver, context menu, scroll memory, unread tracker, and quote interceptor ready!');
+    console.log('[agy-enhancer] Page navigator, project archiver, context menu, scroll memory, unread tracker, quote interceptor, and worktree manager ready!');
   }
 
   bootstrap();

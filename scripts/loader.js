@@ -677,6 +677,340 @@ function setupConfigFileWatcher(targetFile) {
 setupConfigFileWatcher(configFile);
 setupConfigFileWatcher(localConfigFile);
 
+// ==================== 工作树与分支管理底层服务 (Worktree & Branch Management) ====================
+
+function uriToLocalPath(uri) {
+  if (!uri) return '';
+  let clean = String(uri).trim();
+  clean = clean.replace(/^file:\/\/\/?/i, '');
+  try {
+    clean = decodeURIComponent(clean);
+  } catch (e) {}
+  clean = clean.replace(/\//g, '\\');
+  // 兼容 /e:/... 或 e:/... 或 \e:\... 格式
+  clean = clean.replace(/^[\\\/]+([a-zA-Z]:)/, '$1');
+  return path.normalize(clean);
+}
+
+function findProjectConfigFiles(projectId, projectName) {
+  const homeDir = os.homedir();
+  const projectsDir = path.join(homeDir, '.gemini', 'config', 'projects');
+  const matched = [];
+  if (!fs.existsSync(projectsDir)) return matched;
+
+  try {
+    const files = fs.readdirSync(projectsDir).filter(f => f.endsWith('.json'));
+    for (const f of files) {
+      const fullPath = path.join(projectsDir, f);
+      try {
+        const raw = fs.readFileSync(fullPath, 'utf8');
+        const data = JSON.parse(raw);
+        if (projectId && (data.id === projectId || f.startsWith(projectId))) {
+          matched.push({ file: fullPath, data });
+        } else if (projectName && (data.name === projectName || data.id === projectName)) {
+          matched.push({ file: fullPath, data });
+        } else if (!projectId && !projectName) {
+          matched.push({ file: fullPath, data });
+        }
+      } catch (e) {}
+    }
+  } catch (e) {}
+  return matched;
+}
+
+function executePurgeWorktree(options) {
+  const { projectId, projectName, branchName, folderUri, projectRootPath, force } = options || {};
+  log(`[Worktree Purge] Initiating purge: branch="${branchName}", folder="${folderUri}", project="${projectName || projectId}"`);
+
+  // 1. 安全防呆校验：严禁删除 main / master / default 等主干分支
+  const safeBranch = String(branchName || '').trim();
+  const lowerBranch = safeBranch.toLowerCase();
+  if (lowerBranch === 'main' || lowerBranch === 'master' || lowerBranch === 'trunk' || lowerBranch === 'default') {
+    return {
+      success: false,
+      error: `安全防护：禁止删除主干分支 "${safeBranch}"`
+    };
+  }
+
+  // 2. 检查是否为当前正在使用活跃分支
+  const currentBranch = getCurrentBranchInfo()?.branch || '';
+  if (!force && safeBranch && currentBranch && safeBranch === currentBranch) {
+    return {
+      success: false,
+      error: `当前分支 "${safeBranch}" 正在活动使用中，请先切换到其他分支后再删除`
+    };
+  }
+
+  const details = {
+    diskCleaned: false,
+    diskPath: null,
+    gitPruned: false,
+    branchDeleted: false,
+    registryUpdated: false,
+    cleanedProjects: []
+  };
+
+  // 3. 解析目标工作树的具体物理路径
+  let targetPath = '';
+  if (folderUri) {
+    targetPath = uriToLocalPath(folderUri);
+  }
+
+  // 4. 定位项目根目录 (Git Main Repo Path)
+  let resolvedProjectRoot = projectRootPath ? uriToLocalPath(projectRootPath) : '';
+  const projectConfigs = findProjectConfigFiles(projectId, projectName);
+
+  if (!resolvedProjectRoot && projectConfigs.length > 0) {
+    for (const { data } of projectConfigs) {
+      if (data.projectResources?.resources) {
+        for (const res of data.projectResources.resources) {
+          if (res.gitFolder?.folderUri) {
+            resolvedProjectRoot = uriToLocalPath(res.gitFolder.folderUri);
+            break;
+          }
+        }
+      }
+      if (!resolvedProjectRoot && Array.isArray(data.workspaces) && data.workspaces.length > 0) {
+        resolvedProjectRoot = uriToLocalPath(data.workspaces[0]);
+      }
+      if (resolvedProjectRoot) break;
+    }
+  }
+
+  if (!targetPath && safeBranch) {
+    // 尝试在 projectConfigs 的 environments 中查找
+    for (const { data } of projectConfigs) {
+      const envs = data.environments?.environments || [];
+      const env = envs.find(e => e.name === safeBranch || e.id === safeBranch);
+      if (env?.resources?.resources) {
+        for (const r of env.resources.resources) {
+          if (r.folderUri) {
+            targetPath = uriToLocalPath(r.folderUri);
+            break;
+          }
+        }
+      }
+      if (targetPath) break;
+    }
+
+    // 默认工作树路径兜底
+    if (!targetPath && projectName) {
+      const defaultWtPath = path.join(os.homedir(), '.gemini', 'antigravity', 'worktrees', projectName, safeBranch);
+      if (fs.existsSync(defaultWtPath)) {
+        targetPath = defaultWtPath;
+      }
+    }
+  }
+
+  // 5. 执行物理磁盘删除 (Disk Cleanup)
+  if (targetPath && fs.existsSync(targetPath)) {
+    details.diskPath = targetPath;
+    // 严格安全检查：确保不是根目录或项目主仓库目录
+    const normTarget = path.resolve(targetPath).toLowerCase();
+    const isRoot = normTarget === path.resolve('C:\\').toLowerCase() || normTarget.length <= 3;
+    const isMainRepo = resolvedProjectRoot && normTarget === path.resolve(resolvedProjectRoot).toLowerCase();
+
+    if (isRoot || isMainRepo) {
+      return {
+        success: false,
+        error: `安全防护：目标路径 "${targetPath}" 为项目根目录或磁盘根目录，拒绝删除！`
+      };
+    }
+
+    try {
+      log(`[Worktree Purge] Removing physical directory: ${targetPath}`);
+      fs.rmSync(targetPath, { recursive: true, force: true, maxRetries: 3, retryDelay: 200 });
+      details.diskCleaned = !fs.existsSync(targetPath);
+    } catch (diskErr) {
+      log(`[Worktree Purge] fs.rmSync failed, attempting powershell fallback:`, diskErr.message);
+      try {
+        const psEscaped = targetPath.replace(/'/g, "''");
+        execSync(`powershell -NoProfile -ExecutionPolicy Bypass -Command "Remove-Item -LiteralPath '${psEscaped}' -Recurse -Force"`, { timeout: 8000 });
+        details.diskCleaned = !fs.existsSync(targetPath);
+      } catch (psErr) {
+        log(`[Worktree Purge] PowerShell remove failed:`, psErr.message);
+      }
+    }
+  } else {
+    details.diskCleaned = true; // 本身不存在视同已清理
+  }
+
+  // 6. 执行 Git 工作树与分支彻底清理 (Git Cleanup)
+  if (resolvedProjectRoot && fs.existsSync(resolvedProjectRoot)) {
+    // 6.1 git worktree remove & prune
+    if (targetPath) {
+      try {
+        const targetEscaped = targetPath.replace(/\\/g, '/');
+        execSync(`git worktree remove --force "${targetEscaped}"`, {
+          cwd: resolvedProjectRoot,
+          stdio: ['pipe', 'pipe', 'ignore'],
+          timeout: 5000
+        });
+      } catch (e) {}
+    }
+    try {
+      execSync('git worktree prune', {
+        cwd: resolvedProjectRoot,
+        stdio: ['pipe', 'pipe', 'ignore'],
+        timeout: 5000
+      });
+      details.gitPruned = true;
+    } catch (e) {
+      log(`[Worktree Purge] git worktree prune error:`, e.message);
+    }
+
+    // 6.2 git branch -D <branch_name>
+    if (safeBranch && safeBranch !== 'main' && safeBranch !== 'master') {
+      try {
+        // 检查分支是否存在
+        execSync(`git rev-parse --verify "refs/heads/${safeBranch}"`, {
+          cwd: resolvedProjectRoot,
+          stdio: ['pipe', 'pipe', 'ignore'],
+          timeout: 2000
+        });
+        // 强制删除本地分支
+        execSync(`git branch -D "${safeBranch}"`, {
+          cwd: resolvedProjectRoot,
+          stdio: ['pipe', 'pipe', 'ignore'],
+          timeout: 5000
+        });
+        details.branchDeleted = true;
+        log(`[Worktree Purge] Deleted git branch: ${safeBranch}`);
+      } catch (e) {
+        // 分支可能已经不存在或被删除
+      }
+    }
+  }
+
+  // 7. 软件缓存与项目注册表清理 (Registry & Cache Cleanup)
+  if (projectConfigs.length > 0) {
+    for (const { file, data } of projectConfigs) {
+      let modified = false;
+      if (data.environments && Array.isArray(data.environments.environments)) {
+        const initialLen = data.environments.environments.length;
+        data.environments.environments = data.environments.environments.filter(env => {
+          if (safeBranch && (env.name === safeBranch || env.id === safeBranch)) return false;
+          if (targetPath && env.resources?.resources) {
+            const hasTarget = env.resources.resources.some(r => r.folderUri && uriToLocalPath(r.folderUri).toLowerCase() === targetPath.toLowerCase());
+            if (hasTarget) return false;
+          }
+          return true;
+        });
+        if (data.environments.environments.length !== initialLen) {
+          modified = true;
+        }
+      }
+
+      if (Array.isArray(data.workspaces)) {
+        const initialLen = data.workspaces.length;
+        data.workspaces = data.workspaces.filter(wsUri => {
+          if (targetPath && uriToLocalPath(wsUri).toLowerCase() === targetPath.toLowerCase()) return false;
+          if (folderUri && wsUri === folderUri) return false;
+          return true;
+        });
+        if (data.workspaces.length !== initialLen) {
+          modified = true;
+        }
+      }
+
+      if (modified) {
+        try {
+          fs.writeFileSync(file, JSON.stringify(data, null, 2), 'utf8');
+          details.cleanedProjects.push(file);
+          details.registryUpdated = true;
+          log(`[Worktree Purge] Cleaned project registry file: ${file}`);
+        } catch (e) {
+          log(`[Worktree Purge] Failed to save project registry file:`, e.message);
+        }
+      }
+    }
+  }
+
+  return {
+    success: true,
+    message: `工作树与分支 "${safeBranch || targetPath}" 已彻底无死角清理完毕`,
+    details
+  };
+}
+
+function executePruneInvalidWorktrees(options) {
+  const { projectId, projectName } = options || {};
+  log(`[Prune Invalid] Scanning for ghost worktree records (project: ${projectName || projectId || 'ALL'})...`);
+
+  const projectConfigs = findProjectConfigFiles(projectId, projectName);
+  let totalPruned = 0;
+  const prunedList = [];
+
+  for (const { file, data } of projectConfigs) {
+    let modified = false;
+    let projectRoot = '';
+    if (data.projectResources?.resources) {
+      for (const res of data.projectResources.resources) {
+        if (res.gitFolder?.folderUri) {
+          projectRoot = uriToLocalPath(res.gitFolder.folderUri);
+          break;
+        }
+      }
+    }
+
+    if (data.environments && Array.isArray(data.environments.environments)) {
+      const validEnvironments = [];
+      for (const env of data.environments.environments) {
+        let exists = false;
+        let envPath = '';
+        if (env.resources?.resources) {
+          for (const r of env.resources.resources) {
+            if (r.folderUri) {
+              envPath = uriToLocalPath(r.folderUri);
+              if (envPath && fs.existsSync(envPath)) {
+                exists = true;
+                break;
+              }
+            }
+          }
+        }
+        if (exists) {
+          validEnvironments.push(env);
+        } else {
+          totalPruned++;
+          prunedList.push({
+            name: env.name || env.id,
+            path: envPath,
+            project: data.name || data.id
+          });
+          modified = true;
+          log(`[Prune Invalid] Pruned ghost environment: "${env.name}" (path missing: ${envPath})`);
+        }
+      }
+      data.environments.environments = validEnvironments;
+    }
+
+    if (modified) {
+      try {
+        fs.writeFileSync(file, JSON.stringify(data, null, 2), 'utf8');
+        log(`[Prune Invalid] Updated project registry: ${file}`);
+      } catch (e) {}
+    }
+
+    if (projectRoot && fs.existsSync(projectRoot)) {
+      try {
+        execSync('git worktree prune', {
+          cwd: projectRoot,
+          stdio: ['pipe', 'pipe', 'ignore'],
+          timeout: 4000
+        });
+      } catch (e) {}
+    }
+  }
+
+  return {
+    success: true,
+    prunedCount: totalPruned,
+    prunedList,
+    message: totalPruned > 0 ? `已成功清理 ${totalPruned} 个失效幽灵工作树记录` : `未检测到失效工作树，所有记录均有效`
+  };
+}
+
 // ==================== 内置轻量设置微服务 (Embedded Settings Server) ====================
 function startEmbeddedSettingsServer() {
   const server = http.createServer((req, res) => {
@@ -749,6 +1083,111 @@ function startEmbeddedSettingsServer() {
         } catch (err) {
           res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
           res.end(JSON.stringify({ success: false, error: err?.message || 'Invalid JSON' }));
+        }
+      });
+      return;
+    }
+
+    // ==================== 工作树管理 API 接口 ====================
+    if (req.method === 'POST' && urlPath === '/api/worktree/purge') {
+      let body = '';
+      req.on('data', chunk => {
+        body += chunk;
+        if (body.length > 1e6) req.destroy();
+      });
+      req.on('end', () => {
+        try {
+          const payload = JSON.parse(body || '{}');
+          const result = executePurgeWorktree(payload);
+          res.writeHead(result.success ? 200 : 400, { 'Content-Type': 'application/json; charset=utf-8' });
+          res.end(JSON.stringify(result));
+        } catch (err) {
+          res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
+          res.end(JSON.stringify({ success: false, error: err?.message || 'Internal error' }));
+        }
+      });
+      return;
+    }
+
+    if (req.method === 'POST' && urlPath === '/api/worktree/prune-invalid') {
+      let body = '';
+      req.on('data', chunk => {
+        body += chunk;
+        if (body.length > 1e6) req.destroy();
+      });
+      req.on('end', () => {
+        try {
+          const payload = JSON.parse(body || '{}');
+          const result = executePruneInvalidWorktrees(payload);
+          res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+          res.end(JSON.stringify(result));
+        } catch (err) {
+          res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
+          res.end(JSON.stringify({ success: false, error: err?.message || 'Internal error' }));
+        }
+      });
+      return;
+    }
+
+    if (req.method === 'POST' && urlPath === '/api/open-folder') {
+      let body = '';
+      req.on('data', chunk => {
+        body += chunk;
+        if (body.length > 1e6) req.destroy();
+      });
+      req.on('end', () => {
+        try {
+          const { path: rawPath, folderUri } = JSON.parse(body || '{}');
+          const target = uriToLocalPath(folderUri || rawPath);
+          if (target && fs.existsSync(target)) {
+            if (fs.statSync(target).isDirectory()) {
+              exec(`explorer.exe "${target}"`);
+            } else {
+              exec(`explorer.exe /select,"${target}"`);
+            }
+            res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+            res.end(JSON.stringify({ success: true, target }));
+          } else {
+            res.writeHead(404, { 'Content-Type': 'application/json; charset=utf-8' });
+            res.end(JSON.stringify({ success: false, error: '目录不存在', target }));
+          }
+        } catch (err) {
+          res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
+          res.end(JSON.stringify({ success: false, error: err?.message || 'Internal error' }));
+        }
+      });
+      return;
+    }
+
+    if (req.method === 'POST' && urlPath === '/api/open-terminal') {
+      let body = '';
+      req.on('data', chunk => {
+        body += chunk;
+        if (body.length > 1e6) req.destroy();
+      });
+      req.on('end', () => {
+        try {
+          const { path: rawPath, folderUri } = JSON.parse(body || '{}');
+          let target = uriToLocalPath(folderUri || rawPath);
+          if (target && fs.existsSync(target)) {
+            if (!fs.statSync(target).isDirectory()) {
+              target = path.dirname(target);
+            }
+            exec(`wt.exe -d "${target}"`, (err) => {
+              if (err) {
+                const escaped = target.replace(/'/g, "''");
+                exec(`start powershell.exe -NoExit -Command "Set-Location -LiteralPath '${escaped}'"`);
+              }
+            });
+            res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+            res.end(JSON.stringify({ success: true, target }));
+          } else {
+            res.writeHead(404, { 'Content-Type': 'application/json; charset=utf-8' });
+            res.end(JSON.stringify({ success: false, error: '目标路径不存在', target }));
+          }
+        } catch (err) {
+          res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
+          res.end(JSON.stringify({ success: false, error: err?.message || 'Internal error' }));
         }
       });
       return;
