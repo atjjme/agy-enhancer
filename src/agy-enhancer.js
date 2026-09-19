@@ -7450,7 +7450,13 @@
             showNotification?.('Scrolled to original message');
           } catch (e) {}
         } else {
-          showNotification?.('Original message may be off-screen. Scroll up to view.');
+          // 原消息已被客户端深度归档/卸载：0 毫秒无缝自动拉起画中画 (PiP 浮窗)
+          const list = getPinnedList();
+          const targetIdx = list.findIndex(p => p.id === summary.id || p.hash === summary.hash);
+          if (targetIdx !== -1) currentActiveIndex = targetIdx;
+          isPipMinimized = false;
+          renderPipModal(summary);
+          showNotification?.('Message archived by client, opened preview instead');
         }
       }
 
