@@ -6358,31 +6358,53 @@
       getCurrentProjectInfo = function () {
         const pm = getPM();
         const tsp = getTSP();
+        const projects = pm?.projectsStateProvider?.getState?.() || [];
         let projectId = null;
         let projectName = null;
         let projectRootPath = null;
 
-        const convoId = getCurrentUrlConvoId();
-        if (convoId && tsp) {
-          const s = tsp.getState()?.summaries?.[convoId];
-          if (s?.projectId && s.projectId !== 'outside-of-project') {
-            projectId = s.projectId;
+        // 2.1 优先从顶部工程选择器按钮嗅探（在新建会话或切换工程后，页面上方有如 📁 SonixType ˅ 按钮）
+        if (projects.length > 0) {
+          const topCandidates = Array.from(document.querySelectorAll('button, div[role="button"], [data-radix-collection-item]'));
+          for (const btn of topCandidates) {
+            const txt = (btn.innerText || '').trim();
+            if (!txt) continue;
+            const matchProj = projects.find(p => p.project?.name && p.project.name === txt);
+            if (matchProj?.project) {
+              projectId = matchProj.project.id;
+              projectName = matchProj.project.name;
+              projectRootPath = getProjectFolderUri(matchProj.project);
+              break;
+            }
           }
         }
 
-        const match = window.location.search.match(/[?&]section=([a-f0-9-]+)/i);
-        if (match && !projectId) {
-          projectId = match[1];
+        // 2.2 从当前会话 Summary 嗅探
+        if (!projectId) {
+          const convoId = getCurrentUrlConvoId();
+          if (convoId && tsp) {
+            const s = tsp.getState()?.summaries?.[convoId];
+            if (s?.projectId && s.projectId !== 'outside-of-project') {
+              projectId = s.projectId;
+            }
+          }
         }
 
-        const projects = pm?.projectsStateProvider?.getState?.() || [];
-        if (projectId) {
+        // 2.3 从 URL 参数嗅探
+        if (!projectId) {
+          const match = window.location.search.match(/[?&]section=([a-f0-9-]+)/i);
+          if (match) {
+            projectId = match[1];
+          }
+        }
+
+        if (projectId && (!projectName || !projectRootPath)) {
           const pItem = projects.find(p => p.project?.id === projectId);
           if (pItem?.project) {
             projectName = pItem.project.name;
             projectRootPath = getProjectFolderUri(pItem.project);
           }
-        } else if (projects.length > 0) {
+        } else if (!projectId && projects.length > 0) {
           const first = projects.find(p => !p.project?.archived) || projects[0];
           if (first?.project) {
             projectId = first.project.id;
@@ -6444,7 +6466,23 @@
           }
         }
 
-        const { projectId, projectName, projectRootPath } = getCurrentProjectInfo();
+        let { projectId, projectName, projectRootPath } = getCurrentProjectInfo();
+
+        // 3.3 如果 folderUri 能直接匹配某个已知 Project，精准修正 project 信息
+        const projects = getPM()?.projectsStateProvider?.getState?.() || [];
+        if (folderUri && projects.length > 0) {
+          const cleanUri = folderUri.toLowerCase();
+          for (const p of projects) {
+            const pName = (p.project?.name || '').toLowerCase();
+            const pUri = (getProjectFolderUri(p.project) || '').toLowerCase();
+            if ((pName && (cleanUri.includes('/' + pName + '/') || cleanUri.includes('\\' + pName + '\\'))) || (pUri && cleanUri.startsWith(pUri))) {
+              projectId = p.project.id;
+              projectName = p.project.name;
+              projectRootPath = getProjectFolderUri(p.project);
+              break;
+            }
+          }
+        }
 
         return {
           branchName,
@@ -6496,17 +6534,23 @@
               if (res.success) {
                 showNotification?.(`Worktree and branch "${branchName}" completely deleted`);
                 if (itemEl && itemEl.isConnected) {
-                  itemEl.style.transition = 'all 0.25s cubic-bezier(0.16, 1, 0.3, 1)';
+                  itemEl.style.transition = 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)';
                   itemEl.style.opacity = '0';
-                  itemEl.style.transform = 'translateX(10px) scale(0.95)';
                   itemEl.style.maxHeight = '0';
+                  itemEl.style.height = '0';
+                  itemEl.style.minHeight = '0';
                   itemEl.style.padding = '0';
                   itemEl.style.margin = '0';
                   itemEl.style.overflow = 'hidden';
-                  setTimeout(() => {
-                    try { itemEl.remove(); } catch (e) {}
-                  }, 260);
+                  itemEl.style.pointerEvents = 'none';
                 }
+                // 优雅触发全局关闭下拉框，避免 Radix UI 焦点异常与 React DOM removeChild 崩溃
+                setTimeout(() => {
+                  try {
+                    document.body.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true, cancelable: true }));
+                    document.body.click();
+                  } catch (e) {}
+                }, 120);
               } else {
                 showNotification?.(`Failed to delete worktree: ${res.error || 'Unknown error'}`);
               }
