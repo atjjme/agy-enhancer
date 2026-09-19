@@ -27,7 +27,7 @@
     // 【选词弹窗】是否屏蔽划词选中文本时弹出的 Quote (Ctrl+L) 浮窗（依附于右键总开关）
     ENABLE_BLOCK_QUOTE_POPUP: true,
 
-    // 【会话分叉】是否在 AI 回复右键菜单中提供分叉会话 (Create fork) 选项（依附于右键总开关）
+    // 【会话分叉】是否开启会话切片分叉与分支创建功能（独立开关，并在右键菜单中提供入口）
     ENABLE_FORK_CONVERSATION: true,
 
     // 【翻页导航】右侧常驻智能翻页双按钮
@@ -1533,6 +1533,7 @@
 
     // 纯被动事件响应：由会话切换事件触发重命名，最多轻试 8 次，无常驻后台轮询
     function applyPendingForkRename(newConvoId) {
+      if (USER_CONFIG.ENABLE_FORK_CONVERSATION === false) return;
       if (!pendingForkBranchRename || !newConvoId) return;
       if (pendingForkBranchRename.sourceConvoId && pendingForkBranchRename.sourceConvoId === newConvoId) return;
       if (Date.now() - pendingForkBranchRename.timestamp > 30000) {

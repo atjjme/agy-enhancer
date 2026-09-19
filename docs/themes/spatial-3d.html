@@ -689,16 +689,18 @@
               <span class="spatial-slider"></span>
             </label>
           </div>
-          <div class="island-row" style="padding: 2px 0; margin-top: 8px; border-top: 1px dashed rgba(255, 255, 255, 0.08);">
-            <div class="island-row-info">
-              <div class="island-row-name" style="font-size: 13px;" data-i18n="sw_fork_convo_title">AI 回复右键分叉对话 (Create fork)</div>
-              <div class="island-row-desc" style="font-size: 11.5px;" data-i18n="sw_fork_convo_desc">在 AI 回复右键菜单中提供切片分叉与创建分支选项，关闭后仅保留复制与导出 Markdown。受右键总开关约束。</div>
-            </div>
-            <label class="spatial-switch">
-              <input type="checkbox" id="ENABLE_FORK_CONVERSATION">
-              <span class="spatial-slider"></span>
-            </label>
+        </div>
+
+        <!-- 独立功能：会话切片分叉与分支创建 -->
+        <div class="island-row">
+          <div class="island-row-info">
+            <div class="island-row-name" data-i18n="sw_fork_convo_title">会话切片分叉与分支创建 (Create fork)</div>
+            <div class="island-row-desc" data-i18n="sw_fork_convo_desc">启用会话切片克隆与工作树分支功能，自动为新会话添加“分支：”前缀，并在 AI 消息右键菜单中提供快捷入口。</div>
           </div>
+          <label class="spatial-switch">
+            <input type="checkbox" id="ENABLE_FORK_CONVERSATION">
+            <span class="spatial-slider"></span>
+          </label>
         </div>
       </div>
 
@@ -896,15 +898,12 @@
       const ctxMenuCheck = document.getElementById('ENABLE_CONTEXT_MENU').checked;
       const quoteSubPanel = document.getElementById('quotePopupSubPanel');
       const blockQuoteCheck = document.getElementById('ENABLE_BLOCK_QUOTE_POPUP');
-      const forkConvoCheck = document.getElementById('ENABLE_FORK_CONVERSATION');
       if (ctxMenuCheck && masterCheck) {
         quoteSubPanel.classList.remove('collapsed');
         blockQuoteCheck.disabled = false;
-        if (forkConvoCheck) forkConvoCheck.disabled = false;
       } else {
         quoteSubPanel.classList.add('collapsed');
         blockQuoteCheck.disabled = true;
-        if (forkConvoCheck) forkConvoCheck.disabled = true;
       }
     }
 
@@ -962,9 +961,6 @@
 
       if (!document.getElementById('ENABLE_CONTEXT_MENU').checked) {
         document.getElementById('ENABLE_BLOCK_QUOTE_POPUP').checked = false;
-        if (document.getElementById('ENABLE_FORK_CONVERSATION')) {
-          document.getElementById('ENABLE_FORK_CONVERSATION').checked = false;
-        }
       }
 
       isDirty = false;
@@ -998,14 +994,8 @@
     document.getElementById('ENABLE_CONTEXT_MENU').addEventListener('change', (e) => {
       if (e.target.checked) {
         document.getElementById('ENABLE_BLOCK_QUOTE_POPUP').checked = true;
-        if (document.getElementById('ENABLE_FORK_CONVERSATION')) {
-          document.getElementById('ENABLE_FORK_CONVERSATION').checked = true;
-        }
       } else {
         document.getElementById('ENABLE_BLOCK_QUOTE_POPUP').checked = false;
-        if (document.getElementById('ENABLE_FORK_CONVERSATION')) {
-          document.getElementById('ENABLE_FORK_CONVERSATION').checked = false;
-        }
       }
     });
 
@@ -1021,7 +1011,6 @@
 
       if (!payload.ENABLE_CONTEXT_MENU) {
         payload.ENABLE_BLOCK_QUOTE_POPUP = false;
-        payload.ENABLE_FORK_CONVERSATION = false;
       }
 
       try {
