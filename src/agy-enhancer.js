@@ -4338,12 +4338,80 @@
         };
       }
 
+      // 5.1 触发系统自带的对话重命名功能
+      function triggerSystemConversationRename() {
+        const convoId = getCurrentUrlConvoId();
+        let targetRow = (convoId ? document.querySelector(`[data-testid="conversation-row-sidebar"][data-cascade-id="${convoId}"]`) : null) ||
+                        document.querySelector('[data-testid="conversation-row-sidebar"][data-selected="true"]');
+
+        if (!targetRow && convoId) {
+          const allRows = document.querySelectorAll('[data-testid="conversation-row-sidebar"]');
+          for (const r of allRows) {
+            if (r.getAttribute('data-cascade-id') === convoId || r.getAttribute('data-selected') === 'true') {
+              targetRow = r;
+              break;
+            }
+          }
+        }
+
+        if (targetRow) {
+          try { targetRow.scrollIntoView({ block: 'nearest', behavior: 'instant' }); } catch (e) {}
+          const moreBtn = targetRow.querySelector('button[aria-label="More options"]');
+          if (moreBtn) {
+            moreBtn.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true }));
+            moreBtn.click();
+
+            let attempts = 0;
+            const pollForRenameItem = () => {
+              const renameItem = document.querySelector('[data-testid="conversation-rename-menu-item"]');
+              if (renameItem) {
+                renameItem.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true }));
+                renameItem.click();
+                return;
+              }
+              if (++attempts < 20) {
+                setTimeout(pollForRenameItem, 20);
+              } else {
+                fallbackDirectRename(convoId);
+              }
+            };
+            setTimeout(pollForRenameItem, 20);
+            return;
+          }
+        }
+
+        fallbackDirectRename(convoId);
+      }
+
+      async function fallbackDirectRename(convoId) {
+        const targetId = convoId || getCurrentUrlConvoId();
+        const currentTitle = getCurrentConversationTitle();
+        const newTitle = window.prompt('Rename conversation:', currentTitle);
+        if (newTitle && newTitle.trim() && newTitle.trim() !== currentTitle) {
+          const trimmed = newTitle.trim();
+          const as = getAgentService();
+          if (as?.updateConversationAnnotations && targetId) {
+            try {
+              await as.updateConversationAnnotations(targetId, { title: trimmed }, true);
+            } catch (err) {}
+          }
+          const tsp = getTSP();
+          const s = targetId ? tsp?.getState()?.summaries?.[targetId] : null;
+          if (s) {
+            s.summary = trimmed;
+            s.title = trimmed;
+          }
+          document.title = `${trimmed} - Antigravity`;
+          showNotification?.('Conversation renamed');
+        }
+      }
+
       function getAiTurnMenuItems(aiTurn) {
         if (!aiTurn) return [];
         const hasWorktreeSupport = canForkInSharedWorkspace();
         const items = [
           {
-            label: 'Copy',
+            label: 'Copy Response',
             icon: 'copy',
             action: () => {
               if (aiTurn.copyBtn) {
@@ -4371,6 +4439,13 @@
               const filename = `${safeTitle || 'response'}_${timeStr}.md`;
               saveFileLocally(md, filename);
               showNotification?.('已导出 Markdown 文档');
+            }
+          },
+          {
+            label: 'Rename',
+            icon: 'edit',
+            action: () => {
+              triggerSystemConversationRename();
             }
           }
         ];
@@ -4789,6 +4864,22 @@
             e.preventDefault();
             e.stopPropagation();
             renderMenu(getAiTurnMenuItems(aiTurn), e.clientX, e.clientY);
+            return;
+          }
+
+          // 目标 9: 主聊天区空白区域 (未命中具体回复块时提供 Rename)
+          const convoView = target.closest?.('[data-testid="conversation-view"], [data-testid="autoscroll-viewport"], .md-table-bleed, main, [role="main"]');
+          if (convoView && !target.closest('form, [contenteditable="true"], textarea, .no-focus-agent-input, #artifacts-sidebar, [aria-label="Artifact Viewer"], [data-testid="conversation-row-sidebar"]')) {
+            e.preventDefault();
+            e.stopPropagation();
+            const items = [
+              {
+                label: 'Rename',
+                icon: 'edit',
+                action: () => triggerSystemConversationRename()
+              }
+            ];
+            renderMenu(items, e.clientX, e.clientY);
             return;
           }
         }
