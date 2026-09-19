@@ -6909,7 +6909,12 @@
 
     // ==================== 13.5. 重点总结钉选与画中画悬浮速览系统 (Pinned Summary & PiP V2) ====================
     function initPinnedSummarySystem() {
-      const STORAGE_KEY = 'agy_pinned_summaries_v1';
+      const PIN_KEY_PREFIX = 'agy_pins_';
+      const PIN_LRU_KEY = 'agy_pins_lru_index';
+      const MAX_ACTIVE_CONVOS = 50;
+      const MAX_PINS_PER_CONVO = 25;
+      const MAX_TEXT_LENGTH_PER_PIN = 16000;
+
       let currentActiveIndex = 0;
       let lastConvoIdForPins = null;
       let isPipMinimized = false;
@@ -7277,38 +7282,93 @@
         document.head.appendChild(style);
       }
 
-      // 2. 存储与数据操作
-      function getAllPinnedStore() {
-        try {
-          const raw = localStorage.getItem(STORAGE_KEY);
-          return raw ? JSON.parse(raw) : {};
-        } catch (e) {
-          return {};
-        }
+      // 2. 存储与数据操作 (按会话独立分 Key + LRU 自动垃圾回收机制)
+      function getConvoStorageKey() {
+        const id = getCurrentUrlConvoId();
+        return PIN_KEY_PREFIX + (id ? `c_${id}` : 'c_global');
       }
 
-      function saveAllPinnedStore(store) {
+      function migrateLegacyStorageIfPresent() {
         try {
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
+          const oldRaw = localStorage.getItem('agy_pinned_summaries_v1');
+          if (oldRaw) {
+            const oldStore = JSON.parse(oldRaw);
+            if (typeof oldStore === 'object' && oldStore) {
+              for (const k of Object.keys(oldStore)) {
+                if (Array.isArray(oldStore[k]) && oldStore[k].length > 0) {
+                  localStorage.setItem(PIN_KEY_PREFIX + k, JSON.stringify(oldStore[k]));
+                }
+              }
+            }
+            localStorage.removeItem('agy_pinned_summaries_v1');
+          }
         } catch (e) {}
       }
 
-      function getConvoKey() {
-        const id = getCurrentUrlConvoId();
-        return id ? `c_${id}` : 'c_global';
+      function updateLruIndex(activeKey) {
+        try {
+          let lru = [];
+          const raw = localStorage.getItem(PIN_LRU_KEY);
+          if (raw) lru = JSON.parse(raw);
+          if (!Array.isArray(lru)) lru = [];
+          // 移到最前
+          lru = lru.filter(k => k !== activeKey);
+          lru.unshift(activeKey);
+          // 超过上限淘汰最老会话的整个 Key
+          while (lru.length > MAX_ACTIVE_CONVOS) {
+            const evictedKey = lru.pop();
+            if (evictedKey && evictedKey !== activeKey) {
+              localStorage.removeItem(evictedKey);
+            }
+          }
+          localStorage.setItem(PIN_LRU_KEY, JSON.stringify(lru));
+        } catch (e) {}
       }
 
       function getPinnedList() {
-        const store = getAllPinnedStore();
-        const key = getConvoKey();
-        return Array.isArray(store[key]) ? store[key] : [];
+        migrateLegacyStorageIfPresent();
+        try {
+          const key = getConvoStorageKey();
+          const raw = localStorage.getItem(key);
+          if (!raw) return [];
+          const list = JSON.parse(raw);
+          return Array.isArray(list) ? list : [];
+        } catch (e) {
+          return [];
+        }
       }
 
       function savePinnedList(list) {
-        const store = getAllPinnedStore();
-        const key = getConvoKey();
-        store[key] = list;
-        saveAllPinnedStore(store);
+        try {
+          const key = getConvoStorageKey();
+          if (!Array.isArray(list) || list.length === 0) {
+            localStorage.removeItem(key);
+            try {
+              const raw = localStorage.getItem(PIN_LRU_KEY);
+              if (raw) {
+                let lru = JSON.parse(raw);
+                if (Array.isArray(lru)) {
+                  lru = lru.filter(k => k !== key);
+                  localStorage.setItem(PIN_LRU_KEY, JSON.stringify(lru));
+                }
+              }
+            } catch (e) {}
+            return;
+          }
+
+          // 单会话最多保留 25 条，单条超长自动安全截断
+          const safeList = list.slice(0, MAX_PINS_PER_CONVO).map(item => {
+            if (item.text && item.text.length > MAX_TEXT_LENGTH_PER_PIN) {
+              return Object.assign({}, item, {
+                text: item.text.slice(0, MAX_TEXT_LENGTH_PER_PIN) + '\n\n*(Content truncated for storage safety)*'
+              });
+            }
+            return item;
+          });
+
+          localStorage.setItem(key, JSON.stringify(safeList));
+          updateLruIndex(key);
+        } catch (e) {}
       }
 
       function computeHash(text) {
