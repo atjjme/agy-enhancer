@@ -157,6 +157,7 @@ window.__AGY_BRANCH_NAME__ = "worktree_purge_management";
   let convoSwitchPopstateHandler = null;
   let typingKeydownHandler = null;
   let worktreeObserver = null;
+  let worktreeContextMenuHandler = null;
   let onHeartbeatProjectArchiver = null;
   let onHeartbeatScrollPersistence = null;
   let onHeartbeatSmartUnread = null;
@@ -200,6 +201,7 @@ window.__AGY_BRANCH_NAME__ = "worktree_purge_management";
     onHeartbeatProjectArchiver = null;
     onHeartbeatScrollPersistence = null;
     onHeartbeatSmartUnread = null;
+    onHeartbeatWorktreeManagement = null;
 
     if (windowPopstateHandler) {
       window.removeEventListener('popstate', windowPopstateHandler);
@@ -224,6 +226,10 @@ window.__AGY_BRANCH_NAME__ = "worktree_purge_management";
     if (contextMenuHandler) {
       document.removeEventListener('contextmenu', contextMenuHandler, true);
       contextMenuHandler = null;
+    }
+    if (worktreeContextMenuHandler) {
+      document.removeEventListener('contextmenu', worktreeContextMenuHandler, true);
+      worktreeContextMenuHandler = null;
     }
     if (contextMenuDocClickHandler) {
       document.removeEventListener('click', contextMenuDocClickHandler, true);
@@ -1010,37 +1016,52 @@ window.__AGY_BRANCH_NAME__ = "worktree_purge_management";
 
       /* 工作树/分支列表项悬停删除图标 */
       .agy-wt-hover-trash {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        width: 22px;
-        height: 22px;
-        border-radius: 4px;
-        border: none;
-        background: transparent;
-        color: var(--muted-foreground, rgba(125, 125, 125, 0.7));
-        opacity: 0;
-        cursor: pointer;
-        outline: none;
-        margin-left: auto;
-        flex-shrink: 0;
-        transition: opacity 0.15s ease, background 0.15s ease, color 0.15s ease, transform 0.15s ease;
-        pointer-events: auto;
-        z-index: 10;
+        position: absolute !important;
+        right: 6px !important;
+        top: 50% !important;
+        transform: translateY(-50%) !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        width: 24px !important;
+        height: 24px !important;
+        border-radius: 4px !important;
+        border: none !important;
+        background: transparent !important;
+        color: var(--muted-foreground, rgba(125, 125, 125, 0.7)) !important;
+        opacity: 0 !important;
+        cursor: pointer !important;
+        outline: none !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        flex-shrink: 0 !important;
+        transition: opacity 0.15s ease, background 0.15s ease, color 0.15s ease, transform 0.15s ease !important;
+        pointer-events: auto !important;
+        z-index: 25 !important;
       }
       *:hover > .agy-wt-hover-trash,
+      [data-agy-worktree-item="true"]:hover > .agy-wt-hover-trash,
+      [data-agy-branch-item="true"]:hover > .agy-wt-hover-trash,
       [data-testid="branch-option"]:hover .agy-wt-hover-trash,
       [role="option"]:hover .agy-wt-hover-trash,
       [role="menuitem"]:hover .agy-wt-hover-trash,
       button:hover > .agy-wt-hover-trash,
       div:hover > .agy-wt-hover-trash {
-        opacity: 0.75;
+        opacity: 0.75 !important;
       }
       .agy-wt-hover-trash:hover {
         opacity: 1 !important;
         color: var(--destructive, #ef4444) !important;
         background: rgba(239, 68, 68, 0.16) !important;
-        transform: scale(1.1);
+        transform: translateY(-50%) scale(1.1) !important;
+      }
+
+      /* 列表项强制相对定位与右侧留白，防止垃圾桶遮挡标题与换行变形 */
+      [data-agy-worktree-item="true"],
+      [data-agy-branch-item="true"] {
+        position: relative !important;
+        padding-right: 34px !important;
+        box-sizing: border-box !important;
       }
 
       /* 二次确认模态框 */
@@ -3441,6 +3462,185 @@ window.__AGY_BRANCH_NAME__ = "worktree_purge_management";
     }
 
     // ==================== 8. 全局右键上下文菜单系统 (Universal Context Menu) ====================
+    let MENU_ICONS = {
+      comment: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>',
+      copy: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>',
+      quote: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21c3 0 7-1 7-8V5c0-1.1-.9-2-2-2H4c-1.1 0-2 .9-2 2v6c0 1.1.9 2 2 2 0 4-1 6-1 8zm14 0c3 0 7-1 7-8V5c0-1.1-.9-2-2-2h-4c-1.1 0-2 .9-2 2v6c0 1.1.9 2 2 2 0 4-1 6-1 8z"></path></svg>',
+      explain: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>',
+      code: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>',
+      save: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>',
+      folder: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>',
+      image: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>',
+      external: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>',
+      link: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>',
+      search: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>',
+      file: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path><polyline points="13 2 13 9 20 9"></polyline></svg>',
+      regenerate: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>',
+      fork: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="18" r="3"></circle><circle cx="6" cy="6" r="3"></circle><circle cx="18" cy="6" r="3"></circle><path d="M18 9v1a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V9"></path><path d="M12 12v3"></path></svg>',
+      edit: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>',
+      trash: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>',
+      terminal: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"></polyline><line x1="12" y1="19" x2="20" y2="19"></line></svg>',
+      clean: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 3l3 3-9 9H9v-3l9-9z"></path><path d="M2.5 21.5l3.5-3.5"></path><path d="M6 18l3 3"></path><path d="M8 16l3 3"></path></svg>',
+      branch: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="3" x2="6" y2="15"></line><circle cx="18" cy="6" r="3"></circle><circle cx="6" cy="18" r="3"></circle><path d="M18 9a9 9 0 0 1-9 9"></path></svg>'
+    };
+
+    let ensureContextMenuStyles = function () {
+      const styleId = 'agy-context-menu-styles';
+      if (document.getElementById(styleId)) return;
+      const style = document.createElement('style');
+      style.id = styleId;
+      style.textContent = `
+        #agy-universal-context-menu {
+          position: fixed !important;
+          z-index: 2147483647 !important;
+          min-width: 175px;
+          max-width: 280px;
+          background: var(--popover, var(--card, var(--sidebar, var(--background, #ffffff))));
+          border: 1px solid var(--border, rgba(125, 125, 125, 0.25));
+          border-radius: var(--radius, 8px);
+          box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+          padding: 4px;
+          color: var(--popover-foreground, var(--foreground, #101010));
+          font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+          font-size: 13px;
+          line-height: 19.5px;
+          user-select: none;
+          animation: agy-menu-fade-in 0.1s ease-out;
+        }
+        @keyframes agy-menu-fade-in {
+          from { opacity: 0; transform: scale(0.97); }
+          to { opacity: 1; transform: scale(1); }
+        }
+        .agy-context-menu-item {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          padding: 4px 8px;
+          border-radius: 6px;
+          cursor: pointer;
+          transition: background 0.12s ease, color 0.12s ease;
+          white-space: nowrap;
+          color: var(--secondary-foreground, var(--foreground, #101010));
+          font-size: 13px;
+          line-height: 19.5px;
+          font-weight: 400;
+        }
+        .agy-context-menu-item:hover {
+          background: var(--secondary, rgba(125, 125, 125, 0.15));
+          color: var(--foreground, #101010);
+        }
+        .agy-context-menu-item.danger {
+          color: var(--destructive, #ef4444) !important;
+        }
+        .agy-context-menu-item.danger .agy-context-menu-icon {
+          color: var(--destructive, #ef4444) !important;
+        }
+        .agy-context-menu-item.danger:hover {
+          background: rgba(239, 68, 68, 0.14) !important;
+          color: var(--destructive, #ef4444) !important;
+        }
+        .agy-context-menu-icon {
+          width: 16px;
+          height: 16px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          flex-shrink: 0;
+          color: var(--secondary-foreground, var(--foreground, #101010));
+          opacity: 0.85;
+        }
+        .agy-context-menu-item:hover .agy-context-menu-icon {
+          opacity: 1;
+          color: var(--foreground, #101010);
+        }
+        .agy-context-menu-icon svg {
+          width: 16px;
+          height: 16px;
+          stroke: currentColor;
+        }
+        .agy-context-menu-label {
+          flex: 1;
+          font-weight: 400;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+        .agy-context-menu-sep {
+          height: 1px;
+          margin: 4px -4px;
+          background: var(--border, rgba(125, 125, 125, 0.18));
+        }
+      `;
+      document.head.appendChild(style);
+    };
+
+    let dismissUniversalContextMenu = function () {
+      const menu = document.getElementById('agy-universal-context-menu');
+      if (menu) menu.remove();
+    };
+
+    let copyText = function (text) {
+      if (!text) return;
+      navigator.clipboard.writeText(text).catch(() => {});
+    };
+
+    let renderMenu = function (items, clientX, clientY) {
+      dismissUniversalContextMenu();
+      if (!items || items.length === 0) return;
+
+      ensureContextMenuStyles();
+      const menu = document.createElement('div');
+      menu.id = 'agy-universal-context-menu';
+
+      items.forEach(item => {
+        if (item.separator) {
+          const sep = document.createElement('div');
+          sep.className = 'agy-context-menu-sep';
+          menu.appendChild(sep);
+          return;
+        }
+        const row = document.createElement('div');
+        row.className = 'agy-context-menu-item' + (item.danger ? ' danger' : '');
+        row.innerHTML = `
+          <div class="agy-context-menu-icon">${MENU_ICONS[item.icon] || ''}</div>
+          <div class="agy-context-menu-label">${item.label}</div>
+        `;
+        row.addEventListener('click', (ev) => {
+          ev.stopPropagation();
+          try { item.action(); } catch (err) {}
+          dismissUniversalContextMenu();
+        });
+        menu.appendChild(row);
+      });
+
+      // 视口定位与自适应防溢出
+      menu.style.visibility = 'hidden';
+      menu.style.top = `${clientY}px`;
+      menu.style.left = `${clientX}px`;
+      document.body.appendChild(menu);
+
+      const rect = menu.getBoundingClientRect();
+      let finalLeft = clientX;
+      let finalTop = clientY;
+
+      if (finalLeft + rect.width > window.innerWidth - 10) {
+        finalLeft = Math.max(10, finalLeft - rect.width);
+      }
+      if (finalTop + rect.height > window.innerHeight - 10) {
+        finalTop = Math.max(10, finalTop - rect.height);
+      }
+
+      menu.style.left = `${finalLeft}px`;
+      menu.style.top = `${finalTop}px`;
+      menu.style.visibility = 'visible';
+    };
+
+    let showWorktreeConfirmModal = null;
+    let getCurrentProjectInfo = null;
+    let extractWorktreeInfo = null;
+    let executePurge = null;
+    let renderWorktreeContextMenu = null;
+    let resolveWorktreeOrBranchTarget = null;
+
     function initContextMenuSupport() {
       if (USER_CONFIG.ENABLE_CONTEXT_MENU === false) return;
 
@@ -3448,125 +3648,7 @@ window.__AGY_BRANCH_NAME__ = "worktree_purge_management";
         document.removeEventListener('contextmenu', contextMenuHandler, true);
       }
 
-      // 1. 单色极简矢量轮廓图标库 (14x14 Monochrome Outline SVG)
-      const MENU_ICONS = {
-        comment: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>',
-        copy: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>',
-        quote: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21c3 0 7-1 7-8V5c0-1.1-.9-2-2-2H4c-1.1 0-2 .9-2 2v6c0 1.1.9 2 2 2 0 4-1 6-1 8zm14 0c3 0 7-1 7-8V5c0-1.1-.9-2-2-2h-4c-1.1 0-2 .9-2 2v6c0 1.1.9 2 2 2 0 4-1 6-1 8z"></path></svg>',
-        explain: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>',
-        code: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>',
-        save: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>',
-        folder: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>',
-        image: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>',
-        external: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>',
-        link: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>',
-        search: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>',
-        file: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path><polyline points="13 2 13 9 20 9"></polyline></svg>',
-        regenerate: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>',
-        fork: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="18" r="3"></circle><circle cx="6" cy="6" r="3"></circle><circle cx="18" cy="6" r="3"></circle><path d="M18 9v1a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V9"></path><path d="M12 12v3"></path></svg>',
-        edit: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>',
-        trash: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>',
-        terminal: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"></polyline><line x1="12" y1="19" x2="20" y2="19"></line></svg>',
-        clean: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 3l3 3-9 9H9v-3l9-9z"></path><path d="M2.5 21.5l3.5-3.5"></path><path d="M6 18l3 3"></path><path d="M8 16l3 3"></path></svg>',
-        branch: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="3" x2="6" y2="15"></line><circle cx="18" cy="6" r="3"></circle><circle cx="6" cy="18" r="3"></circle><path d="M18 9a9 9 0 0 1-9 9"></path></svg>'
-      };
-
-      // 2. 注入菜单专属样式 (统一对齐系统主题背景、字体与字号规范)
-      function ensureContextMenuStyles() {
-        const styleId = 'agy-context-menu-styles';
-        if (document.getElementById(styleId)) return;
-        const style = document.createElement('style');
-        style.id = styleId;
-        style.textContent = `
-          #agy-universal-context-menu {
-            position: fixed;
-            z-index: 999999;
-            min-width: 175px;
-            max-width: 280px;
-            background: var(--popover, var(--card, var(--sidebar, var(--background, #ffffff))));
-            border: 1px solid var(--border, rgba(125, 125, 125, 0.25));
-            border-radius: var(--radius, 8px);
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
-            padding: 4px;
-            color: var(--popover-foreground, var(--foreground, #101010));
-            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-            font-size: 13px;
-            line-height: 19.5px;
-            user-select: none;
-            animation: agy-menu-fade-in 0.1s ease-out;
-          }
-          @keyframes agy-menu-fade-in {
-            from { opacity: 0; transform: scale(0.97); }
-            to { opacity: 1; transform: scale(1); }
-          }
-          .agy-context-menu-item {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            padding: 4px 8px;
-            border-radius: 6px;
-            cursor: pointer;
-            transition: background 0.12s ease, color 0.12s ease;
-            white-space: nowrap;
-            color: var(--secondary-foreground, var(--foreground, #101010));
-            font-size: 13px;
-            line-height: 19.5px;
-            font-weight: 400;
-          }
-          .agy-context-menu-item:hover {
-            background: var(--secondary, rgba(125, 125, 125, 0.15));
-            color: var(--foreground, #101010);
-          }
-          .agy-context-menu-item.danger {
-            color: var(--destructive, #ef4444) !important;
-          }
-          .agy-context-menu-item.danger .agy-context-menu-icon {
-            color: var(--destructive, #ef4444) !important;
-          }
-          .agy-context-menu-item.danger:hover {
-            background: rgba(239, 68, 68, 0.14) !important;
-            color: var(--destructive, #ef4444) !important;
-          }
-          .agy-context-menu-icon {
-            width: 16px;
-            height: 16px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            flex-shrink: 0;
-            color: var(--secondary-foreground, var(--foreground, #101010));
-            opacity: 0.85;
-          }
-          .agy-context-menu-item:hover .agy-context-menu-icon {
-            opacity: 1;
-            color: var(--foreground, #101010);
-          }
-          .agy-context-menu-icon svg {
-            width: 16px;
-            height: 16px;
-            stroke: currentColor;
-          }
-          .agy-context-menu-label {
-            flex: 1;
-            font-weight: 400;
-            overflow: hidden;
-            text-overflow: ellipsis;
-          }
-          .agy-context-menu-sep {
-            height: 1px;
-            margin: 4px -4px;
-            background: var(--border, rgba(125, 125, 125, 0.18));
-          }
-        `;
-        document.head.appendChild(style);
-      }
       ensureContextMenuStyles();
-
-      // 3. 关闭现有菜单
-      function dismissUniversalContextMenu() {
-        const menu = document.getElementById('agy-universal-context-menu');
-        if (menu) menu.remove();
-      }
 
       // 4. 底层动作执行辅助函数
       function triggerNativeButton(btn) {
@@ -4675,58 +4757,6 @@ window.__AGY_BRANCH_NAME__ = "worktree_purge_management";
         return items;
       }
 
-      // 6. 渲染菜单 DOM
-      function renderMenu(items, clientX, clientY) {
-        dismissUniversalContextMenu();
-        if (!items || items.length === 0) return;
-
-        ensureContextMenuStyles();
-        const menu = document.createElement('div');
-        menu.id = 'agy-universal-context-menu';
-
-        items.forEach(item => {
-          if (item.separator) {
-            const sep = document.createElement('div');
-            sep.className = 'agy-context-menu-sep';
-            menu.appendChild(sep);
-            return;
-          }
-          const row = document.createElement('div');
-          row.className = 'agy-context-menu-item' + (item.danger ? ' danger' : '');
-          row.innerHTML = `
-            <div class="agy-context-menu-icon">${MENU_ICONS[item.icon] || ''}</div>
-            <div class="agy-context-menu-label">${item.label}</div>
-          `;
-          row.addEventListener('click', (ev) => {
-            ev.stopPropagation();
-            try { item.action(); } catch (err) {}
-            dismissUniversalContextMenu();
-          });
-          menu.appendChild(row);
-        });
-
-        // 视口定位与自适应防溢出
-        menu.style.visibility = 'hidden';
-        menu.style.top = `${clientY}px`;
-        menu.style.left = `${clientX}px`;
-        document.body.appendChild(menu);
-
-        const rect = menu.getBoundingClientRect();
-        let finalLeft = clientX;
-        let finalTop = clientY;
-
-        if (finalLeft + rect.width > window.innerWidth - 10) {
-          finalLeft = Math.max(10, finalLeft - rect.width);
-        }
-        if (finalTop + rect.height > window.innerHeight - 10) {
-          finalTop = Math.max(10, finalTop - rect.height);
-        }
-
-        menu.style.left = `${finalLeft}px`;
-        menu.style.top = `${finalTop}px`;
-        menu.style.visibility = 'visible';
-      }
-
       // 7. 全局点击与失焦自动关闭监听
       contextMenuDocClickHandler = (e) => {
         if (!e.target.closest('#agy-universal-context-menu')) {
@@ -4748,6 +4778,19 @@ window.__AGY_BRANCH_NAME__ = "worktree_purge_management";
         if (e.shiftKey) {
           dismissUniversalContextMenu();
           return;
+        }
+
+        // ------------------ 工作树 / 分支右键（最高优先级） ------------------
+        const worktreeOrBranchItem = resolveWorktreeOrBranchTarget?.(e.target);
+        if (worktreeOrBranchItem) {
+          e.preventDefault();
+          e.stopPropagation();
+          dismissUniversalContextMenu();
+          const info = extractWorktreeInfo?.(worktreeOrBranchItem);
+          if (info) {
+            renderWorktreeContextMenu?.(e, info, worktreeOrBranchItem);
+            return;
+          }
         }
 
         // ------------------ 原有侧边栏会话与项目右键（高优先级保留） ------------------
@@ -6258,7 +6301,7 @@ window.__AGY_BRANCH_NAME__ = "worktree_purge_management";
     // ==================== 13. 分支与工作树快捷管理与一键彻底清理系统 (Worktree & Branch Management) ====================
     function initWorktreeManagement() {
       // 1. 二次确认模态框
-      function showWorktreeConfirmModal(options) {
+      showWorktreeConfirmModal = function (options) {
         const { title, message, danger = true, confirmText = '彻底删除', cancelText = '取消', onConfirm } = options || {};
         document.getElementById('agy-confirm-modal-overlay')?.remove();
 
@@ -6324,10 +6367,10 @@ window.__AGY_BRANCH_NAME__ = "worktree_purge_management";
           }
         };
         window.addEventListener('keydown', onKeydown, true);
-      }
+      };
 
       // 2. 当前活跃项目信息解析
-      function getCurrentProjectInfo() {
+      getCurrentProjectInfo = function () {
         const pm = getPM();
         const tsp = getTSP();
         let projectId = null;
@@ -6364,10 +6407,10 @@ window.__AGY_BRANCH_NAME__ = "worktree_purge_management";
         }
 
         return { projectId, projectName, projectRootPath };
-      }
+      };
 
       // 3. 解析工作树/分支项信息
-      function extractWorktreeInfo(itemEl) {
+      extractWorktreeInfo = function (itemEl) {
         if (!itemEl) return null;
         let branchName = itemEl.getAttribute('data-agy-branch-name') || '';
         let folderUri = itemEl.getAttribute('data-agy-folder-uri') || '';
@@ -6405,11 +6448,13 @@ window.__AGY_BRANCH_NAME__ = "worktree_purge_management";
           if (val) {
             branchName = val.trim();
           } else {
-            const textSpans = Array.from(itemEl.querySelectorAll('span, div')).filter(s => s.children.length === 0 && s.innerText?.trim());
+            const textSpans = Array.from(itemEl.querySelectorAll('span, div, p')).filter(s => !s.closest('.agy-wt-hover-trash') && s.children.length === 0 && s.innerText?.trim());
             if (textSpans.length > 0) {
               branchName = textSpans[0].innerText.trim();
             } else {
-              branchName = (itemEl.innerText || '').split('\n')[0].trim();
+              const clone = itemEl.cloneNode(true);
+              clone.querySelectorAll('.agy-wt-hover-trash').forEach(el => el.remove());
+              branchName = (clone.innerText || '').split('\n')[0].trim();
             }
           }
         }
@@ -6424,11 +6469,11 @@ window.__AGY_BRANCH_NAME__ = "worktree_purge_management";
           projectRootPath,
           isBranchOption
         };
-      }
+      };
 
       // 4. 执行一键彻底删除
-      function executePurge(info, itemEl) {
-        const { branchName, folderUri, projectId, projectName, projectRootPath } = info;
+      executePurge = function (info, itemEl) {
+        const { branchName, folderUri, projectId, projectName, projectRootPath } = info || {};
         if (!branchName && !folderUri) return;
 
         const lower = (branchName || '').toLowerCase();
@@ -6484,11 +6529,11 @@ window.__AGY_BRANCH_NAME__ = "worktree_purge_management";
             }
           }
         });
-      }
+      };
 
       // 5. 弹出工作树/分支 6 项右键上下文菜单
-      function renderWorktreeContextMenu(e, info, itemEl) {
-        const { branchName, folderUri, projectId, projectName } = info;
+      renderWorktreeContextMenu = function (e, info, itemEl) {
+        const { branchName, folderUri, projectId, projectName } = info || {};
         const isMainBranch = ['main', 'master', 'trunk', 'default'].includes((branchName || '').toLowerCase());
 
         const items = [
@@ -6593,11 +6638,34 @@ window.__AGY_BRANCH_NAME__ = "worktree_purge_management";
         ];
 
         renderMenu(items, e.clientX, e.clientY);
-      }
+      };
 
-      // 6. DOM 扫描与悬停垃圾桶图标注入
+      // 6. 动态嗅探工作树/分支右键目标
+      resolveWorktreeOrBranchTarget = function (target) {
+        if (!target || target.nodeType !== Node.ELEMENT_NODE) return null;
+        // 6.1 已被标记的元素
+        const marked = target.closest('[data-agy-worktree-item="true"], [data-agy-branch-item="true"], [data-testid="branch-option"]');
+        if (marked) return marked;
+
+        // 6.2 检查是否在 Previous Worktrees / Workspaces 下拉列表中
+        const popover = target.closest('[data-radix-popper-content-wrapper], [role="menu"], [data-radix-menu-content], [role="listbox"], [role="dialog"], div.w-80');
+        if (popover) {
+          const item = target.closest('button, [role="option"], [role="menuitem"], div.cursor-pointer, .flex.flex-col');
+          if (item && popover.contains(item)) {
+            const isWorktreePopover = !!popover.querySelector('[data-agy-worktree-item], [data-agy-branch-item]') ||
+              /Previous Worktrees|Workspaces|Select branch|Branches/i.test(popover.innerText || '');
+            if (isWorktreePopover && !item.classList.contains('border-t') && !/No previous worktrees|Loading|No environments|Create new branch/i.test(item.innerText || '')) {
+              return item;
+            }
+          }
+        }
+
+        return null;
+      };
+
+      // 7. DOM 扫描与悬停垃圾桶图标注入
       function scanAndEnhanceWorktreeDropdowns() {
-        // 6.1 位置 1：Previous Worktrees 列表项
+        // 7.1 位置 1：Previous Worktrees 列表项
         const popovers = Array.from(document.querySelectorAll('[data-radix-popper-content-wrapper], [role="menu"], [data-radix-menu-content], [role="listbox"], [role="dialog"], div.w-80'));
         
         for (const popover of popovers) {
@@ -6620,13 +6688,16 @@ window.__AGY_BRANCH_NAME__ = "worktree_purge_management";
                 continue;
               }
 
+              item.setAttribute('data-agy-worktree-item', 'true');
+              item.style.setProperty('position', 'relative', 'important');
+              item.style.setProperty('padding-right', '34px', 'important');
+
               if (!item.querySelector('.agy-wt-hover-trash')) {
-                item.setAttribute('data-agy-worktree-item', 'true');
                 const info = extractWorktreeInfo(item);
-                if (info.branchName) {
+                if (info?.branchName) {
                   item.setAttribute('data-agy-branch-name', info.branchName);
                 }
-                if (info.folderUri) {
+                if (info?.folderUri) {
                   item.setAttribute('data-agy-folder-uri', info.folderUri);
                 }
 
@@ -6646,6 +6717,7 @@ window.__AGY_BRANCH_NAME__ = "worktree_purge_management";
                 trashBtn.addEventListener('click', (e) => {
                   e.preventDefault();
                   e.stopPropagation();
+                  e.stopImmediatePropagation?.();
                   const latestInfo = extractWorktreeInfo(item);
                   executePurge(latestInfo, item);
                 });
@@ -6656,13 +6728,16 @@ window.__AGY_BRANCH_NAME__ = "worktree_purge_management";
           }
         }
 
-        // 6.2 位置 2：Select branch 分支下拉框列表项
+        // 7.2 位置 2：Select branch 分支下拉框列表项
         const branchOptions = Array.from(document.querySelectorAll('[data-testid="branch-option"], [role="option"][data-radix-collection-item]'));
         for (const opt of branchOptions) {
+          opt.setAttribute('data-agy-branch-item', 'true');
+          opt.style.setProperty('position', 'relative', 'important');
+          opt.style.setProperty('padding-right', '34px', 'important');
+
           if (!opt.querySelector('.agy-wt-hover-trash')) {
-            opt.setAttribute('data-agy-branch-item', 'true');
             const info = extractWorktreeInfo(opt);
-            if (info.branchName) {
+            if (info?.branchName) {
               opt.setAttribute('data-agy-branch-name', info.branchName);
             }
 
@@ -6682,6 +6757,7 @@ window.__AGY_BRANCH_NAME__ = "worktree_purge_management";
             trashBtn.addEventListener('click', (e) => {
               e.preventDefault();
               e.stopPropagation();
+              e.stopImmediatePropagation?.();
               const latestInfo = extractWorktreeInfo(opt);
               executePurge(latestInfo, opt);
             });
@@ -6691,23 +6767,31 @@ window.__AGY_BRANCH_NAME__ = "worktree_purge_management";
         }
       }
 
-      // 7. 绑定全局右键委托
-      const handleWorktreeContextMenu = (e) => {
+      // 8. 绑定全局右键委托 (兜底独立监听器)
+      if (worktreeContextMenuHandler) {
+        document.removeEventListener('contextmenu', worktreeContextMenuHandler, true);
+      }
+      worktreeContextMenuHandler = (e) => {
         if (e.shiftKey) return;
-        const target = e.target;
-        const item = target?.closest?.('[data-agy-worktree-item="true"], [data-agy-branch-item="true"], [data-testid="branch-option"]');
+        const item = resolveWorktreeOrBranchTarget(e.target);
         if (item) {
           e.preventDefault();
           e.stopPropagation();
+          e.stopImmediatePropagation?.();
           dismissUniversalContextMenu();
           const info = extractWorktreeInfo(item);
-          renderWorktreeContextMenu(e, info, item);
+          if (info) {
+            renderWorktreeContextMenu(e, info, item);
+          }
         }
       };
 
-      document.addEventListener('contextmenu', handleWorktreeContextMenu, true);
+      document.addEventListener('contextmenu', worktreeContextMenuHandler, true);
 
-      // 8. 绑定 MutationObserver 监听动态弹出层
+      // 9. 绑定 MutationObserver 监听动态弹出层
+      if (worktreeObserver) {
+        worktreeObserver.disconnect();
+      }
       worktreeObserver = new MutationObserver((mutations) => {
         let shouldScan = false;
         for (const m of mutations) {
