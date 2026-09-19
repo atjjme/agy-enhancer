@@ -5031,7 +5031,7 @@
               const aiTurn = resolveAiResponseTurn(target);
               if (aiTurn) {
                 items.push({
-                  label: 'Pin from selection to end',
+                  label: 'Pin from Selection',
                   icon: 'pin',
                   action: () => {
                     pinAiTurnFromSelection(aiTurn, selectedText);
@@ -7066,31 +7066,6 @@
             color: #34d399 !important;
           }
 
-          /* AI 消息工具栏图钉按钮 (保留作为双重入口) */
-          .agy-pin-btn {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            width: 28px;
-            height: 28px;
-            border-radius: 6px;
-            background: transparent;
-            border: none;
-            color: var(--muted-foreground, #94a3b8);
-            cursor: pointer;
-            transition: all 0.18s ease;
-          }
-          .agy-pin-btn:hover {
-            background: var(--secondary, rgba(255, 255, 255, 0.1));
-            color: var(--foreground, #fff);
-          }
-          .agy-pin-btn.active {
-            color: #10b981 !important;
-          }
-          .agy-pin-btn.active:hover {
-            background: rgba(16, 185, 129, 0.15) !important;
-            color: #34d399 !important;
-          }
 
           /* 原消息高亮呼吸动效 */
           @keyframes agy-pin-pulse {
@@ -7322,17 +7297,27 @@
       }
 
       function extractSummaryTitle(text) {
-        if (!text) return 'AI 总结';
+        if (!text) return 'AI Summary';
         const lines = text.trim().split('\n');
+        // 1. 优先提取 Markdown 标题行 (# 标题)
         for (let line of lines) {
-          line = line.trim();
-          if (line.startsWith('#')) {
-            const clean = line.replace(/^#+\s*/, '').trim();
-            if (clean) return clean.slice(0, 36);
+          const trimmed = line.trim();
+          if (trimmed.startsWith('#')) {
+            const clean = trimmed.replace(/^#+\s*/, '').trim();
+            if (clean && !/^(worked|thought)\s+for/i.test(clean) && !/^thinking/i.test(clean)) {
+              return clean.slice(0, 36);
+            }
           }
         }
-        const first = lines[0]?.trim() || '';
-        return (first.slice(0, 32) || 'AI 总结') + (first.length > 32 ? '...' : '');
+        // 2. 查找首个有实际内容的自然文本行（过滤 Worked for 34s、Thought for Xs、Thinking 等系统标记）
+        for (let line of lines) {
+          let clean = line.trim().replace(/^[>\-\*\d\.\s#]+/, '').trim();
+          if (!clean) continue;
+          if (/^(worked|thought)\s+for/i.test(clean)) continue;
+          if (/^thinking(\.\.\.)?/i.test(clean)) continue;
+          return clean.slice(0, 36) + (clean.length > 36 ? '...' : '');
+        }
+        return 'AI Summary';
       }
 
       function escapeHtml(str) {
@@ -7345,7 +7330,7 @@
       }
 
       function renderMarkdownSafe(text) {
-        if (!text) return '<p style="color: #64748b;">暂无内容</p>';
+        if (!text) return '<p style="color: #64748b;">No content</p>';
         let html = escapeHtml(text);
 
         // 代码块
@@ -7410,10 +7395,10 @@
             void targetEl.offsetWidth;
             targetEl.classList.add('agy-pulse-highlight');
             setTimeout(() => targetEl.classList.remove('agy-pulse-highlight'), 2300);
-            showNotification?.('已定位到原总结消息');
+            showNotification?.('Scrolled to original message');
           } catch (e) {}
         } else {
-          showNotification?.('原消息可能已随滚动暂时卸载，请向上翻阅');
+          showNotification?.('Original message may be off-screen. Scroll up to view.');
         }
       }
 
@@ -7489,16 +7474,16 @@
               ${total > 1 ? `<span style="font-size: 11px; background: rgba(16,185,129,0.18); color: #34d399; padding: 1px 6px; border-radius: 999px;">${currentIdx + 1}/${total}</span>` : ''}
             </div>
             <div class="agy-pip-header-btns">
-              <button class="agy-pip-icon-btn" id="agy-pip-jump-btn" title="跳转定位到原消息">
+              <button class="agy-pip-icon-btn" id="agy-pip-jump-btn" title="Locate original message">
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="3"></circle></svg>
               </button>
-              <button class="agy-pip-icon-btn" id="agy-pip-copy-btn" title="复制总结全文">
+              <button class="agy-pip-icon-btn" id="agy-pip-copy-btn" title="Copy full summary">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
               </button>
-              <button class="agy-pip-icon-btn" id="agy-pip-min-btn" title="最小化到侧边">
+              <button class="agy-pip-icon-btn" id="agy-pip-min-btn" title="Minimize to side">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line></svg>
               </button>
-              <button class="agy-pip-icon-btn" id="agy-pip-close-btn" title="关闭悬浮窗">
+              <button class="agy-pip-icon-btn" id="agy-pip-close-btn" title="Close preview">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
               </button>
             </div>
@@ -7511,7 +7496,7 @@
         modal.querySelector('#agy-pip-jump-btn')?.addEventListener('click', () => scrollToOriginalTurn(item));
         modal.querySelector('#agy-pip-copy-btn')?.addEventListener('click', () => {
           copyText(item.text || '');
-          showNotification?.('已复制总结全文');
+          showNotification?.('Summary copied');
         });
         modal.querySelector('#agy-pip-min-btn')?.addEventListener('click', () => {
           modal.remove();
@@ -7591,15 +7576,15 @@
               <span class="agy-card-pin-icon">📌</span>
               <span class="agy-card-title" title="${escapeHtml(item.title)}">${escapeHtml(item.title)}</span>
               <div class="agy-card-actions">
-                <button class="agy-card-btn agy-card-jump" data-idx="${idx}" title="定位跳转到原消息">
+                <button class="agy-card-btn agy-card-jump" data-idx="${idx}" title="Locate original message">
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="3"></circle></svg>
-                  定位
+                  Locate
                 </button>
-                <button class="agy-card-btn agy-card-pip" data-idx="${idx}" title="画中画速览">
+                <button class="agy-card-btn agy-card-pip" data-idx="${idx}" title="Picture-in-picture preview">
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="9" y1="3" x2="9" y2="21"></line></svg>
-                  速览
+                  Preview
                 </button>
-                <button class="agy-card-btn danger agy-card-unpin" data-pin-id="${escapeHtml(item.id)}" title="取消钉选此总结">
+                <button class="agy-card-btn danger agy-card-unpin" data-pin-id="${escapeHtml(item.id)}" title="Unpin summary">
                   ✕
                 </button>
               </div>
@@ -7608,7 +7593,7 @@
         });
 
         indicatorWrap.innerHTML = `
-          <div class="agy-pin-dot" title="已钉选 ${list.length} 篇总结 (悬停查看)"></div>
+          <div class="agy-pin-dot" title="${list.length} pinned ${list.length === 1 ? 'summary' : 'summaries'} (hover to view)"></div>
           <div class="agy-pin-flyout-drawer" id="agy-pin-drawer">
             ${cardsHtml}
           </div>
@@ -7671,7 +7656,7 @@
         list.unshift(item);
         savePinnedList(list);
         currentActiveIndex = 0;
-        showNotification?.('📌 已钉选此条总结');
+        showNotification?.('📌 Pinned summary');
         renderPinnedIndicator();
         syncAllPinButtons();
       }
@@ -7681,7 +7666,7 @@
         list = list.filter(p => p.id !== idOrHash && p.hash !== idOrHash);
         savePinnedList(list);
         if (currentActiveIndex >= list.length) currentActiveIndex = Math.max(0, list.length - 1);
-        showNotification?.('已取消钉选');
+        showNotification?.('Unpinned summary');
         renderPinnedIndicator();
         if (list.length === 0) {
           document.getElementById('agy-pip-modal')?.remove();
@@ -7728,28 +7713,44 @@
         const effectiveToolbar = toolbar || turnEl?.querySelector?.('[data-testid="cascade-system-message-toolbar"]');
 
         try {
-          const fiberKey = Object.keys(effectiveToolbar || turnEl || {}).find(k => k.startsWith('__reactFiber$') || k.startsWith('__reactInternalInstance$'));
-          let f = (effectiveToolbar || turnEl)[fiberKey];
-          while (f) {
-            if (f.memoizedProps?.steps) {
-              const steps = f.memoizedProps.steps;
-              for (const s of steps) {
-                const stepObj = s.step?.value || s.step;
-                if (stepObj?.response || stepObj?.modifiedResponse) {
-                  markdownText = stepObj.modifiedResponse || stepObj.response || '';
-                  break;
+          const searchRoots = [effectiveToolbar, turnEl?.querySelector?.('.prose, [class*="markdown"]'), turnEl].filter(Boolean);
+          for (const root of searchRoots) {
+            const fiberKey = Object.keys(root).find(k => k.startsWith('__reactFiber$') || k.startsWith('__reactInternalInstance$'));
+            let f = root[fiberKey];
+            while (f) {
+              if (f.memoizedProps?.steps) {
+                const steps = f.memoizedProps.steps;
+                for (const s of steps) {
+                  const stepObj = s.step?.value || s.step;
+                  if (stepObj?.response || stepObj?.modifiedResponse) {
+                    markdownText = stepObj.modifiedResponse || stepObj.response || '';
+                    break;
+                  }
                 }
+                if (markdownText) break;
               }
-              if (markdownText) break;
+              f = f.return;
             }
-            f = f.return;
+            if (markdownText) break;
           }
         } catch (e) {}
 
         if (!markdownText && turnEl) {
           const clone = turnEl.cloneNode(true);
-          clone.querySelector('[data-testid="cascade-system-message-toolbar"]')?.remove();
+          clone.querySelectorAll('[data-testid="cascade-system-message-toolbar"]')?.forEach(el => el.remove());
+          // 移除耗时、思考过程折叠头 (如 Worked for 34s, Thought for 10s)
+          clone.querySelectorAll('button, div, span, [data-testid*="thought"], [class*="thought"]').forEach(el => {
+            const t = el.innerText?.trim() || '';
+            if (/^(worked|thought)\s+for\s+\d+/i.test(t) && t.length < 60) {
+              el.remove();
+            }
+          });
           markdownText = clone.innerText?.trim() || '';
+        }
+
+        if (markdownText) {
+          // 彻底剥离可能残留于开头的 "Worked for 34s >" 或 "Thought for Xs" 标记
+          markdownText = markdownText.replace(/^(worked|thought)\s+for\s+[\d\w\s\.\>\-]+\n*/i, '').trim();
         }
 
         const hash = computeHash(markdownText);
@@ -7757,12 +7758,15 @@
         return { markdownText, hash, title };
       }
 
-      // 8. 巡检并同步所有钉选按钮 (提问右下角 + 回复工具栏)
+      // 8. 巡检并同步用户提问右下角钉选按钮
       function syncAllPinButtons() {
+        // 清理任何历史可能遗留的 AI 回复左下角旧图钉
+        document.querySelectorAll('.agy-pin-btn').forEach(el => el.remove());
+
         const list = getPinnedList();
         const pinnedHashes = new Set(list.map(p => p.hash));
 
-        // A. 用户发出后的提示词右下角：放置在复制和 Undo 前面
+        // 用户发出后的提示词右下角：放置在复制和 Undo 前面
         const userTurns = document.querySelectorAll('.group\\/user-input-step, [class*="user-input-step"]');
         for (const uTurn of userTurns) {
           // 查找右下角的复制按钮
@@ -7783,7 +7787,7 @@
               e.stopPropagation();
               const nextAi = findNextAiTurnFromUserTurn(uTurn);
               if (!nextAi) {
-                showNotification?.('未检测到紧随其后的 AI 回复');
+                showNotification?.('No subsequent AI response detected');
                 return;
               }
               const { markdownText, hash, title } = extractAiTurnData(nextAi);
@@ -7807,63 +7811,15 @@
             btnRow.insertBefore(uPinBtn, copyBtn);
           }
 
-          // 同步用户提示词图钉的激活态
+          // 同步用户提示词图钉的激活态与英文提示
           const nextAi = findNextAiTurnFromUserTurn(uTurn);
           const aiHash = nextAi?.getAttribute('data-agy-summary-hash') || computeHash(nextAi?.innerText || '');
           if (aiHash && pinnedHashes.has(aiHash)) {
             uPinBtn.classList.add('active');
-            uPinBtn.title = '本轮 AI 回复已钉选 (点击取消)';
+            uPinBtn.title = 'AI response pinned (Click to unpin)';
           } else {
             uPinBtn.classList.remove('active');
-            uPinBtn.title = '钉选本轮 AI 回复到速览';
-          }
-        }
-
-        // B. AI 回复底部工具栏中的图钉 (保留互通)
-        const toolbars = document.querySelectorAll('[data-testid="cascade-system-message-toolbar"]');
-        for (const toolbar of toolbars) {
-          const turnEl = toolbar.closest('.group.w-full, [class*="scroll-mt-4"], .flex.items-start') || toolbar.parentElement;
-          if (!turnEl) continue;
-
-          let btn = toolbar.querySelector('.agy-pin-btn');
-          if (!btn) {
-            btn = document.createElement('button');
-            btn.className = 'agy-pin-btn';
-            btn.type = 'button';
-            btn.innerHTML = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="17" x2="12" y2="22"></line><path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z"></path></svg>`;
-
-            btn.addEventListener('click', (e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              const { markdownText, hash, title } = extractAiTurnData(turnEl, toolbar);
-              if (!markdownText) return;
-              turnEl.setAttribute('data-agy-summary-hash', hash);
-              const isCurrentlyPinned = list.some(p => p.hash === hash);
-              if (isCurrentlyPinned) {
-                removePinItem(hash);
-              } else {
-                addPinItem({
-                  id: 'pin_' + Date.now(),
-                  hash,
-                  title,
-                  text: markdownText,
-                  timestamp: Date.now()
-                });
-              }
-            });
-
-            toolbar.insertBefore(btn, toolbar.firstChild);
-          }
-
-          const dataHash = turnEl.getAttribute('data-agy-summary-hash') || computeHash(turnEl.innerText || '');
-          if (pinnedHashes.has(dataHash)) {
-            btn.classList.add('active');
-            btn.title = '已钉选至速览 (点击取消钉选)';
-            btn.setAttribute('aria-label', 'Unpin Summary');
-          } else {
-            btn.classList.remove('active');
-            btn.title = '钉选此回答到顶部速览';
-            btn.setAttribute('aria-label', 'Pin Summary');
+            uPinBtn.title = 'Pin AI response';
           }
         }
       }
@@ -7925,7 +7881,7 @@
           text: extracted,
           timestamp: Date.now()
         });
-        showNotification?.('📌 已从所选位置向后提取并钉选');
+        showNotification?.('📌 Pinned from selection');
       };
 
       // 11. 心跳同步与会话切换
