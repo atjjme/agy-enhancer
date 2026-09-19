@@ -800,6 +800,17 @@
 
         <div class="control-row">
           <div class="control-text">
+            <div class="control-label" data-i18n="sw_worktree_mgmt_title">分支与工作树快捷管理 (Worktree Management)</div>
+            <div class="control-subtext" data-i18n="sw_worktree_mgmt_desc">在顶部工作树和分支下拉列表中提供悬停删除垃圾桶与完整右键菜单（彻底删除、复制名称/路径、打开目录/终端、清理失效记录）。</div>
+          </div>
+          <label class="switch-ui">
+            <input type="checkbox" id="ENABLE_WORKTREE_MANAGEMENT">
+            <span class="switch-slider"></span>
+          </label>
+        </div>
+
+        <div class="control-row">
+          <div class="control-text">
             <div class="control-label" data-i18n="sw_status_indicator_title">右上角常驻绿色运行指示点</div>
             <div class="control-subtext" data-i18n="sw_status_indicator_desc">在 Antigravity 客户端右上角显示极小状态小圆点与启动时的展开提示。</div>
           </div>
@@ -911,6 +922,7 @@
       'ENABLE_CONTEXT_MENU',
       'ENABLE_BLOCK_QUOTE_POPUP',
       'ENABLE_FORK_CONVERSATION',
+      'ENABLE_WORKTREE_MANAGEMENT',
       'ENABLE_STATUS_INDICATOR',
       'ENABLE_NAV_BUTTONS',
       'ENABLE_BLOCK_CHAT_BOTTOM_BUTTON',
@@ -925,6 +937,7 @@
       ENABLE_CONTEXT_MENU: true,
       ENABLE_BLOCK_QUOTE_POPUP: true,
       ENABLE_FORK_CONVERSATION: true,
+      ENABLE_WORKTREE_MANAGEMENT: true,
       ENABLE_STATUS_INDICATOR: true,
       ENABLE_NAV_BUTTONS: true,
       ENABLE_BLOCK_CHAT_BOTTOM_BUTTON: true,

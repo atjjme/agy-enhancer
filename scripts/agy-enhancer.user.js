@@ -45,6 +45,9 @@ window.__AGY_BRANCH_NAME__ = "worktree_purge_management";
     // 【会话分叉】是否开启会话切片分叉与分支创建功能（独立开关，并在右键菜单中提供入口）
     ENABLE_FORK_CONVERSATION: true,
 
+    // 【工作树管理】是否开启分支与工作树快捷管理、悬停删除与右键菜单（受全局右键与独立开关控制）
+    ENABLE_WORKTREE_MANAGEMENT: true,
+
     // 【翻页导航】右侧常驻智能翻页双按钮
     ENABLE_NAV_BUTTONS: true,
 
@@ -6300,6 +6303,8 @@ window.__AGY_BRANCH_NAME__ = "worktree_purge_management";
 
     // ==================== 13. 分支与工作树快捷管理与一键彻底清理系统 (Worktree & Branch Management) ====================
     function initWorktreeManagement() {
+      if (USER_CONFIG.ENABLE_MASTER === false || USER_CONFIG.ENABLE_WORKTREE_MANAGEMENT === false) return;
+
       // 1. 二次确认模态框
       showWorktreeConfirmModal = function (options) {
         const { title, message, danger = true, confirmText = 'Delete', cancelText = 'Cancel', onConfirm } = options || {};
@@ -6817,7 +6822,7 @@ window.__AGY_BRANCH_NAME__ = "worktree_purge_management";
         document.removeEventListener('contextmenu', worktreeContextMenuHandler, true);
       }
       worktreeContextMenuHandler = (e) => {
-        if (e.shiftKey) return;
+        if (e.shiftKey || USER_CONFIG.ENABLE_CONTEXT_MENU === false || USER_CONFIG.ENABLE_WORKTREE_MANAGEMENT === false) return;
         const item = resolveWorktreeOrBranchTarget(e.target);
         if (item) {
           e.preventDefault();
@@ -6862,7 +6867,7 @@ window.__AGY_BRANCH_NAME__ = "worktree_purge_management";
     if (USER_CONFIG.ENABLE_SMART_UNREAD !== false) initSmartUnreadTracker();
     if (USER_CONFIG.ENABLE_CONTEXT_MENU !== false && USER_CONFIG.ENABLE_BLOCK_QUOTE_POPUP !== false) initQuotePopupInterceptor();
     if (USER_CONFIG.ENABLE_BLOCK_CHAT_BOTTOM_BUTTON !== false) initBlockChatBottomButton();
-    initWorktreeManagement();
+    if (USER_CONFIG.ENABLE_WORKTREE_MANAGEMENT !== false) initWorktreeManagement();
 
     // ==================== 14. 全局统一后台心跳调度器 (Unified Heartbeat Dispatcher) ====================
     let heartbeatTickCount = 0;

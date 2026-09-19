@@ -850,6 +850,21 @@
             </label>
           </div>
 
+          <!-- 独立功能：分支与工作树快捷管理 -->
+          <div class="hud-row">
+            <div class="hud-row-info">
+              <div class="hud-row-title">
+                <span data-i18n="sw_worktree_mgmt_title">分支与工作树快捷管理 (Worktree Management)</span>
+                <span class="hud-row-tag">WORKTREE_MGMT</span>
+              </div>
+              <div class="hud-row-desc" data-i18n="sw_worktree_mgmt_desc">在顶部工作树和分支下拉列表中提供悬停删除垃圾桶与完整右键菜单（彻底删除、复制名称/路径、打开目录/终端、清理失效记录）。</div>
+            </div>
+            <label class="cyber-switch">
+              <input type="checkbox" id="ENABLE_WORKTREE_MANAGEMENT">
+              <span class="cyber-slider"></span>
+            </label>
+          </div>
+
           <!-- 右上角指示点 -->
           <div class="hud-row">
             <div class="hud-row-info">
@@ -969,6 +984,7 @@
       'ENABLE_CONTEXT_MENU',
       'ENABLE_BLOCK_QUOTE_POPUP',
       'ENABLE_FORK_CONVERSATION',
+      'ENABLE_WORKTREE_MANAGEMENT',
       'ENABLE_STATUS_INDICATOR',
       'ENABLE_NAV_BUTTONS',
       'ENABLE_BLOCK_CHAT_BOTTOM_BUTTON',
@@ -983,6 +999,7 @@
       ENABLE_CONTEXT_MENU: true,
       ENABLE_BLOCK_QUOTE_POPUP: true,
       ENABLE_FORK_CONVERSATION: true,
+      ENABLE_WORKTREE_MANAGEMENT: true,
       ENABLE_STATUS_INDICATOR: true,
       ENABLE_NAV_BUTTONS: true,
       ENABLE_BLOCK_CHAT_BOTTOM_BUTTON: true,
