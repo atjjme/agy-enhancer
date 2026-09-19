@@ -7067,16 +7067,29 @@
           }
 
 
-          /* 原消息高亮呼吸动效 */
+          /* 原消息/段落高亮呼吸动效 (Plan A 精准聚光呼吸) */
           @keyframes agy-pin-pulse {
-            0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.8); outline: 2px solid #10b981; }
-            40% { box-shadow: 0 0 28px 8px rgba(16, 185, 129, 0.5); outline: 2px solid #34d399; }
-            100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); outline: 2px solid transparent; }
+            0% {
+              box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.85);
+              outline: 2px solid #10b981;
+              background-color: rgba(16, 185, 129, 0.12);
+            }
+            40% {
+              box-shadow: 0 0 24px 6px rgba(16, 185, 129, 0.45);
+              outline: 2px solid #34d399;
+              background-color: rgba(16, 185, 129, 0.08);
+            }
+            100% {
+              box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
+              outline: 2px solid transparent;
+              background-color: transparent;
+            }
           }
           .agy-pulse-highlight {
             animation: agy-pin-pulse 2.2s cubic-bezier(0.25, 1, 0.5, 1) !important;
-            border-radius: 8px !important;
-            scroll-margin-top: 60px;
+            border-radius: 6px !important;
+            scroll-margin-top: 70px;
+            scroll-margin-bottom: 70px;
           }
 
           /* 画中画悬浮速览面板 (PiP Modal) */
@@ -7390,11 +7403,50 @@
 
         if (targetEl) {
           try {
-            targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            targetEl.classList.remove('agy-pulse-highlight');
-            void targetEl.offsetWidth;
-            targetEl.classList.add('agy-pulse-highlight');
-            setTimeout(() => targetEl.classList.remove('agy-pulse-highlight'), 2300);
+            let focusEl = targetEl;
+
+            // 局部选区精准定位：若存在选区特征指纹，在 targetEl 内部精确定位到具体段落/代码块
+            if (summary.anchorSnippet) {
+              const snippet = summary.anchorSnippet.trim();
+              if (snippet) {
+                const candidates = targetEl.querySelectorAll('p, li, h1, h2, h3, h4, h5, h6, pre, blockquote, tr, td, code, div');
+                let bestMatch = null;
+                let minLength = Infinity;
+                for (const el of candidates) {
+                  if (el.closest('[data-testid="cascade-system-message-toolbar"]')) continue;
+                  const text = (el.innerText || '').replace(/\s+/g, ' ');
+                  if (text.includes(snippet)) {
+                    if (text.length < minLength) {
+                      minLength = text.length;
+                      bestMatch = el;
+                    }
+                  }
+                }
+                // 容错降级：前 15 字符轻量匹配
+                if (!bestMatch && snippet.length > 15) {
+                  const shortSnippet = snippet.slice(0, 15);
+                  for (const el of candidates) {
+                    if (el.closest('[data-testid="cascade-system-message-toolbar"]')) continue;
+                    const text = (el.innerText || '').replace(/\s+/g, ' ');
+                    if (text.includes(shortSnippet)) {
+                      if (text.length < minLength) {
+                        minLength = text.length;
+                        bestMatch = el;
+                      }
+                    }
+                  }
+                }
+                if (bestMatch) {
+                  focusEl = bestMatch;
+                }
+              }
+            }
+
+            focusEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            focusEl.classList.remove('agy-pulse-highlight');
+            void focusEl.offsetWidth;
+            focusEl.classList.add('agy-pulse-highlight');
+            setTimeout(() => focusEl.classList.remove('agy-pulse-highlight'), 2300);
             showNotification?.('Scrolled to original message');
           } catch (e) {}
         } else {
@@ -7871,6 +7923,7 @@
         const extracted = startIndex !== -1 ? fullMarkdown.slice(startIndex).trim() : selectedText.trim();
         const hash = computeHash(extracted);
         const title = extractSummaryTitle(extracted);
+        const anchorSnippet = selectedText.trim().slice(0, 45).replace(/\s+/g, ' ');
 
         if (aiTurn.turnEl) aiTurn.turnEl.setAttribute('data-agy-summary-hash', hash);
 
@@ -7879,6 +7932,7 @@
           hash,
           title,
           text: extracted,
+          anchorSnippet,
           timestamp: Date.now()
         });
         showNotification?.('📌 Pinned from selection');
