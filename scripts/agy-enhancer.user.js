@@ -6302,7 +6302,7 @@ window.__AGY_BRANCH_NAME__ = "worktree_purge_management";
     function initWorktreeManagement() {
       // 1. 二次确认模态框
       showWorktreeConfirmModal = function (options) {
-        const { title, message, danger = true, confirmText = '彻底删除', cancelText = '取消', onConfirm } = options || {};
+        const { title, message, danger = true, confirmText = 'Delete', cancelText = 'Cancel', onConfirm } = options || {};
         document.getElementById('agy-confirm-modal-overlay')?.remove();
 
         const overlay = document.createElement('div');
@@ -6343,7 +6343,7 @@ window.__AGY_BRANCH_NAME__ = "worktree_purge_management";
           e.stopPropagation();
           e.preventDefault();
           confirmBtn.disabled = true;
-          confirmBtn.textContent = '清理中...';
+          confirmBtn.textContent = 'Deleting...';
           try {
             await onConfirm?.();
           } finally {
@@ -6478,21 +6478,22 @@ window.__AGY_BRANCH_NAME__ = "worktree_purge_management";
 
         const lower = (branchName || '').toLowerCase();
         if (lower === 'main' || lower === 'master' || lower === 'trunk' || lower === 'default') {
-          showNotification?.(`安全防护：禁止删除主干分支 "${branchName}"`);
+          showNotification?.(`Protected: Cannot delete default branch "${branchName}"`);
           return;
         }
 
         const currentBranch = window.__AGY_BRANCH_NAME__ || '';
         if (branchName && currentBranch && branchName === currentBranch) {
-          showNotification?.(`当前分支 "${branchName}" 正在活动使用中，请先切换到其他分支`);
+          showNotification?.(`Cannot delete active branch "${branchName}". Please switch branches first.`);
           return;
         }
 
         showWorktreeConfirmModal({
-          title: '彻底清除分支与工作树',
-          message: `确定要彻底删除工作树/分支「${branchName}」吗？\n\n此操作将全维度彻底清除：\n1. 本地物理磁盘工作树目录\n2. Git 本地分支与工作树索引\n3. Antigravity 软件项目注册表缓存\n\n数据删除后不可撤销，请确认。`,
+          title: 'Delete Worktree & Branch',
+          message: `Are you sure you want to completely delete worktree/branch "${branchName}"?\n\nThis will permanently clean up:\n1. Local physical worktree directory\n2. Git branch and worktree indices\n3. Antigravity project registry entries\n\nThis action cannot be undone.`,
           danger: true,
-          confirmText: '彻底删除',
+          confirmText: 'Delete',
+          cancelText: 'Cancel',
           onConfirm: async () => {
             try {
               const res = await fetch('http://127.0.0.1:37210/api/worktree/purge', {
@@ -6508,7 +6509,7 @@ window.__AGY_BRANCH_NAME__ = "worktree_purge_management";
               }).then(r => r.json());
 
               if (res.success) {
-                showNotification?.(`已彻底清理分支与工作树 "${branchName}"`);
+                showNotification?.(`Worktree and branch "${branchName}" completely deleted`);
                 if (itemEl && itemEl.isConnected) {
                   itemEl.style.transition = 'all 0.25s cubic-bezier(0.16, 1, 0.3, 1)';
                   itemEl.style.opacity = '0';
@@ -6522,33 +6523,33 @@ window.__AGY_BRANCH_NAME__ = "worktree_purge_management";
                   }, 260);
                 }
               } else {
-                showNotification?.(`清理失败: ${res.error || '未知错误'}`);
+                showNotification?.(`Failed to delete worktree: ${res.error || 'Unknown error'}`);
               }
             } catch (err) {
-              showNotification?.(`请求服务失败: ${err?.message || err}`);
+              showNotification?.(`Request failed: ${err?.message || err}`);
             }
           }
         });
       };
 
-      // 5. 弹出工作树/分支 6 项右键上下文菜单
+      // 5. 弹出工作树/分支右键上下文菜单（与左侧栏完全一致）
       renderWorktreeContextMenu = function (e, info, itemEl) {
         const { branchName, folderUri, projectId, projectName } = info || {};
         const isMainBranch = ['main', 'master', 'trunk', 'default'].includes((branchName || '').toLowerCase());
 
         const items = [
           {
-            label: '复制分支名称',
+            label: 'Copy Branch Name',
             icon: 'branch',
             action: () => {
               if (branchName) {
                 copyText(branchName);
-                showNotification?.(`已复制分支名称: ${branchName}`);
+                showNotification?.(`Copied branch name: ${branchName}`);
               }
             }
           },
           {
-            label: '打开分支目录',
+            label: 'Open Project Folder',
             icon: 'folder',
             action: async () => {
               try {
@@ -6558,17 +6559,17 @@ window.__AGY_BRANCH_NAME__ = "worktree_purge_management";
                   body: JSON.stringify({ folderUri, branchName, projectName, projectId })
                 }).then(r => r.json());
                 if (res.success) {
-                  showNotification?.('已在资源管理器中打开分支目录');
+                  showNotification?.('Opened project folder in Explorer');
                 } else {
-                  showNotification?.('该分支尚无独立物理目录');
+                  showNotification?.('Project folder does not exist');
                 }
               } catch (e) {
-                showNotification?.('该分支尚无独立物理目录');
+                showNotification?.('Project folder does not exist');
               }
             }
           },
           {
-            label: '在终端中打开',
+            label: 'Open in Terminal',
             icon: 'terminal',
             action: async () => {
               try {
@@ -6578,17 +6579,17 @@ window.__AGY_BRANCH_NAME__ = "worktree_purge_management";
                   body: JSON.stringify({ folderUri, branchName, projectName, projectId })
                 }).then(r => r.json());
                 if (res.success) {
-                  showNotification?.('已在终端中打开分支路径');
+                  showNotification?.('Opened terminal');
                 } else {
-                  showNotification?.('该分支物理目录不存在');
+                  showNotification?.('Target path does not exist');
                 }
               } catch (e) {
-                showNotification?.('无法打开终端');
+                showNotification?.('Cannot open terminal for this path');
               }
             }
           },
           {
-            label: '复制绝对路径',
+            label: 'Copy Path',
             icon: 'copy',
             action: () => {
               let cleanPath = '';
@@ -6600,14 +6601,14 @@ window.__AGY_BRANCH_NAME__ = "worktree_purge_management";
               }
               if (cleanPath) {
                 copyText(cleanPath);
-                showNotification?.(`已复制绝对路径: ${cleanPath}`);
+                showNotification?.(`Copied path: ${cleanPath}`);
               } else {
-                showNotification?.('该分支暂无本地绝对路径');
+                showNotification?.('No local path available for this branch');
               }
             }
           },
           {
-            label: '清理失效工作树',
+            label: 'Prune Invalid Worktrees',
             icon: 'clean',
             action: async () => {
               try {
@@ -6616,20 +6617,20 @@ window.__AGY_BRANCH_NAME__ = "worktree_purge_management";
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({ projectId, projectName })
                 }).then(r => r.json());
-                showNotification?.(res.message || '清理完成');
+                showNotification?.(res.message || 'Prune completed');
               } catch (e) {
-                showNotification?.(`清理失效工作树失败: ${e.message}`);
+                showNotification?.(`Failed to prune invalid worktrees: ${e.message}`);
               }
             }
           },
           { separator: true },
           {
-            label: '删除当前分支/工作树',
+            label: 'Delete Worktree & Branch',
             icon: 'trash',
             danger: true,
             action: () => {
               if (isMainBranch) {
-                showNotification?.(`安全防护：禁止删除主干分支 "${branchName}"`);
+                showNotification?.(`Protected: Cannot delete default branch "${branchName}"`);
                 return;
               }
               executePurge(info, itemEl);
@@ -6704,7 +6705,7 @@ window.__AGY_BRANCH_NAME__ = "worktree_purge_management";
                 const trashBtn = document.createElement('button');
                 trashBtn.className = 'agy-wt-hover-trash';
                 trashBtn.type = 'button';
-                trashBtn.title = '彻底删除工作树与分支';
+                trashBtn.title = 'Delete Worktree & Branch';
                 trashBtn.innerHTML = `
                   <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <polyline points="3 6 5 6 21 6"></polyline>
@@ -6744,7 +6745,7 @@ window.__AGY_BRANCH_NAME__ = "worktree_purge_management";
             const trashBtn = document.createElement('button');
             trashBtn.className = 'agy-wt-hover-trash';
             trashBtn.type = 'button';
-            trashBtn.title = '彻底删除本地分支与工作树';
+            trashBtn.title = 'Delete Worktree & Branch';
             trashBtn.innerHTML = `
               <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <polyline points="3 6 5 6 21 6"></polyline>
