@@ -4026,75 +4026,230 @@ window.__AGY_BRANCH_NAME__ = "fix_selection_quote_popup";
         return null;
       }
 
-      function resolveTurnElements(target) {
-        const targetPane = target.closest?.('.group\\/pane[data-pane-id], [data-pane-id]');
-        const chatContainer = (targetPane ? getChatScrollContainer(targetPane) : null) || getChatScrollContainer();
-        if (!chatContainer || !chatContainer.contains(target)) return null;
+      function enableSystemForkingFeature() {
+        try {
+          const root = document.getElementById('root');
+          if (!root) return false;
+          const fiberKey = Object.keys(root).find(k => k.startsWith('__reactFiber$') || k.startsWith('__reactContainer$'));
+          if (!fiberKey) return false;
+          let f = root[fiberKey];
+          let registry = null;
+          function walk(node, d) {
+            if (!node || d > 35 || registry) return;
+            if (node.memoizedProps?.value && typeof node.memoizedProps.value.get === 'function') {
+              try {
+                if (node.memoizedProps.value.get('conversationView')) {
+                  registry = node.memoizedProps.value;
+                  return;
+                }
+              } catch (e) {}
+            }
+            if (node.child) walk(node.child, d + 1);
+            if (!registry && node.sibling) walk(node.sibling, d);
+          }
+          walk(f, 0);
+          if (registry) {
+            const cv = registry.get('conversationView');
+            if (cv) {
+              let updated = false;
+              if (!cv.conversationForkingEnabled) {
+                cv.conversationForkingEnabled = true;
+                updated = true;
+              }
+              if (!cv.conversationForkingHistoricalStep) {
+                cv.conversationForkingHistoricalStep = true;
+                updated = true;
+              }
+              if (!cv.conversationForkingNewWorktree) {
+                cv.conversationForkingNewWorktree = true;
+                updated = true;
+              }
+              return true;
+            }
+          }
+        } catch (err) {}
+        return false;
+      }
 
-        // 1. 用户提问气泡判定与按钮检索
-        const userStep = target.closest('.group\\/user-input-step, [class*="user-input-step"]');
-        if (userStep) {
-          const copyBtn = userStep.querySelector('button[data-tooltip-id*="copy-user-message"], button[aria-label="Copy"], .user-input-buttons-container button:first-of-type');
-          const editBtn = userStep.querySelector('button[data-testid="revert-button"], button[aria-label*="Undo" i], button[aria-label*="Edit" i], button[title*="Edit" i], .user-input-buttons-container button:last-of-type');
-          const bubbleEl = userStep.querySelector('[class*="rounded-[calc"]') || userStep;
-          const promptText = (bubbleEl.innerText || userStep.innerText || '').replace(/\s*\d{1,2}:\d{2}\s*(?:AM|PM)?\s*$/i, '').trim();
-
-          return {
-            isUserTurn: true,
-            turnEl: userStep,
-            copyBtn,
-            editBtn,
-            promptText
-          };
+      function triggerForkAction(forkBtn) {
+        if (!forkBtn) return;
+        try {
+          const fiberKey = Object.keys(forkBtn).find(k => k.startsWith('__reactFiber$') || k.startsWith('__reactInternalInstance$'));
+          const fiber = forkBtn[fiberKey];
+          const props = fiber?.memoizedProps;
+          if (props?.onPointerDown) {
+            props.onPointerDown({
+              preventDefault: () => {},
+              stopPropagation: () => {},
+              nativeEvent: new MouseEvent('pointerdown', { bubbles: true, cancelable: true }),
+              currentTarget: forkBtn,
+              target: forkBtn,
+              isDefaultPrevented: () => false,
+              pointerType: 'mouse',
+              button: 0,
+              isPrimary: true
+            });
+          }
+          if (props?.onClick) {
+            props.onClick({
+              preventDefault: () => {},
+              stopPropagation: () => {},
+              nativeEvent: new MouseEvent('click', { bubbles: true, cancelable: true }),
+              currentTarget: forkBtn,
+              target: forkBtn,
+              isDefaultPrevented: () => false
+            });
+          }
+          forkBtn.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true, button: 0 }));
+          forkBtn.click();
+        } catch (e) {
+          forkBtn.click();
         }
+      }
 
-        // 2. AI 回复气泡判定与按钮检索
-        const turnContainer = target.closest?.('.relative.flex.flex-col.gap-y-3, .flex.flex-col.gap-y-3') ||
-                              (chatContainer ? chatContainer.querySelector('.relative.flex.flex-col.gap-y-3, .flex.flex-col.gap-y-3') : null) ||
-                              document.querySelector('.relative.flex.flex-col.gap-y-3') ||
-                              document.querySelector('.flex.flex-col.gap-y-3');
-        let aiTurnEl = null;
-        if (turnContainer) {
+      function getCurrentConversationTitle() {
+        const titleFromDoc = (document.title || '').split(' - ')[0]?.trim();
+        if (titleFromDoc && titleFromDoc !== 'Antigravity') return titleFromDoc;
+        const selectedRow = document.querySelector('[data-testid="conversation-row-sidebar"][data-selected="true"]');
+        if (selectedRow) {
+          const text = (selectedRow.innerText || '').split('\n')[0]?.trim();
+          if (text) return text;
+        }
+        return 'response';
+      }
+
+      function resolveAiResponseTurn(target) {
+        if (!target) return null;
+        // 排除输入框、右侧栏抽屉、侧边栏
+        if (target.closest('form, [contenteditable="true"], textarea, .no-focus-agent-input, #artifacts-sidebar, [aria-label="Artifact Viewer"], [role="region"][aria-label="Artifact Viewer"], [data-testid="conversation-row-sidebar"]')) {
+          return null;
+        }
+        // 排除用户提问气泡
+        if (target.closest('.group\\/user-input-step, [class*="user-input-step"]')) {
+          return null;
+        }
+        // 必须在对话区域内
+        const convoView = target.closest('[data-testid="conversation-view"], [data-testid="autoscroll-viewport"], .md-table-bleed, main, [role="main"]');
+        if (!convoView) return null;
+
+        // 寻找包含当前 target 的 AI 步骤块
+        let turnEl = target.closest('.group.w-full, [class*="scroll-mt-4"], .flex.items-start');
+        let toolbar = turnEl?.querySelector?.('[data-testid="cascade-system-message-toolbar"]');
+
+        if (!toolbar) {
+          // 向上逐层寻找包含 toolbar 的容器
           let curr = target;
-          while (curr && curr !== turnContainer) {
-            if (curr.parentElement === turnContainer) {
-              aiTurnEl = curr;
+          while (curr && curr !== convoView && !toolbar) {
+            toolbar = curr.querySelector?.('[data-testid="cascade-system-message-toolbar"]');
+            if (toolbar) {
+              turnEl = curr;
               break;
             }
             curr = curr.parentElement;
           }
         }
-        if (!aiTurnEl) {
-          aiTurnEl = target.closest('[data-testid*="turn" i], .turn-container, .group.w-full') || target;
-        }
 
-        const aiCopyBtn = aiTurnEl.querySelector?.('button[aria-label="Copy"]:not(.user-input-buttons-container button), button[data-tooltip-id*="copy-"]:not([data-tooltip-id*="copy-user-message"]):not([data-tooltip-id*="copy-code"])');
+        if (!toolbar && !turnEl) return null;
 
-        // 检索上一提问步骤对应的原生回退/重新提问按钮 (revert-button)
-        let prev = aiTurnEl ? aiTurnEl.previousElementSibling : null;
-        let prevUserTurn = null;
-        while (prev) {
-          if (prev.matches?.('.group\\/user-input-step, [class*="user-input-step"]')) {
-            prevUserTurn = prev;
-            break;
+        const copyBtn = toolbar?.querySelector('button[aria-label="Copy"], button[aria-label="Copied"], button[data-tooltip-id*="copy-"]:not([data-tooltip-id*="copy-user-message"]):not([data-tooltip-id*="copy-code"])');
+        const forkBtn = toolbar?.querySelector('button[aria-label="Fork Conversation"], button[data-tooltip-id*="fork-"]');
+
+        let markdownText = '';
+        try {
+          const fiberKey = Object.keys(toolbar || turnEl || {}).find(k => k.startsWith('__reactFiber$') || k.startsWith('__reactInternalInstance$'));
+          let f = (toolbar || turnEl)[fiberKey];
+          while (f) {
+            if (f.memoizedProps?.steps) {
+              const steps = f.memoizedProps.steps;
+              for (const s of steps) {
+                const stepObj = s.step?.value || s.step;
+                if (stepObj?.response || stepObj?.modifiedResponse) {
+                  markdownText = stepObj.modifiedResponse || stepObj.response || '';
+                  break;
+                }
+              }
+              if (markdownText) break;
+            }
+            f = f.return;
           }
-          prev = prev.previousElementSibling;
-        }
-        if (!prevUserTurn && chatContainer) {
-          const userTurns = Array.from(chatContainer.querySelectorAll('.group\\/user-input-step, [class*="user-input-step"]'));
-          prevUserTurn = userTurns[userTurns.length - 1];
-        }
-        const revertBtn = prevUserTurn?.querySelector?.('button[data-testid="revert-button"], button[aria-label*="Undo" i]');
+        } catch (e) {}
 
-        const responseMarkdown = aiTurnEl.innerText || aiTurnEl.textContent || '';
+        if (!markdownText && turnEl) {
+          const clone = turnEl.cloneNode(true);
+          clone.querySelector('[data-testid="cascade-system-message-toolbar"]')?.remove();
+          markdownText = clone.innerText?.trim() || '';
+        }
 
         return {
-          isUserTurn: false,
-          turnEl: aiTurnEl,
-          aiCopyBtn,
-          revertBtn,
-          responseMarkdown
+          turnEl,
+          toolbar,
+          copyBtn,
+          forkBtn,
+          markdownText
         };
+      }
+
+      function getAiTurnMenuItems(aiTurn) {
+        if (!aiTurn) return [];
+        return [
+          {
+            label: 'Copy',
+            icon: 'copy',
+            action: () => {
+              if (aiTurn.copyBtn) {
+                aiTurn.copyBtn.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true }));
+                aiTurn.copyBtn.click();
+              } else if (aiTurn.markdownText) {
+                copyText(aiTurn.markdownText);
+                showNotification?.('已复制回复内容');
+              }
+            }
+          },
+          {
+            label: 'Export as Markdown',
+            icon: 'save',
+            action: () => {
+              const md = aiTurn.markdownText;
+              if (!md) {
+                showNotification?.('未获取到回复内容');
+                return;
+              }
+              const safeTitle = getCurrentConversationTitle().replace(/[\\/:*?"<>|]/g, '_').slice(0, 30).trim();
+              const d = new Date();
+              const pad = (n) => String(n).padStart(2, '0');
+              const timeStr = `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`;
+              const filename = `${safeTitle || 'response'}_${timeStr}.md`;
+              saveFileLocally(md, filename);
+              showNotification?.('已导出 Markdown 文档');
+            }
+          },
+          {
+            label: 'Branch in new chat',
+            icon: 'fork',
+            action: () => {
+              enableSystemForkingFeature();
+              let btn = aiTurn.forkBtn;
+              if (!btn && aiTurn.toolbar) {
+                btn = aiTurn.toolbar.querySelector('button[aria-label="Fork Conversation"], button[data-tooltip-id*="fork-"]');
+              }
+              if (!btn && aiTurn.turnEl) {
+                btn = aiTurn.turnEl.querySelector('button[aria-label="Fork Conversation"], button[data-tooltip-id*="fork-"]');
+              }
+              if (btn) {
+                triggerForkAction(btn);
+              } else {
+                setTimeout(() => {
+                  const retryBtn = (aiTurn.toolbar || aiTurn.turnEl || document).querySelector('button[aria-label="Fork Conversation"], button[data-tooltip-id*="fork-"]');
+                  if (retryBtn) {
+                    triggerForkAction(retryBtn);
+                  } else {
+                    showNotification?.('已激活分叉功能，请重试');
+                  }
+                }, 100);
+              }
+            }
+          }
+        ];
       }
 
       // 6. 渲染菜单 DOM
@@ -4282,6 +4437,10 @@ window.__AGY_BRANCH_NAME__ = "fix_selection_quote_popup";
               showNotification?.('已复制链接地址');
             }}
           ];
+          const aiTurn = resolveAiResponseTurn(target);
+          if (aiTurn) {
+            items.push({ separator: true }, ...getAiTurnMenuItems(aiTurn));
+          }
           renderMenu(items, e.clientX, e.clientY);
           return;
         }
@@ -4302,6 +4461,10 @@ window.__AGY_BRANCH_NAME__ = "fix_selection_quote_popup";
           if (isImg) {
             items.push({ label: 'Copy Image', icon: 'image', action: () => copyImageFile(localPath) });
           }
+          const aiTurn = resolveAiResponseTurn(target);
+          if (aiTurn) {
+            items.push({ separator: true }, ...getAiTurnMenuItems(aiTurn));
+          }
           renderMenu(items, e.clientX, e.clientY);
           return;
         }
@@ -4321,6 +4484,10 @@ window.__AGY_BRANCH_NAME__ = "fix_selection_quote_popup";
           ];
           if (isImg) {
             items.push({ label: 'Copy Image', icon: 'image', action: () => copyImageFile(fileEntity.filePath) });
+          }
+          const aiTurn = resolveAiResponseTurn(target);
+          if (aiTurn) {
+            items.push({ separator: true }, ...getAiTurnMenuItems(aiTurn));
           }
           renderMenu(items, e.clientX, e.clientY);
           return;
@@ -4427,9 +4594,24 @@ window.__AGY_BRANCH_NAME__ = "fix_selection_quote_popup";
           }
         }
 
+        // 目标 8: AI 回复气泡/正文 (AI Assistant Response - 未划选文字)
+        if (!selectedText) {
+          const aiTurn = resolveAiResponseTurn(target);
+          if (aiTurn) {
+            e.preventDefault();
+            e.stopPropagation();
+            renderMenu(getAiTurnMenuItems(aiTurn), e.clientX, e.clientY);
+            return;
+          }
+        }
+
       };
 
       document.addEventListener('contextmenu', contextMenuHandler, true);
+
+      // 初始化激活系统原生分叉特性并挂载定时巡检
+      enableSystemForkingFeature();
+      addInterval(enableSystemForkingFeature, 3000);
     }
 
     // ==================== 9. 对话滚动位置记忆与恢复 (Scroll Position Persistence) ====================
