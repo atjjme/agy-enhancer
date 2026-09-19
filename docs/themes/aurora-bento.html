@@ -791,6 +791,18 @@
             <span class="vision-slider"></span>
           </label>
         </div>
+
+        <!-- 独立功能：AI 回复钉选与画中画速览 -->
+        <div class="bento-item-row" style="margin-top: 14px; padding-top: 14px; border-top: 1px solid rgba(255, 255, 255, 0.06);">
+          <div class="bento-item-info">
+            <div class="bento-item-name" data-i18n="sw_pinned_summary_title">AI 回复钉选与画中画速览 (Pinned Summary & PiP)</div>
+            <div class="bento-item-desc" data-i18n="sw_pinned_summary_desc">在 AI 消息工具栏与右键菜单中提供钉选功能，在聊天区顶部生成快捷徽标与悬浮画中画速览窗，边看边聊无需来回滚屏。</div>
+          </div>
+          <label class="vision-switch">
+            <input type="checkbox" id="ENABLE_PINNED_SUMMARY">
+            <span class="vision-slider"></span>
+          </label>
+        </div>
       </div>
 
       <!-- Bento 4: 视觉与常驻微工具 -->
@@ -909,6 +921,7 @@
       'ENABLE_BLOCK_QUOTE_POPUP',
       'ENABLE_FORK_CONVERSATION',
       'ENABLE_WORKTREE_MANAGEMENT',
+      'ENABLE_PINNED_SUMMARY',
       'ENABLE_STATUS_INDICATOR',
       'ENABLE_NAV_BUTTONS',
       'ENABLE_BLOCK_CHAT_BOTTOM_BUTTON',
@@ -924,6 +937,7 @@
       ENABLE_BLOCK_QUOTE_POPUP: true,
       ENABLE_FORK_CONVERSATION: true,
       ENABLE_WORKTREE_MANAGEMENT: true,
+      ENABLE_PINNED_SUMMARY: true,
       ENABLE_STATUS_INDICATOR: true,
       ENABLE_NAV_BUTTONS: true,
       ENABLE_BLOCK_CHAT_BOTTOM_BUTTON: true,
