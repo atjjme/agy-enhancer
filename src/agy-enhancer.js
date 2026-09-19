@@ -156,6 +156,7 @@
   let onHeartbeatPinnedSummary = null;
   let isAiTurnPinned = null;
   let toggleAiTurnPin = null;
+  let pinAiTurnFromSelection = null;
 
   // 精准全局用户按键打字感知：仅在用户真实按键输入的 350ms 内抑制后台轮询，光标常驻聚焦不影响功能
   let lastTypingTime = 0;
@@ -199,6 +200,7 @@
     onHeartbeatPinnedSummary = null;
     isAiTurnPinned = null;
     toggleAiTurnPin = null;
+    pinAiTurnFromSelection = null;
 
     if (windowPopstateHandler) {
       window.removeEventListener('popstate', windowPopstateHandler);
@@ -349,10 +351,12 @@
     document.querySelectorAll('.agy-quick-archive-btn').forEach(el => el.remove());
     document.querySelectorAll('.agy-unread-dot-badge').forEach(el => el.remove());
     document.getElementById('agy-pinned-bar')?.remove();
+    document.getElementById('agy-pinned-nav-indicator')?.remove();
     document.getElementById('agy-pip-modal')?.remove();
     document.getElementById('agy-pip-dock')?.remove();
     document.getElementById('agy-pinned-styles')?.remove();
     document.querySelectorAll('.agy-pin-btn').forEach(el => el.remove());
+    document.querySelectorAll('.agy-user-pin-btn').forEach(el => el.remove());
     document.querySelectorAll('.agy-pulse-highlight').forEach(el => el.classList.remove('agy-pulse-highlight'));
     document.querySelectorAll('.agy-native-enhanced').forEach(el => el.remove());
     window.__AGY_ENHANCER_LOADED__ = false;
@@ -5023,6 +5027,18 @@
                 window.open('https://www.google.com/search?q=' + encodeURIComponent(selectedText), '_blank');
               }
             });
+            if (USER_CONFIG.ENABLE_PINNED_SUMMARY !== false && typeof pinAiTurnFromSelection === 'function') {
+              const aiTurn = resolveAiResponseTurn(target);
+              if (aiTurn) {
+                items.push({
+                  label: 'Pin from selection to end',
+                  icon: 'pin',
+                  action: () => {
+                    pinAiTurnFromSelection(aiTurn, selectedText);
+                  }
+                });
+              }
+            }
           }
           renderMenu(items, e.clientX, e.clientY);
           return;
@@ -6878,12 +6894,13 @@
       scanAndEnhanceWorktreeDropdowns();
     }
 
-    // ==================== 13.5. 重点总结钉选与画中画悬浮速览系统 (Pinned Summary & PiP) ====================
+    // ==================== 13.5. 重点总结钉选与画中画悬浮速览系统 (Pinned Summary & PiP V2) ====================
     function initPinnedSummarySystem() {
       const STORAGE_KEY = 'agy_pinned_summaries_v1';
       let currentActiveIndex = 0;
       let lastConvoIdForPins = null;
       let isPipMinimized = false;
+      let drawerCloseTimeout = null;
 
       // 1. 样式注入
       function ensurePinnedSummaryStyles() {
@@ -6892,78 +6909,119 @@
         const style = document.createElement('style');
         style.id = styleId;
         style.textContent = `
-          /* 顶部图钉快捷胶囊栏 */
-          #agy-pinned-bar {
-            position: sticky;
-            top: 6px;
-            z-index: 60;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 8px;
-            width: fit-content;
-            max-width: min(92%, 620px);
-            margin: 6px auto 10px auto;
-            padding: 5px 12px;
-            border-radius: 9999px;
-            background: rgba(20, 24, 36, 0.88);
-            border: 1px solid rgba(255, 255, 255, 0.14);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.05);
-            color: #f1f5f9;
-            font-size: 12.5px;
-            user-select: none;
-            transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-            animation: agy-pin-bar-in 0.22s cubic-bezier(0.16, 1, 0.3, 1);
-          }
-          @keyframes agy-pin-bar-in {
-            from { opacity: 0; transform: translateY(-8px) scale(0.96); }
-            to { opacity: 1; transform: translateY(0) scale(1); }
-          }
-          #agy-pinned-bar:hover {
-            border-color: rgba(16, 185, 129, 0.4);
-            box-shadow: 0 6px 24px rgba(0, 0, 0, 0.45), 0 0 14px rgba(16, 185, 129, 0.2);
-          }
-          .agy-pinned-bar-left {
-            display: flex;
-            align-items: center;
-            gap: 7px;
-            min-width: 0;
-            cursor: pointer;
-          }
-          .agy-pinned-badge {
-            display: inline-flex;
+          /* 右侧向上向下按钮上方的半透明绿点指示器容器 */
+          #agy-pinned-nav-indicator {
+            position: relative;
+            width: ${USER_CONFIG.BUTTON_SIZE}px;
+            height: 24px;
+            display: none;
             align-items: center;
             justify-content: center;
-            padding: 2px 7px;
-            border-radius: 9999px;
-            background: rgba(16, 185, 129, 0.18);
-            color: #34d399;
-            border: 1px solid rgba(16, 185, 129, 0.35);
-            font-size: 11px;
-            font-weight: 600;
-            flex-shrink: 0;
+            margin-bottom: 2px;
+            z-index: 999992;
           }
-          .agy-pinned-bar-title {
-            font-weight: 500;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            max-width: 260px;
-            color: #f8fafc;
+          /* 半透明呼吸绿点 */
+          .agy-pin-dot {
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: #10b981;
+            opacity: 0.45;
+            box-shadow: 0 0 10px rgba(16, 185, 129, 0.45);
+            cursor: pointer;
+            transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+            position: relative;
           }
-          .agy-pinned-bar-actions {
+          #agy-pinned-nav-indicator:hover .agy-pin-dot,
+          #agy-pinned-nav-indicator.hovering .agy-pin-dot {
+            opacity: 1;
+            transform: scale(1.25);
+            box-shadow: 0 0 16px rgba(16, 185, 129, 0.8), 0 0 0 2px rgba(16, 185, 129, 0.3);
+          }
+
+          /* 鼠标悬停展开的长条列表抽屉 (向左展开，整齐垂直罗列) */
+          .agy-pin-flyout-drawer {
+            position: absolute;
+            right: calc(100% + 12px);
+            bottom: -6px;
+            display: flex;
+            flex-direction: column-reverse;
+            gap: 8px;
+            align-items: flex-end;
+            opacity: 0;
+            pointer-events: none;
+            transform: translateX(12px) scale(0.96);
+            transition: opacity 0.2s ease, transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+            z-index: 2147483600;
+            max-height: 68vh;
+            overflow-y: auto;
+            overflow-x: hidden;
+            padding: 8px 12px 8px 0;
+          }
+          /* 隐形连接通道防止鼠标滑向抽屉时中断 hover */
+          .agy-pin-flyout-drawer::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            right: -16px;
+            width: 20px;
+          }
+          #agy-pinned-nav-indicator:hover .agy-pin-flyout-drawer,
+          #agy-pinned-nav-indicator.hovering .agy-pin-flyout-drawer,
+          .agy-pin-flyout-drawer:hover {
+            opacity: 1;
+            pointer-events: auto;
+            transform: translateX(0) scale(1);
+          }
+
+          /* 单个长条卡片 (根据用户截图一，去除“已钉选”标签，极致紧凑优雅) */
+          .agy-pinned-card {
             display: flex;
             align-items: center;
-            gap: 4px;
+            gap: 10px;
+            background: rgba(22, 26, 38, 0.94);
+            border: 1px solid rgba(255, 255, 255, 0.13);
+            border-radius: 9999px;
+            padding: 6px 14px;
+            color: #f1f5f9;
+            font-size: 13px;
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.05);
+            white-space: nowrap;
+            user-select: none;
+            transition: all 0.2s ease;
+          }
+          .agy-pinned-card:hover {
+            border-color: rgba(16, 185, 129, 0.45);
+            box-shadow: 0 10px 28px rgba(0, 0, 0, 0.6), 0 0 14px rgba(16, 185, 129, 0.22);
+            transform: translateX(-2px);
+          }
+          .agy-card-pin-icon {
+            color: #10b981;
+            font-size: 13px;
             flex-shrink: 0;
           }
-          .agy-pinned-action-btn {
+          .agy-card-title {
+            font-weight: 500;
+            max-width: 260px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            color: #f8fafc;
+          }
+          .agy-card-actions {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            flex-shrink: 0;
+          }
+          .agy-card-btn {
             background: rgba(255, 255, 255, 0.08);
             border: none;
             border-radius: 9999px;
-            padding: 3px 8px;
+            padding: 3px 9px;
             color: #cbd5e1;
             font-size: 11.5px;
             cursor: pointer;
@@ -6972,32 +7030,43 @@
             gap: 4px;
             transition: all 0.15s ease;
           }
-          .agy-pinned-action-btn:hover {
+          .agy-card-btn:hover {
             background: rgba(255, 255, 255, 0.18);
             color: #fff;
           }
-          .agy-pinned-action-btn.danger:hover {
-            background: rgba(239, 68, 68, 0.2);
+          .agy-card-btn.danger:hover {
+            background: rgba(239, 68, 68, 0.25);
             color: #fca5a5;
           }
-          .agy-pinned-page-btn {
+
+          /* 用户提问 Prompt 气泡右下角的图钉按钮 */
+          .agy-user-pin-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 24px;
+            height: 24px;
+            border-radius: 6px;
             background: transparent;
             border: none;
-            color: #94a3b8;
+            color: var(--muted-foreground, #94a3b8);
             cursor: pointer;
-            padding: 2px 5px;
-            border-radius: 4px;
-            font-size: 12px;
-            display: flex;
-            align-items: center;
-            transition: all 0.15s ease;
+            transition: all 0.18s ease;
+            margin-right: 3px;
           }
-          .agy-pinned-page-btn:hover {
-            background: rgba(255, 255, 255, 0.12);
-            color: #fff;
+          .agy-user-pin-btn:hover {
+            background: var(--secondary, rgba(255, 255, 255, 0.1));
+            color: var(--foreground, #fff);
+          }
+          .agy-user-pin-btn.active {
+            color: #10b981 !important;
+          }
+          .agy-user-pin-btn.active:hover {
+            background: rgba(16, 185, 129, 0.16) !important;
+            color: #34d399 !important;
           }
 
-          /* 原消息工具栏图钉按钮 */
+          /* AI 消息工具栏图钉按钮 (保留作为双重入口) */
           .agy-pin-btn {
             display: inline-flex;
             align-items: center;
@@ -7040,8 +7109,8 @@
             position: fixed;
             top: 75px;
             right: 28px;
-            width: 440px;
-            height: 480px;
+            width: 450px;
+            height: 500px;
             max-width: calc(100vw - 40px);
             max-height: calc(100vh - 100px);
             z-index: 2147483500;
@@ -7089,7 +7158,7 @@
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
-            max-width: 220px;
+            max-width: 240px;
           }
           .agy-pip-header-btns {
             display: flex;
@@ -7174,7 +7243,7 @@
           .agy-pip-body strong { color: #fff; font-weight: 600; }
           .agy-pip-body hr { border: none; border-top: 1px solid rgba(255,255,255,0.1); margin: 12px 0; }
 
-          /* 最小化吸附在右侧边缘的微型小浮标 */
+          /* 最小化吸附在右侧边缘的小浮标 */
           #agy-pip-dock {
             position: fixed;
             top: 100px;
@@ -7417,7 +7486,7 @@
             <div class="agy-pip-title-wrap">
               <span style="color: #34d399; font-size: 14px;">📌</span>
               <span class="agy-pip-title" title="${escapeHtml(item.title)}">${escapeHtml(item.title)}</span>
-              ${total > 1 ? `<span class="agy-pinned-badge">${currentIdx + 1}/${total}</span>` : ''}
+              ${total > 1 ? `<span style="font-size: 11px; background: rgba(16,185,129,0.18); color: #34d399; padding: 1px 6px; border-radius: 999px;">${currentIdx + 1}/${total}</span>` : ''}
             </div>
             <div class="agy-pip-header-btns">
               <button class="agy-pip-icon-btn" id="agy-pip-jump-btn" title="跳转定位到原消息">
@@ -7476,96 +7545,119 @@
         };
       }
 
-      // 5. 顶部图钉快捷胶囊栏组件
-      function renderPinnedBar() {
-        const list = getPinnedList();
-        const chatContainer = getChatScrollContainer();
+      // 5. 右侧翻页按钮上方的指示器容器与悬停卡片抽屉 (Hover Drawer)
+      function renderPinnedIndicator() {
+        const navGroup = document.getElementById('agy-page-nav-group');
+        if (!navGroup) return;
 
-        if (!chatContainer || list.length === 0) {
-          document.getElementById('agy-pinned-bar')?.remove();
-          if (list.length === 0) {
-            document.getElementById('agy-pip-modal')?.remove();
-            document.getElementById('agy-pip-dock')?.remove();
-          }
+        let indicatorWrap = document.getElementById('agy-pinned-nav-indicator');
+        if (!indicatorWrap) {
+          indicatorWrap = document.createElement('div');
+          indicatorWrap.id = 'agy-pinned-nav-indicator';
+          navGroup.insertBefore(indicatorWrap, navGroup.firstChild);
+
+          // 绑定平滑防抖悬停
+          indicatorWrap.addEventListener('mouseenter', () => {
+            if (drawerCloseTimeout) {
+              clearTimeout(drawerCloseTimeout);
+              drawerCloseTimeout = null;
+            }
+            indicatorWrap.classList.add('hovering');
+          });
+
+          indicatorWrap.addEventListener('mouseleave', () => {
+            drawerCloseTimeout = setTimeout(() => {
+              indicatorWrap.classList.remove('hovering');
+            }, 250);
+          });
+        }
+
+        const list = getPinnedList();
+        // 如果没有钉选，彻底不显示绿点，0 像素占用
+        if (list.length === 0) {
+          indicatorWrap.style.display = 'none';
+          document.getElementById('agy-pip-modal')?.remove();
+          document.getElementById('agy-pip-dock')?.remove();
           return;
         }
 
-        const mountParent = chatContainer.parentElement || chatContainer;
-        let bar = document.getElementById('agy-pinned-bar');
-        if (!bar || bar.parentElement !== mountParent) {
-          bar?.remove();
-          bar = document.createElement('div');
-          bar.id = 'agy-pinned-bar';
-          mountParent.insertBefore(bar, mountParent.firstChild);
-        }
+        indicatorWrap.style.display = 'flex';
 
-        const total = list.length;
-        if (currentActiveIndex >= total) currentActiveIndex = total - 1;
-        if (currentActiveIndex < 0) currentActiveIndex = 0;
-        const currentItem = list[currentActiveIndex];
+        // 渲染长条卡片列表 (按图一样式，去掉“已钉选”)
+        let cardsHtml = '';
+        list.forEach((item, idx) => {
+          cardsHtml += `
+            <div class="agy-pinned-card" data-pin-id="${escapeHtml(item.id)}">
+              <span class="agy-card-pin-icon">📌</span>
+              <span class="agy-card-title" title="${escapeHtml(item.title)}">${escapeHtml(item.title)}</span>
+              <div class="agy-card-actions">
+                <button class="agy-card-btn agy-card-jump" data-idx="${idx}" title="定位跳转到原消息">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="3"></circle></svg>
+                  定位
+                </button>
+                <button class="agy-card-btn agy-card-pip" data-idx="${idx}" title="画中画速览">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="9" y1="3" x2="9" y2="21"></line></svg>
+                  速览
+                </button>
+                <button class="agy-card-btn danger agy-card-unpin" data-pin-id="${escapeHtml(item.id)}" title="取消钉选此总结">
+                  ✕
+                </button>
+              </div>
+            </div>
+          `;
+        });
 
-        bar.innerHTML = `
-          <div class="agy-pinned-bar-left" id="agy-bar-open-pip" title="点击展开画中画速览">
-            <span class="agy-pinned-badge">📌 已钉选</span>
-            <span class="agy-pinned-bar-title">${escapeHtml(currentItem.title)}</span>
-          </div>
-          <div class="agy-pinned-bar-actions">
-            ${total > 1 ? `
-              <button class="agy-pinned-page-btn" id="agy-bar-prev-btn" title="上一个总结">‹</button>
-              <span style="font-size: 11px; color: #94a3b8;">${currentActiveIndex + 1}/${total}</span>
-              <button class="agy-pinned-page-btn" id="agy-bar-next-btn" title="下一个总结">›</button>
-            ` : ''}
-            <button class="agy-pinned-action-btn" id="agy-bar-jump-btn" title="定位跳转到原消息">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="3"></circle></svg>
-              定位
-            </button>
-            <button class="agy-pinned-action-btn" id="agy-bar-pip-toggle-btn" title="画中画速览">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="9" y1="3" x2="9" y2="21"></line></svg>
-              速览
-            </button>
-            <button class="agy-pinned-action-btn danger" id="agy-bar-unpin-btn" title="取消钉选此总结">
-              ✕
-            </button>
+        indicatorWrap.innerHTML = `
+          <div class="agy-pin-dot" title="已钉选 ${list.length} 篇总结 (悬停查看)"></div>
+          <div class="agy-pin-flyout-drawer" id="agy-pin-drawer">
+            ${cardsHtml}
           </div>
         `;
 
-        bar.querySelector('#agy-bar-open-pip')?.addEventListener('click', () => {
-          isPipMinimized = false;
-          renderPipModal(currentItem);
-        });
-        bar.querySelector('#agy-bar-pip-toggle-btn')?.addEventListener('click', (e) => {
-          e.stopPropagation();
-          const modal = document.getElementById('agy-pip-modal');
-          if (modal) {
-            modal.remove();
-          } else {
-            isPipMinimized = false;
-            renderPipModal(currentItem);
+        const drawer = indicatorWrap.querySelector('#agy-pin-drawer');
+        drawer?.addEventListener('mouseenter', () => {
+          if (drawerCloseTimeout) {
+            clearTimeout(drawerCloseTimeout);
+            drawerCloseTimeout = null;
           }
+          indicatorWrap.classList.add('hovering');
         });
-        bar.querySelector('#agy-bar-jump-btn')?.addEventListener('click', (e) => {
-          e.stopPropagation();
-          scrollToOriginalTurn(currentItem);
+
+        drawer?.addEventListener('mouseleave', () => {
+          drawerCloseTimeout = setTimeout(() => {
+            indicatorWrap.classList.remove('hovering');
+          }, 250);
         });
-        bar.querySelector('#agy-bar-unpin-btn')?.addEventListener('click', (e) => {
-          e.stopPropagation();
-          removePinItem(currentItem.id);
+
+        // 绑定卡片交互
+        indicatorWrap.querySelectorAll('.agy-card-jump').forEach(btn => {
+          btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const idx = parseInt(btn.getAttribute('data-idx') || '0', 10);
+            const targetItem = list[idx];
+            if (targetItem) scrollToOriginalTurn(targetItem);
+          });
         });
-        bar.querySelector('#agy-bar-prev-btn')?.addEventListener('click', (e) => {
-          e.stopPropagation();
-          currentActiveIndex = (currentActiveIndex - 1 + total) % total;
-          renderPinnedBar();
-          if (document.getElementById('agy-pip-modal')) {
-            renderPipModal(list[currentActiveIndex]);
-          }
+
+        indicatorWrap.querySelectorAll('.agy-card-pip').forEach(btn => {
+          btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const idx = parseInt(btn.getAttribute('data-idx') || '0', 10);
+            currentActiveIndex = idx;
+            const targetItem = list[idx];
+            if (targetItem) {
+              isPipMinimized = false;
+              renderPipModal(targetItem);
+            }
+          });
         });
-        bar.querySelector('#agy-bar-next-btn')?.addEventListener('click', (e) => {
-          e.stopPropagation();
-          currentActiveIndex = (currentActiveIndex + 1) % total;
-          renderPinnedBar();
-          if (document.getElementById('agy-pip-modal')) {
-            renderPipModal(list[currentActiveIndex]);
-          }
+
+        indicatorWrap.querySelectorAll('.agy-card-unpin').forEach(btn => {
+          btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const pinId = btn.getAttribute('data-pin-id');
+            if (pinId) removePinItem(pinId);
+          });
         });
       }
 
@@ -7580,10 +7672,8 @@
         savePinnedList(list);
         currentActiveIndex = 0;
         showNotification?.('📌 已钉选此条总结');
-        renderPinnedBar();
-        isPipMinimized = false;
-        renderPipModal(item);
-        syncToolbarPinButtons();
+        renderPinnedIndicator();
+        syncAllPinButtons();
       }
 
       function removePinItem(idOrHash) {
@@ -7592,22 +7682,54 @@
         savePinnedList(list);
         if (currentActiveIndex >= list.length) currentActiveIndex = Math.max(0, list.length - 1);
         showNotification?.('已取消钉选');
-        renderPinnedBar();
+        renderPinnedIndicator();
         if (list.length === 0) {
           document.getElementById('agy-pip-modal')?.remove();
           document.getElementById('agy-pip-dock')?.remove();
         } else if (document.getElementById('agy-pip-modal')) {
           renderPipModal(list[currentActiveIndex]);
         }
-        syncToolbarPinButtons();
+        syncAllPinButtons();
       }
 
-      // 7. 消息工具栏 Pin 按钮巡检与同步
-      function extractAiTurnData(turnEl, toolbar) {
+      // 7. 从用户提问气泡查找紧邻的后继 AI 回复
+      function findNextAiTurnFromUserTurn(userTurnEl) {
+        if (!userTurnEl) return null;
+        let curr = userTurnEl.nextElementSibling;
+        while (curr) {
+          if (!curr.closest('.group\\/user-input-step, [class*="user-input-step"]')) {
+            const hasToolbar = !!curr.querySelector('[data-testid="cascade-system-message-toolbar"]');
+            const isTurn = curr.classList.contains('group') || curr.matches('.flex.items-start') || curr.matches('.scroll-mt-4');
+            if (hasToolbar || isTurn) return curr;
+          }
+          curr = curr.nextElementSibling;
+        }
+
+        // 跨级后继查找
+        let parent = userTurnEl.parentElement;
+        while (parent && parent !== document.body) {
+          let sib = parent.nextElementSibling;
+          while (sib) {
+            const aiCand = sib.querySelector?.('[data-testid="cascade-system-message-toolbar"]')
+              ? sib
+              : sib.querySelector?.('.group.w-full, .flex.items-start');
+            if (aiCand && !aiCand.closest('.group\\/user-input-step')) {
+              return aiCand;
+            }
+            sib = sib.nextElementSibling;
+          }
+          parent = parent.parentElement;
+        }
+        return null;
+      }
+
+      function extractAiTurnData(turnEl, toolbar = null) {
         let markdownText = '';
+        const effectiveToolbar = toolbar || turnEl?.querySelector?.('[data-testid="cascade-system-message-toolbar"]');
+
         try {
-          const fiberKey = Object.keys(toolbar || turnEl || {}).find(k => k.startsWith('__reactFiber$') || k.startsWith('__reactInternalInstance$'));
-          let f = (toolbar || turnEl)[fiberKey];
+          const fiberKey = Object.keys(effectiveToolbar || turnEl || {}).find(k => k.startsWith('__reactFiber$') || k.startsWith('__reactInternalInstance$'));
+          let f = (effectiveToolbar || turnEl)[fiberKey];
           while (f) {
             if (f.memoizedProps?.steps) {
               const steps = f.memoizedProps.steps;
@@ -7635,10 +7757,69 @@
         return { markdownText, hash, title };
       }
 
-      function syncToolbarPinButtons() {
+      // 8. 巡检并同步所有钉选按钮 (提问右下角 + 回复工具栏)
+      function syncAllPinButtons() {
         const list = getPinnedList();
         const pinnedHashes = new Set(list.map(p => p.hash));
 
+        // A. 用户发出后的提示词右下角：放置在复制和 Undo 前面
+        const userTurns = document.querySelectorAll('.group\\/user-input-step, [class*="user-input-step"]');
+        for (const uTurn of userTurns) {
+          // 查找右下角的复制按钮
+          const copyBtn = uTurn.querySelector('button[data-tooltip-id*="copy-user-message"], button[aria-label*="Copy prompt" i], button[aria-label*="Copy" i]');
+          if (!copyBtn) continue;
+          const btnRow = copyBtn.parentElement;
+          if (!btnRow) continue;
+
+          let uPinBtn = btnRow.querySelector('.agy-user-pin-btn');
+          if (!uPinBtn) {
+            uPinBtn = document.createElement('button');
+            uPinBtn.className = 'agy-user-pin-btn';
+            uPinBtn.type = 'button';
+            uPinBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="17" x2="12" y2="22"></line><path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z"></path></svg>`;
+
+            uPinBtn.addEventListener('click', (e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              const nextAi = findNextAiTurnFromUserTurn(uTurn);
+              if (!nextAi) {
+                showNotification?.('未检测到紧随其后的 AI 回复');
+                return;
+              }
+              const { markdownText, hash, title } = extractAiTurnData(nextAi);
+              if (!markdownText) return;
+              nextAi.setAttribute('data-agy-summary-hash', hash);
+              const isPinned = list.some(p => p.hash === hash);
+              if (isPinned) {
+                removePinItem(hash);
+              } else {
+                addPinItem({
+                  id: 'pin_' + Date.now(),
+                  hash,
+                  title,
+                  text: markdownText,
+                  timestamp: Date.now()
+                });
+              }
+            });
+
+            // 关键：精确放到复制和 Undo 的前面
+            btnRow.insertBefore(uPinBtn, copyBtn);
+          }
+
+          // 同步用户提示词图钉的激活态
+          const nextAi = findNextAiTurnFromUserTurn(uTurn);
+          const aiHash = nextAi?.getAttribute('data-agy-summary-hash') || computeHash(nextAi?.innerText || '');
+          if (aiHash && pinnedHashes.has(aiHash)) {
+            uPinBtn.classList.add('active');
+            uPinBtn.title = '本轮 AI 回复已钉选 (点击取消)';
+          } else {
+            uPinBtn.classList.remove('active');
+            uPinBtn.title = '钉选本轮 AI 回复到速览';
+          }
+        }
+
+        // B. AI 回复底部工具栏中的图钉 (保留互通)
         const toolbars = document.querySelectorAll('[data-testid="cascade-system-message-toolbar"]');
         for (const toolbar of toolbars) {
           const turnEl = toolbar.closest('.group.w-full, [class*="scroll-mt-4"], .flex.items-start') || toolbar.parentElement;
@@ -7650,7 +7831,7 @@
             btn.className = 'agy-pin-btn';
             btn.type = 'button';
             btn.innerHTML = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="17" x2="12" y2="22"></line><path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z"></path></svg>`;
-            
+
             btn.addEventListener('click', (e) => {
               e.preventDefault();
               e.stopPropagation();
@@ -7687,7 +7868,7 @@
         }
       }
 
-      // 8. 导出供全局右键菜单调用的公共方法
+      // 9. 导出供全局右键菜单调用的公共方法
       isAiTurnPinned = function (aiTurn) {
         if (!aiTurn) return false;
         const list = getPinnedList();
@@ -7718,13 +7899,42 @@
         }
       };
 
-      // 9. 心跳同步与会话切换
+      // 10. 选中文本时：从当前选中位置向后截取提取并钉选
+      pinAiTurnFromSelection = function (aiTurn, selectedText) {
+        if (!aiTurn || !selectedText) return;
+        const fullMarkdown = aiTurn.markdownText || aiTurn.turnEl?.innerText || '';
+        if (!fullMarkdown) return;
+
+        let startIndex = fullMarkdown.indexOf(selectedText.trim());
+        if (startIndex === -1) {
+          // 容错模糊匹配：取选区前 15 个字
+          const snippet = selectedText.trim().slice(0, 15);
+          startIndex = fullMarkdown.indexOf(snippet);
+        }
+
+        const extracted = startIndex !== -1 ? fullMarkdown.slice(startIndex).trim() : selectedText.trim();
+        const hash = computeHash(extracted);
+        const title = extractSummaryTitle(extracted);
+
+        if (aiTurn.turnEl) aiTurn.turnEl.setAttribute('data-agy-summary-hash', hash);
+
+        addPinItem({
+          id: 'pin_' + Date.now(),
+          hash,
+          title,
+          text: extracted,
+          timestamp: Date.now()
+        });
+        showNotification?.('📌 已从所选位置向后提取并钉选');
+      };
+
+      // 11. 心跳同步与会话切换
       onHeartbeatPinnedSummary = function () {
         const currentConvoId = getCurrentUrlConvoId();
         if (currentConvoId !== lastConvoIdForPins) {
           lastConvoIdForPins = currentConvoId;
           currentActiveIndex = 0;
-          renderPinnedBar();
+          renderPinnedIndicator();
           const list = getPinnedList();
           if (list.length === 0) {
             document.getElementById('agy-pip-modal')?.remove();
@@ -7733,20 +7943,17 @@
             renderPipModal(list[0]);
           }
         } else {
-          const list = getPinnedList();
-          if (list.length > 0 && !document.getElementById('agy-pinned-bar')) {
-            renderPinnedBar();
-          }
+          renderPinnedIndicator();
         }
 
-        syncToolbarPinButtons();
+        syncAllPinButtons();
       };
 
-      // 10. 初始化装载
+      // 12. 初始化装载
       ensurePinnedSummaryStyles();
       lastConvoIdForPins = getCurrentUrlConvoId();
-      renderPinnedBar();
-      syncToolbarPinButtons();
+      renderPinnedIndicator();
+      syncAllPinButtons();
     }
 
     if (USER_CONFIG.ENABLE_PROJECT_ARCHIVER !== false) initProjectArchiver();
