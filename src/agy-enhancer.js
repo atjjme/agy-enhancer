@@ -30,6 +30,9 @@
     // 【翻页导航】右侧常驻智能翻页双按钮
     ENABLE_NAV_BUTTONS: true,
 
+    // 【向下图标】是否屏蔽聊天框上方官方原生的居中向下滚动圆钮
+    ENABLE_BLOCK_CHAT_BOTTOM_BUTTON: true,
+
     // 【项目归档】左侧项目折叠与归档抽屉
     ENABLE_PROJECT_ARCHIVER: true,
 
@@ -277,6 +280,7 @@
     }
 
     document.getElementById('agy-quote-interceptor-styles')?.remove();
+    document.getElementById('agy-block-bottom-btn-styles')?.remove();
     document.querySelectorAll('[data-agy-block-quote="true"]').forEach(el => {
       el.removeAttribute('data-agy-block-quote');
       el.style.removeProperty('display');
@@ -5583,11 +5587,37 @@
       });
     }
 
+    // ==================== 12. 屏蔽聊天框上方原生向下滚动图标 (Block Native Scroll-to-Bottom Button) ====================
+    function initBlockChatBottomButton() {
+      if (USER_CONFIG.ENABLE_MASTER === false || USER_CONFIG.ENABLE_BLOCK_CHAT_BOTTOM_BUTTON === false) return;
+
+      const styleId = 'agy-block-bottom-btn-styles';
+      let styleEl = document.getElementById(styleId);
+      if (!styleEl) {
+        styleEl = document.createElement('style');
+        styleEl.id = styleId;
+        styleEl.textContent = `
+          /* 彻底屏蔽官方聊天框上方居中向下滚动圆钮 */
+          button[aria-label="Scroll to Bottom"],
+          .relative.h-full.w-full > button.bottom-4.left-1\\/2.rounded-full,
+          button.bottom-4.left-1\\/2.rounded-full:has(svg),
+          [data-agy-block-bottom-btn="true"] {
+            display: none !important;
+            opacity: 0 !important;
+            pointer-events: none !important;
+            visibility: hidden !important;
+          }
+        `;
+        document.head.appendChild(styleEl);
+      }
+    }
+
     if (USER_CONFIG.ENABLE_PROJECT_ARCHIVER !== false) initProjectArchiver();
     if (USER_CONFIG.ENABLE_CONTEXT_MENU !== false) initContextMenuSupport();
     if (USER_CONFIG.ENABLE_SCROLL_POSITION_PERSISTENCE !== false) initConversationScrollPersistence();
     if (USER_CONFIG.ENABLE_SMART_UNREAD !== false) initSmartUnreadTracker();
     if (USER_CONFIG.ENABLE_CONTEXT_MENU !== false && USER_CONFIG.ENABLE_BLOCK_QUOTE_POPUP !== false) initQuotePopupInterceptor();
+    if (USER_CONFIG.ENABLE_BLOCK_CHAT_BOTTOM_BUTTON !== false) initBlockChatBottomButton();
 
     // ==================== 12. 全局统一后台心跳调度器 (Unified Heartbeat Dispatcher) ====================
     let heartbeatTickCount = 0;
