@@ -20,12 +20,12 @@ const I18N_DICT = {
     // Connection Status
     'conn_connecting': 'Connecting to daemon...',
     'conn_online': 'Daemon Ready (Live Sync)',
-    'conn_offline': 'Daemon Offline (Run install.bat)',
+    'conn_offline': 'Daemon Offline (Run agy-enhancer.exe)',
     'conn_reconnected': '✨ Daemon link restored, config synced',
 
     // Offline Banner
     'offline_welcome': 'Welcome! Setting up Enhancer',
-    'offline_notice': 'Due to browser security policies, please double-click install.bat in the root folder to start the daemon service.',
+    'offline_notice': 'Due to browser security policies, please double-click agy-enhancer.exe in the root folder to start the daemon service.',
     'offline_btn_retry': 'Check Service',
 
     // Master Hero Switch
@@ -88,7 +88,7 @@ const I18N_DICT = {
     'toast_reset': 'Restored to recommended defaults (click Save to apply)',
     'dialog_reset_confirm': 'Are you sure you want to restore all settings to recommended defaults?',
     'save_failed': 'Save failed: ',
-    'daemon_unresponsive': 'Cannot save: Background daemon is unresponsive. Please run install.bat first.',
+    'daemon_unresponsive': 'Cannot save: Background daemon is unresponsive. Please run agy-enhancer.exe first.',
 
     // Theme Switcher & Language Switcher
     'lang_auto': '🌐 Auto (System)',
@@ -116,11 +116,11 @@ const I18N_DICT = {
 
     'conn_connecting': '正在连接守护服务...',
     'conn_online': '守护服务就绪 (实时同步)',
-    'conn_offline': '守护服务离线 (请运行 install.bat)',
+    'conn_offline': '守护服务离线 (请运行 agy-enhancer.exe)',
     'conn_reconnected': '✨ 守护服务已恢复，配置已自动同步',
 
     'offline_welcome': '欢迎！正在打开设置中心',
-    'offline_notice': '受浏览器安全沙箱限制，请双击运行根目录下的 install.bat 启动后台守护服务即可开启全部功能。',
+    'offline_notice': '受浏览器安全沙箱限制，请双击运行根目录下的 agy-enhancer.exe 启动后台守护服务即可开启全部功能。',
     'offline_btn_retry': '检测服务',
 
     'master_title': '增强器全局总开关',
@@ -177,7 +177,7 @@ const I18N_DICT = {
     'toast_reset': '已恢复为推荐默认值（点击保存生效）',
     'dialog_reset_confirm': '确定将所有设置项恢复为推荐默认值吗？',
     'save_failed': '保存失败: ',
-    'daemon_unresponsive': '无法保存：后台服务未响应，请先运行 install.bat 启动服务。',
+    'daemon_unresponsive': '无法保存：后台服务未响应，请先运行 agy-enhancer.exe 启动服务。',
 
     'lang_auto': '🌐 跟随系统',
     'lang_en': 'English',
@@ -204,11 +204,11 @@ const I18N_DICT = {
 
     'conn_connecting': '正在連線至守護服務...',
     'conn_online': '守護服務就緒 (即時同步)',
-    'conn_offline': '守護服務離線 (請執行 install.bat)',
+    'conn_offline': '守護服務離線 (請執行 agy-enhancer.exe)',
     'conn_reconnected': '✨ 守護服務已恢復，設定已自動同步',
 
     'offline_welcome': '歡迎！正在開啟設定中心',
-    'offline_notice': '受瀏覽器安全沙盒限制，請按兩下執行根目錄下的 install.bat 啟動後台服務以啟用所有功能。',
+    'offline_notice': '受瀏覽器安全沙盒限制，請按兩下執行根目錄下的 agy-enhancer.exe 啟動後台服務以啟用所有功能。',
     'offline_btn_retry': '偵測服務',
 
     'master_title': '增強器全局總開關',
@@ -265,7 +265,7 @@ const I18N_DICT = {
     'toast_reset': '已還原為建議預設值（點擊儲存生效）',
     'dialog_reset_confirm': '確定將所有設定還原為建議預設值嗎？',
     'save_failed': '儲存失敗: ',
-    'daemon_unresponsive': '無法儲存：背景服務無回應，請先執行 install.bat 啟動服務。',
+    'daemon_unresponsive': '無法儲存：背景服務無回應，請先執行 agy-enhancer.exe 啟動服務。',
 
     'lang_auto': '🌐 跟隨系統',
     'lang_en': 'English',

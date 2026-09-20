@@ -29,12 +29,11 @@ As Antigravity updates and evolves, may this project gradually fade into the bac
 👉 **[Click here to download the latest Release ZIP](https://github.com/atjjme/agy-enhancer/releases/latest)** and extract it to any local directory.
 
 #### 3. One-Click Initialization & Autostart
-After extraction, the root directory is kept clean and minimal with only 3 files. Simply double-click:
-👉 **`install.bat`**
+After extraction, the root directory is kept clean and minimal. Simply double-click:
+👉 **`agy-enhancer.exe`**
 - **Automated Environment Check**: Detects Node.js runtime environment;
-- **Windows Autostart Setup**: Configures silent auto-launch upon Windows logon;
-- **Silent Daemon Launch**: Injects the client silently in the background (no console popups; upon successful injection, a green indicator dot appears in the top-right corner of Antigravity);
-- **Auto-Launch Settings**: Automatically opens **`settings.html`** in your browser so you can toggle and configure features right away!
+- **Windows Autostart Setup**: Configures silent auto-launch upon Windows logon (enabled by default on first launch, respects user preferences);
+- **Silent Daemon Launch**: Injects the client 100% silently in the background (no console popups; upon successful injection, a green indicator dot appears in the top-right corner of Antigravity).
 
 ---
 
@@ -43,7 +42,7 @@ After extraction, the root directory is kept clean and minimal with only 3 files
 
 | Script File | Path | Core Purpose & Usage |
 | :--- | :--- | :--- |
-| **`agy-enhancer.vbs`** | `scripts/` | **Silent Launch**: Launches `loader.js` hidden via Windows Script Host without any console popup. The Startup shortcut points here. |
+| **`agy-enhancer.exe`** | `scripts/` (and root) | **Native Silent Launcher**: Windows native executable that launches `loader.js` completely hidden with zero console popup. |
 | **`stop-service.bat`** | `scripts/` | **Stop Service**: Immediately terminates active Node.js injector daemons and frees all local resources. |
 | **`settings.bat`** | `scripts/` | **Launch Settings**: Ensures the daemon is running and opens `settings.html` in default browser (simply double-clicking `settings.html` works identically). |
 | **`start-enhancer.bat`** | `scripts/` | **Debug Console**: Shows a terminal window with real-time CDP port detection, injection status, and interaction logs. |
@@ -60,9 +59,9 @@ After extraction, the root directory is kept clean and minimal with only 3 files
 No cluttered or cumbersome configuration modal inside the Antigravity UI.
 - **Unified Lightweight Architecture**: The settings server is natively integrated into the background daemon (`loader.js`). Only 1 single lightweight Node.js process runs in the background. When idle, the listening thread is suspended by Windows kernel IOCP (**0.00% CPU overhead**), bound strictly to `127.0.0.1` (zero network exposure).
 - **Instant Access Anytime**:
-  - Run **`install.bat`** once upon initial extraction to set up autostart and daemon;
-  - Afterwards, simply double-click **`settings.html`** in the root directory anytime to open settings in a fraction of a second, without running the installer again;
-  - If the daemon has not yet been started, the page politely guides you to double-click `install.bat`, and automatically connects once running.
+  - Run **`agy-enhancer.exe`** once upon initial extraction to set up autostart and daemon;
+  - Afterwards, simply double-click **`settings.html`** in the root directory anytime to open settings in a fraction of a second, without running the launcher again;
+  - If the daemon has not yet been started, the page politely guides you to double-click `agy-enhancer.exe`, and automatically connects once running.
 - **Layered Hierarchical Control**:
   - **Master Switch**: When toggled off, the entire feature set is disabled and de-energized, leaving Antigravity in 100% clean official state;
   - **Context Menu & Quote Float Linkage**: Context menu features are controlled by a single master switch. The Quote floating prompt blocker is subordinate to the context menu switch (disabling the context menu automatically turns off Quote blocker; enabling it allows toggling Quote blocker freely);
@@ -274,7 +273,7 @@ If you access Antigravity through modern web browsers (Chrome, Edge, Firefox, et
 <a id="faq"></a>
 ### ❓ FAQ & Troubleshooting
 
-#### Q1: No green indicator dot appeared after running install.bat?
+#### Q1: No green indicator dot appeared after running agy-enhancer.exe?
 1. **Client Status**: Make sure Antigravity desktop client is currently running;
 2. **Verify Node.js**: Open CMD or PowerShell and execute `node -v`. If command is not found, install the LTS release from [Node.js Official Site](https://nodejs.org/);
 3. **Debug Log**: Run `scripts/start-enhancer.bat` in debug console mode to inspect terminal logs and connection errors;

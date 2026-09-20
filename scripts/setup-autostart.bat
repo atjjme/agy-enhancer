@@ -17,10 +17,10 @@ set "ROOT_EXE=%ROOT_DIR%agy-enhancer.exe"
 set "ICON_PATH=%ROOT_DIR%assets\icon.ico"
 
 set "TARGET_PATH=%VBS_PATH%"
-if exist "%EXE_PATH%" (
-    set "TARGET_PATH=%EXE_PATH%"
-) else if exist "%ROOT_EXE%" (
+if exist "%ROOT_EXE%" (
     set "TARGET_PATH=%ROOT_EXE%"
+) else if exist "%EXE_PATH%" (
+    set "TARGET_PATH=%EXE_PATH%"
 )
 
 if not exist "%TARGET_PATH%" if not exist "%VBS_PATH%" (
@@ -53,12 +53,12 @@ if %ERRORLEVEL% equ 0 (
     echo The service will start silently on every system login.
     echo.
 
-    :: 仅在独立运行（非 install.bat 调用）时检查并启动后台服务
+    :: 仅在独立运行时检查并启动后台服务
     if "%1" neq "--nopause" (
         powershell -NoProfile -ExecutionPolicy Bypass -Command ^
             "$proc = Get-CimInstance Win32_Process -Filter \"Name = 'node.exe'\" | Where-Object { $_.CommandLine -like '*loader.js*' };" ^
             "if ($proc) { Write-Host ('[Status] Daemon is already running in background (PID: ' + $proc.ProcessId + ').') -ForegroundColor Yellow }" ^
-            "else { Start-Process -FilePath 'wscript.exe' -ArgumentList '\"%VBS_PATH%\"'; Write-Host '[Status] Daemon started in background.' -ForegroundColor Green }"
+            "else { Start-Process -FilePath '%TARGET_PATH%'; Write-Host '[Status] Daemon started in background.' -ForegroundColor Green }"
     )
 ) else (
     echo [Failed] Failed to create shortcut. Please check permissions or antivirus settings.

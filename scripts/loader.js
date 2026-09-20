@@ -175,7 +175,7 @@ function setAutostart(enable) {
       const exePath = path.resolve(__dirname, 'agy-enhancer.exe');
       const rootDir = path.resolve(__dirname, '..');
       const rootExe = path.resolve(rootDir, 'agy-enhancer.exe');
-      const targetPath = fs.existsSync(exePath) ? exePath : (fs.existsSync(rootExe) ? rootExe : vbsPath);
+      const targetPath = fs.existsSync(rootExe) ? rootExe : (fs.existsSync(exePath) ? exePath : vbsPath);
       const iconPath = path.resolve(rootDir, 'assets', 'icon.ico');
       const psCmd = `$ws = New-Object -ComObject WScript.Shell; ` +
         `$shortcut = $ws.CreateShortcut('${shortcutPath.replace(/'/g, "''")}'); ` +
@@ -185,7 +185,7 @@ function setAutostart(enable) {
         `$shortcut.Description = 'Antigravity Enhancer Silent Service'; ` +
         `$shortcut.Save();`;
       execSync(`powershell -NoProfile -ExecutionPolicy Bypass -Command "${psCmd}"`, { timeout: 3500 });
-      log('[Autostart] Configured autostart shortcut at: ' + shortcutPath);
+      log('[Autostart] Configured autostart shortcut pointing to: ' + targetPath);
       return true;
     } else {
       if (fs.existsSync(shortcutPath)) {
@@ -262,19 +262,6 @@ function getStoredConfig() {
     } else {
       config[key] = typeof rawConfig[key] === 'string' ? rawConfig[key] : DEFAULT_CONFIG[key];
     }
-  }
-  config.ENABLE_AUTOSTART = isAutostartEnabled();
-
-  // 动态同步托盘真实运行状态：若用户在托盘右键隐藏托盘或进程已关闭，实时反馈为 false 并纠正落盘配置
-  const trayAlive = isSystemTrayRunning();
-  if (config.ENABLE_SYSTEM_TRAY !== trayAlive) {
-    config.ENABLE_SYSTEM_TRAY = trayAlive;
-    try {
-      rawConfig.ENABLE_SYSTEM_TRAY = trayAlive;
-      const jsonStr = JSON.stringify(rawConfig, null, 2);
-      if (fs.existsSync(configFile)) fs.writeFileSync(configFile, jsonStr, 'utf8');
-      if (fs.existsSync(localConfigFile)) fs.writeFileSync(localConfigFile, jsonStr, 'utf8');
-    } catch (e) {}
   }
 
   return config;
@@ -1507,10 +1494,40 @@ function startEmbeddedSettingsServer() {
 }
 startEmbeddedSettingsServer();
 
-// 若用户在设置中开启了系统托盘，按需唤醒托盘组件（默认关闭）
+// ==================== 核心服务启动后的自启与托盘初始化 ====================
 try {
+  const hasExistingConfig = fs.existsSync(configFile) || fs.existsSync(localConfigFile) || fs.existsSync(fallbackConfigFile);
   const initialConfig = getStoredConfig();
-  if (initialConfig.ENABLE_SYSTEM_TRAY) {
-    manageSystemTray(true);
+
+  if (!hasExistingConfig) {
+    // 1. 软件原始全新默认：开机自启开启，系统托盘关闭
+    log('[Startup Init] First run detected. Configuring default autostart and saving initial config...');
+    setAutostart(true);
+    saveStoredConfig(initialConfig);
+  } else {
+    // 2. 非首次运行：严格尊重用户的历史持久化配置
+    // 开机自启：若用户历史配置为开启，确保快捷方式存在；若用户历史已关闭，坚决保持关闭状态（绝不强加自启快捷方式）
+    if (initialConfig.ENABLE_AUTOSTART) {
+      if (!isAutostartEnabled()) {
+        log('[Startup Init] User enabled autostart in config. Ensuring autostart shortcut exists...');
+        setAutostart(true);
+      }
+    } else {
+      if (isAutostartEnabled()) {
+        log('[Startup Init] User disabled autostart in config. Ensuring autostart shortcut is removed...');
+        setAutostart(false);
+      }
+    }
   }
-} catch (_) {}
+
+  // 3. 系统托盘：软件原始默认关闭；若用户之后自行打开了，保持之前的打开状态并唤醒托盘
+  if (initialConfig.ENABLE_SYSTEM_TRAY) {
+    log('[Startup Init] User enabled system tray in configuration. Launching agy-tray.exe...');
+    manageSystemTray(true);
+  } else {
+    log('[Startup Init] System tray is disabled by configuration. Running silently in pure background.');
+  }
+} catch (initErr) {
+  log('[Startup Init Error]', initErr?.message || initErr);
+}
+
