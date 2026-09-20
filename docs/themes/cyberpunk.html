@@ -685,10 +685,8 @@
     <!-- 顶部 HUD 战术标头 -->
     <header class="hud-header">
       <div class="hud-brand">
-        <div class="hud-hex-logo">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
-          </svg>
+        <div class="hud-hex-logo" style="overflow:hidden;padding:0;background:transparent;border:none;">
+          <img src="../../assets/icon.svg" width="34" height="34" alt="Logo" style="border-radius:8px;display:block;" />
         </div>
         <div class="hud-title-wrap">
           <h1 data-i18n="brand_title">Antigravity // 战术指挥舱</h1>
@@ -785,6 +783,17 @@
             </div>
             <label class="cyber-switch">
               <input type="checkbox" id="ENABLE_AUTOSTART">
+              <span class="cyber-slider"></span>
+            </label>
+          </div>
+
+          <div class="hud-row">
+            <div class="hud-row-info">
+              <div class="hud-row-title" data-i18n="sw_system_tray_title">Windows 系统托盘常驻图标</div>
+              <div class="hud-row-desc" data-i18n="sw_system_tray_desc">在任务栏右下角显示跃升折角托盘图标，提供右键快速设置与安全退出。默认关闭，关闭时彻底清退进程不占内存。</div>
+            </div>
+            <label class="cyber-switch">
+              <input type="checkbox" id="ENABLE_SYSTEM_TRAY">
               <span class="cyber-slider"></span>
             </label>
           </div>
@@ -998,6 +1007,7 @@
     const SWITCH_KEYS = [
       'ENABLE_MASTER',
       'ENABLE_AUTOSTART',
+      'ENABLE_SYSTEM_TRAY',
       'ENABLE_CONTEXT_MENU',
       'ENABLE_BLOCK_QUOTE_POPUP',
       'ENABLE_FORK_CONVERSATION',
@@ -1014,6 +1024,7 @@
     const DEFAULTS = {
       ENABLE_MASTER: true,
       ENABLE_AUTOSTART: true,
+      ENABLE_SYSTEM_TRAY: false,
       ENABLE_CONTEXT_MENU: true,
       ENABLE_BLOCK_QUOTE_POPUP: true,
       ENABLE_FORK_CONVERSATION: true,

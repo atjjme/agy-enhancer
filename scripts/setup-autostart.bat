@@ -12,9 +12,18 @@ pushd "%SCRIPTS_DIR%.."
 set "ROOT_DIR=%CD%\"
 popd
 set "VBS_PATH=%SCRIPTS_DIR%agy-enhancer.vbs"
+set "EXE_PATH=%SCRIPTS_DIR%agy-enhancer.exe"
+set "ROOT_EXE=%ROOT_DIR%agy-enhancer.exe"
 set "ICON_PATH=%ROOT_DIR%assets\icon.ico"
 
-if not exist "%VBS_PATH%" (
+set "TARGET_PATH=%VBS_PATH%"
+if exist "%EXE_PATH%" (
+    set "TARGET_PATH=%EXE_PATH%"
+) else if exist "%ROOT_EXE%" (
+    set "TARGET_PATH=%ROOT_EXE%"
+)
+
+if not exist "%TARGET_PATH%" if not exist "%VBS_PATH%" (
     echo [Error] Silent start script not found: "%VBS_PATH%"
     echo Please verify file integrity and try again.
     if "%1" neq "--nopause" pause
@@ -28,7 +37,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command ^
     "$oldShortcut = Join-Path $startupDir 'AntigravityReaderEnhancer.lnk'; if (Test-Path $oldShortcut) { Remove-Item $oldShortcut -Force };" ^
     "$shortcutPath = Join-Path $startupDir 'AntigravityEnhancer.lnk';" ^
     "$shortcut = $ws.CreateShortcut($shortcutPath);" ^
-    "$shortcut.TargetPath = '%VBS_PATH%';" ^
+    "$shortcut.TargetPath = '%TARGET_PATH%';" ^
     "$shortcut.WorkingDirectory = '%ROOT_DIR%';" ^
     "if (Test-Path '%ICON_PATH%') { $shortcut.IconLocation = '%ICON_PATH%,0' };" ^
     "$shortcut.Description = 'Antigravity Enhancer Silent Service';" ^

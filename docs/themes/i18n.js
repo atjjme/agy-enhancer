@@ -41,6 +41,8 @@ const I18N_DICT = {
     'sec_system_tag': 'HOST_SYSTEM',
     'sw_autostart_title': 'Windows Silent Autostart',
     'sw_autostart_desc': 'Automatically manages silent startup shortcuts in Windows Startup directory to run upon boot.',
+    'sw_system_tray_title': 'Windows System Tray Icon',
+    'sw_system_tray_desc': 'Display Gravitational Leap tray icon in taskbar notification area with quick actions. Closed by default with 0 extra processes.',
 
     // Section 2: Visual & Interaction Suite
     'sec_visual_title': 'Visual & Interaction Suite',
@@ -132,6 +134,8 @@ const I18N_DICT = {
     'sec_system_tag': '系统守护',
     'sw_autostart_title': 'Windows 开机静默自启动',
     'sw_autostart_desc': '根据实际系统 Startup 目录自动增删静默启动快捷方式，随开机自动驻留后台。',
+    'sw_system_tray_title': 'Windows 系统托盘常驻图标',
+    'sw_system_tray_desc': '在任务栏右下角显示跃升折角托盘图标，提供右键快速设置与安全退出。默认关闭，关闭时彻底清退进程不占内存。',
 
     'sec_visual_title': '界面视觉与辅助工具',
     'sec_visual_tag': '交互套件',
@@ -218,6 +222,8 @@ const I18N_DICT = {
     'sec_system_tag': '系統守護',
     'sw_autostart_title': 'Windows 開機無感自動啟動',
     'sw_autostart_desc': '自動於系統 Startup 目錄增刪靜默捷徑，隨開機自動常駐背景。',
+    'sw_system_tray_title': 'Windows 系統匣常駐圖示',
+    'sw_system_tray_desc': '於工作列右下角顯示躍升折角托盤圖示，提供右鍵快速設定與安全退出。預設關閉，關閉時徹底清退進程不佔記憶體。',
 
     'sec_visual_title': '介面視覺與輔助工具',
     'sec_visual_tag': '互動套件',
