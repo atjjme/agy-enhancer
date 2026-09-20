@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <linearGradient id="grad_aurora_cyan_light" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0891b2" />
+      <stop offset="100%" stop-color="#0284c7" />
+    </linearGradient>
+  </defs>
+
+  <!-- Squircle Base -->
+  <rect x="32" y="32" width="448" height="448" rx="112" fill="#ffffff" />
+  <rect x="32" y="32" width="448" height="448" rx="112" fill="none" stroke="#e2e8f0" stroke-width="4" />
+
+  <!-- Geometric Levitating Chevrons -->
+  <g stroke-linecap="round" stroke-linejoin="round">
+    <!-- Floating Upper Chevron -->
+    <path d="M160 216 L256 136 L352 216" 
+          fill="none" 
+          stroke="url(#grad_aurora_cyan_light)" 
+          stroke-width="36" />
+
+    <!-- Anchor Lower Chevron -->
+    <path d="M160 328 L256 248 L352 328" 
+          fill="none" 
+          stroke="#64748b" 
+          stroke-width="36" />
+          
+    <!-- Core Horizon Dot -->
+    <circle cx="256" cy="372" r="10" fill="#94a3b8" />
+  </g>
+</svg>
