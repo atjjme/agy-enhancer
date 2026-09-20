@@ -41,3 +41,17 @@
 | `icon-solar-amber-white-heavy-border.svg` | **20px** | 主题色渐变加重描边 | 超粗线条，小尺寸与高分辨率下辨识力最强 |
 | `icon-solar-amber-light.svg` | 4px | 浅橙柔和细框 (`#ffedd5`) | 原版保留款，极简通透风格 |
 
+---
+
+## 🚀 全场景兼顾款 (小托盘 16px + 网页Header黑白底 + 桌面图标)
+
+针对“小托盘极小尺寸”、“网页左上角黑白背景无突兀贴纸感”、“桌面壁纸实体感”三大诉求研发的全新变体：
+
+| 变体文件名 | 形态类别 | 关键特性 | 建议场景 |
+| :--- | :--- | :--- | :--- |
+| **`icon-universal-glyph.svg`** | **纯几何增强版** (No Squircle) | 线宽加粗至 44px，自带柔和暗部微投影 (feDropShadow)，在纯黑、纯白网页及小托盘下均极其清晰，无方形贴纸生硬感 | **小托盘 (16~24px)**<br>**网页左上角 Header (黑白底通用)** |
+| **`icon-universal-dark-badge.svg`** | **深空微胶囊徽章** | 深空黑底座 (`#0d111a`) + 14px 日冕主题渐变框，小巧精致 | **全项目通用单一文件款 (暗调偏好)** |
+| **`icon-solar-amber-white-accent-border.svg`** | **纯白粗边框胶囊** | 纯白底座 (`#ffffff`) + 14px 主题渐变框，极强实体感 | **桌面图标 (Desktop App Icon)** |
+| **`icon-tray-monochrome.svg`** | **系统原生单色版** | 纯色 (currentColor)，随系统任务栏主题自动反色 | **Windows / macOS 原生规范托盘** |
+
+

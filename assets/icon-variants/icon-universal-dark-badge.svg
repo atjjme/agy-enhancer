@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <linearGradient id="univ_badge_border" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fb923c" />
+      <stop offset="100%" stop-color="#ea580c" />
+    </linearGradient>
+    <linearGradient id="univ_badge_chev" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fbbf24" />
+      <stop offset="100%" stop-color="#f97316" />
+    </linearGradient>
+  </defs>
+
+  <!-- Dark Capsule Base -->
+  <rect x="36" y="36" width="440" height="440" rx="116" fill="#0d111a" />
+  <rect x="36" y="36" width="440" height="440" rx="116" fill="none" stroke="url(#univ_badge_border)" stroke-width="14" />
+
+  <!-- Chevrons -->
+  <g stroke-linecap="round" stroke-linejoin="round">
+    <path d="M160 216 L256 136 L352 216" fill="none" stroke="url(#univ_badge_chev)" stroke-width="38" />
+    <path d="M160 328 L256 248 L352 328" fill="none" stroke="#475569" stroke-width="38" />
+    <circle cx="256" cy="372" r="11" fill="#f97316" />
+  </g>
+</svg>
