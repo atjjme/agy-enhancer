@@ -325,19 +325,7 @@ function resolveCleanDiskPath(rawPath) {
     const convoId = cleanPath.slice('MEDIA_DIR:'.length).trim();
     const userUploadedDir = path.join(homeDir, '.gemini', 'antigravity', 'brain', convoId, '.user_uploaded');
     if (fs.existsSync(userUploadedDir)) {
-      try {
-        const files = fs.readdirSync(userUploadedDir)
-          .filter(f => f.startsWith('media_'))
-          .map(f => ({ name: f, time: fs.statSync(path.join(userUploadedDir, f)).mtimeMs }))
-          .sort((a, b) => b.time - a.time);
-        if (files.length > 0) {
-          cleanPath = path.join(userUploadedDir, files[0].name);
-        } else {
-          cleanPath = userUploadedDir;
-        }
-      } catch (e) {
-        cleanPath = userUploadedDir;
-      }
+      cleanPath = userUploadedDir;
     } else {
       cleanPath = path.join(homeDir, '.gemini', 'antigravity', 'brain', convoId);
     }
@@ -360,7 +348,13 @@ function resolveCleanDiskPath(rawPath) {
       try {
         const files = fs.readdirSync(userUploadedDir)
           .filter(f => f.startsWith('media_'))
-          .map(f => ({ name: f, time: fs.statSync(path.join(userUploadedDir, f)).mtimeMs }))
+          .map(f => {
+            const tsMatch = f.match(/media_(\d+)/i);
+            const ts = tsMatch ? parseInt(tsMatch[1], 10) : 0;
+            let mtime = 0;
+            try { mtime = fs.statSync(path.join(userUploadedDir, f)).mtimeMs; } catch (e) {}
+            return { name: f, time: ts || mtime };
+          })
           .sort((a, b) => a.time - b.time);
         if (files.length > 0) {
           const chosen = files[idx] || files[files.length - 1];

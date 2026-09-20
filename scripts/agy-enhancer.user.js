@@ -4008,7 +4008,28 @@
           }
         }
 
-        // 3. 深度穿透探测 React Fiber（获取用户拖拽/选择文件上传的原生 File.path 或附件真实物理路径）
+        // 3. 计算在当前气泡或容器中的图片索引 (用于在多图 media 数组中精准定位具体图片)
+        let targetIndex = 0;
+        const btn = imgEl.closest('button');
+        const tooltipId = btn?.getAttribute('data-tooltip-id') || '';
+        const idxMatch = tooltipId.match(/-img-(\d+)$/);
+        if (idxMatch) {
+          targetIndex = parseInt(idxMatch[1], 10);
+        } else {
+          const altMatch = (imgEl.getAttribute('alt') || '').match(/media\s*(\d+)/i);
+          if (altMatch) {
+            targetIndex = Math.max(0, parseInt(altMatch[1], 10) - 1);
+          } else {
+            const pContainer = imgEl.closest('.flex-wrap, [class*="gap-2"]') || imgEl.parentElement;
+            if (pContainer) {
+              const allImgs = Array.from(pContainer.querySelectorAll('img')).filter(im => !im.closest('button[data-tooltip-id*="avatar"], .avatar'));
+              const pos = allImgs.indexOf(imgEl);
+              if (pos !== -1) targetIndex = pos;
+            }
+          }
+        }
+
+        // 4. 深度穿透探测 React Fiber（获取原生 media[targetIndex].uri、fileUri 或 file.path）
         try {
           let curr = imgEl;
           let depth = 0;
@@ -4017,15 +4038,34 @@
             if (fiberKey) {
               let f = curr[fiberKey];
               let fDepth = 0;
-              while (f && fDepth < 20) {
+              while (f && fDepth < 30) {
                 const props = f.memoizedProps;
                 if (props) {
-                  const fileObj = props.file || props.attachment?.file || props.media?.file || props.item?.file || props.upload?.file;
+                  // 4a. 核心：原生用户上传 media 数组（exa.codeium_common_pb.Media，自带 uri 字段）
+                  if (Array.isArray(props.media) && props.media.length > 0) {
+                    const item = props.media[targetIndex] || props.media[0];
+                    const rawUri = item?.uri || item?.filePath || item?.path;
+                    if (typeof rawUri === 'string' && (/^[a-zA-Z]:[/\\]/.test(rawUri) || rawUri.startsWith('file:///'))) {
+                      let clean = decodeURIComponent(rawUri.replace(/^file:\/\/\/?/i, '')).replace(/\//g, '\\');
+                      return clean.replace(/^\/([a-zA-Z]:)/, '$1');
+                    }
+                  } else if (props.media && typeof props.media === 'object') {
+                    const rawUri = props.media.uri || props.media.filePath || props.media.path;
+                    if (typeof rawUri === 'string' && (/^[a-zA-Z]:[/\\]/.test(rawUri) || rawUri.startsWith('file:///'))) {
+                      let clean = decodeURIComponent(rawUri.replace(/^file:\/\/\/?/i, '')).replace(/\//g, '\\');
+                      return clean.replace(/^\/([a-zA-Z]:)/, '$1');
+                    }
+                  }
+
+                  // 4b. 单项或附件中的 file/upload 对象
+                  const fileObj = props.file || props.attachment?.file || props.item?.file || props.upload?.file;
                   if (fileObj && typeof fileObj.path === 'string' && /^[a-zA-Z]:[/\\]/.test(fileObj.path)) {
                     return fileObj.path.replace(/\//g, '\\');
                   }
-                  for (const key of ['path', 'filePath', 'nativePath', 'originalPath', 'localPath', 'fileUri']) {
-                    const val = props[key] || props.attachment?.[key] || props.media?.[key] || props.item?.[key];
+
+                  // 4c. 针对常见直接字符串属性 (包含 uri, fileUri, path 等)
+                  for (const key of ['uri', 'fileUri', 'filePath', 'path', 'nativePath', 'originalPath', 'localPath']) {
+                    const val = props[key] || props.attachment?.[key] || props.item?.[key];
                     if (typeof val === 'string') {
                       if (/^[a-zA-Z]:[/\\]/.test(val)) return val.replace(/\//g, '\\');
                       if (val.startsWith('file:///')) {
@@ -4044,7 +4084,7 @@
           }
         } catch (err) {}
 
-        // 4. 在工件查看器 (Artifact Viewer) 中打开的图片
+        // 5. 在工件查看器 (Artifact Viewer) 中打开的图片
         const inArtifactViewer = imgEl.closest('[aria-label="Artifact Viewer"], [role="region"][aria-label="Artifact Viewer"], [aria-label="Artifact Viewer header"], #artifact-container, .artifact-view, [data-testid="artifact-view"], [data-aux-pane-open="true"]');
         if (inArtifactViewer) {
           const activeArtifactPath = getActiveArtifactPath(imgEl);
@@ -4053,7 +4093,7 @@
           }
         }
 
-        // 5. 用户在提示词/提问历史中上传的图片（精准匹配具体落盘文件）
+        // 6. 用户在提示词/提问历史中上传的图片（兜底匹配）
         const userTurn = imgEl.closest('.group\\/user-input-step, [class*="user-input-step"]');
         const inPromptInput = !userTurn && !!imgEl.closest('form, [data-testid*="prompt" i], [data-testid*="input" i], [class*="prompt" i], [class*="input" i]');
         const alt = imgEl.getAttribute('alt') || '';
@@ -4061,7 +4101,7 @@
         const convoId = (typeof getCurrentUrlConvoId === 'function' ? getCurrentUrlConvoId() : null) ||
                         (window.location.pathname.match(/\/c\/([a-f0-9-]+)/i)?.[1]) || '';
 
-        // 5a. 如果直接在 alt / title / src 或其最近容器中包含具体的 media_xxxx.png 命名
+        // 6a. 如果直接在 alt / title / src 或其最近容器中包含具体的 media_xxxx.png 命名
         const fullContext = alt + ' ' + title + ' ' + src + ' ' +
                             (imgEl.closest('[class*="media"], [data-media-id], [class*="user-input"]')?.innerText || '');
         const mediaMatch = fullContext.match(/(media_\d+\.[a-zA-Z0-9]+)/i) || src.match(/(media_\d+\.[a-zA-Z0-9]+)/i);
@@ -4069,26 +4109,30 @@
           return `MEDIA:${convoId}:${mediaMatch[1]}`;
         }
 
-        // 5b. 如果在已发送的用户提问气泡中，从该气泡的 Fiber 数据源（包含完整 ADDITIONAL_METADATA）中精准提取具体落盘图片文件名
+        // 6b. 如果在已发送的用户提问气泡中，从该气泡的 Fiber 数据源（包含完整 ADDITIONAL_METADATA）中精准提取具体落盘图片文件名
         if (userTurn && convoId) {
           try {
-            // 计算当前图片在该气泡内所有图片中的顺序索引
-            const imgsInTurn = Array.from(userTurn.querySelectorAll('img')).filter(im => {
-              return !im.closest('button[data-tooltip-id*="avatar"], .avatar, [class*="avatar"]');
-            });
-            const imgIndexInTurn = Math.max(0, imgsInTurn.indexOf(imgEl));
-
             const fiberKey = Object.keys(userTurn).find(k => k.startsWith('__reactFiber$') || k.startsWith('__reactInternalInstance$'));
             let f = userTurn[fiberKey];
             let fDepth = 0;
             while (f && fDepth < 30) {
               const p = f.memoizedProps;
               if (p) {
+                // 检查 step 中的 media 数组
+                const stepMedia = p.step?.media || p.userStep?.step?.media;
+                if (Array.isArray(stepMedia) && stepMedia.length > 0) {
+                  const mItem = stepMedia[targetIndex] || stepMedia[0];
+                  if (mItem?.uri && typeof mItem.uri === 'string') {
+                    let clean = decodeURIComponent(mItem.uri.replace(/^file:\/\/\/?/i, '')).replace(/\//g, '\\');
+                    return clean.replace(/^\/([a-zA-Z]:)/, '$1');
+                  }
+                }
+
                 const msg = p.message || p.userMessage || p.step?.userMessage || p.step?.text || p.step?.content || p.step?.value?.userMessage || p.step?.value?.content;
                 if (typeof msg === 'string' && msg.includes('.user_uploaded')) {
                   const matches = Array.from(msg.matchAll(/(?:[a-zA-Z]:[\\\/]|\/)[^\r\n"']*?\.user_uploaded[\\\/](media_\d+\.[a-zA-Z0-9]+)/gi));
                   if (matches.length > 0) {
-                    const targetMatch = matches[imgIndexInTurn] || matches[0];
+                    const targetMatch = matches[targetIndex] || matches[0];
                     if (targetMatch && targetMatch[1]) {
                       const matchedConvoMatch = targetMatch[0].match(/brain[\\\/]([a-f0-9-]+)[\\\/]\.user_uploaded/i);
                       const targetConvoId = matchedConvoMatch ? matchedConvoMatch[1] : convoId;
@@ -4102,8 +4146,7 @@
             }
           } catch (e) {}
 
-          // 5c. 若 Fiber 内未直接找到明文，但确认是已落盘历史气泡，采用次序索引定位具体文件
-          // 若为第 0 个或默认，直接返回 MEDIA_DIR:${convoId} 保证完全向后兼容任何后台版本
+          // 6c. 若 Fiber 内未直接找到明文，但确认是已落盘历史气泡，采用次序索引定位具体文件
           try {
             const allUserTurns = Array.from(document.querySelectorAll('.group\\/user-input-step, [class*="user-input-step"]'));
             let foundIndex = -1;
@@ -4119,7 +4162,7 @@
               }
               if (foundIndex !== -1) break;
             }
-            if (foundIndex > 0) {
+            if (foundIndex !== -1) {
               return `MEDIA_INDEX:${convoId}:${foundIndex}`;
             }
           } catch (e2) {}
@@ -4127,7 +4170,7 @@
           return `MEDIA_DIR:${convoId}`;
         }
 
-        // 5d. 如果图片在提示词输入框中（尚未发送，纯内存 blob/dataURL 预览，且无本地物理路径）
+        // 6d. 如果图片在提示词输入框中（尚未发送，纯内存 blob/dataURL 预览，且无本地物理路径）
         // 绝不伪造返回锁死的空目录，应返回 null，让右键菜单仅展示复制图片和另存为
         if (inPromptInput) {
           return null;
