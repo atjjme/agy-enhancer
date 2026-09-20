@@ -1046,6 +1046,30 @@
       }
     });
 
+    const trayToggle = document.getElementById('ENABLE_SYSTEM_TRAY');
+    if (trayToggle) {
+      trayToggle.addEventListener('change', async (e) => {
+        const val = e.target.checked;
+        try {
+          const res = await fetch(`${API_BASE}/api/config`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ENABLE_SYSTEM_TRAY: val })
+          });
+          if (res.ok) {
+            const isEn = (typeof I18N !== 'undefined' && I18N.currentLang === 'en');
+            toast(val ? (isEn ? 'System tray icon enabled' : '系统托盘常驻图标已开启') : (isEn ? 'System tray icon hidden' : '系统托盘已隐藏'));
+          }
+        } catch (_) {}
+      });
+    }
+
+    window.addEventListener('focus', () => {
+      if (!isDirty) {
+        fetchLiveConfig();
+      }
+    });
+
     let offlineProbeTimer = null;
 
     function stopOfflineProbe() {

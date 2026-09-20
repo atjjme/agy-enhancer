@@ -227,9 +227,10 @@ function manageSystemTray(enable) {
       }
 
       if (!isSystemTrayRunning() && fs.existsSync(trayExe)) {
-        const child = exec(`"${trayExe}"`, { detached: true, stdio: 'ignore', windowsHide: true });
-        child.unref();
-        log('[SystemTray] Launched agy-tray.exe successfully (PID: ' + child.pid + ')');
+        const workingDir = path.dirname(trayExe);
+        const psCmd = `Start-Process -FilePath '${trayExe.replace(/'/g, "''")}' -WorkingDirectory '${workingDir.replace(/'/g, "''")}'`;
+        execSync(`powershell -NoProfile -ExecutionPolicy Bypass -Command "${psCmd}"`, { timeout: 4000 });
+        log('[SystemTray] Launched agy-tray.exe successfully via Start-Process');
       }
     } else {
       try {

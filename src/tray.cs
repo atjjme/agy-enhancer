@@ -186,6 +186,7 @@ namespace AgyEnhancer
             notifyIcon.Text = "Antigravity 增强器 (守护中)";
             notifyIcon.ContextMenuStrip = contextMenu;
             notifyIcon.Visible = true;
+            Log("NotifyIcon created and set to Visible=true");
 
             // 左键单击或双击均打开设置
             notifyIcon.Click += (s, e) =>
@@ -359,6 +360,17 @@ namespace AgyEnhancer
             }
             catch {}
         }
+
+        public static void Log(string msg)
+        {
+            try
+            {
+                string baseDir = AppDomain.CurrentDomain.BaseDirectory.TrimEnd('\\', '/');
+                string logFile = Path.Combine(baseDir, "agy-tray.log");
+                File.AppendAllText(logFile, string.Format("[{0:yyyy-MM-dd HH:mm:ss.fff}] {1}\r\n", DateTime.Now, msg));
+            }
+            catch {}
+        }
     }
 
     static class Program
@@ -366,17 +378,70 @@ namespace AgyEnhancer
         [STAThread]
         static void Main()
         {
-            bool createdNew;
-            using (Mutex mutex = new Mutex(true, "AntigravityEnhancer_SystemTray_Singleton", out createdNew))
+            TrayAppContext.Log("Main started. ProcessId=" + Process.GetCurrentProcess().Id);
+
+            Application.ThreadException += (s, e) =>
             {
-                if (!createdNew)
+                TrayAppContext.Log("Application.ThreadException: " + e.Exception.ToString());
+            };
+            AppDomain.CurrentDomain.UnhandledException += (s, e) =>
+            {
+                TrayAppContext.Log("UnhandledException: " + (e.ExceptionObject != null ? e.ExceptionObject.ToString() : "null"));
+            };
+
+            bool createdNew = false;
+            Mutex mutex = null;
+            try
+            {
+                mutex = new Mutex(true, @"Local\AntigravityEnhancer_SystemTray_Singleton", out createdNew);
+            }
+            catch (Exception ex)
+            {
+                TrayAppContext.Log("Mutex creation warning: " + ex.Message);
+            }
+
+            if (!createdNew)
+            {
+                // 二次核实是否真有其它运行中的 agy-tray 进程
+                int currentPid = Process.GetCurrentProcess().Id;
+                Process[] procs = Process.GetProcessesByName("agy-tray");
+                bool anotherRunning = false;
+                foreach (Process p in procs)
                 {
-                    return; // 保证全局单例运行，绝不重复启动多个托盘
+                    if (p.Id != currentPid)
+                    {
+                        anotherRunning = true;
+                        break;
+                    }
                 }
 
+                if (anotherRunning)
+                {
+                    TrayAppContext.Log("Another instance of agy-tray is already running. Exiting cleanly.");
+                    return;
+                }
+                TrayAppContext.Log("Mutex was already held but no other active agy-tray process found. Continuing startup.");
+            }
+
+            try
+            {
                 Application.EnableVisualStyles();
                 Application.SetCompatibleTextRenderingDefault(false);
+                TrayAppContext.Log("Starting Application.Run...");
                 Application.Run(new TrayAppContext());
+                TrayAppContext.Log("Application.Run ended.");
+            }
+            catch (Exception ex)
+            {
+                TrayAppContext.Log("Fatal error in Application.Run: " + ex.ToString());
+            }
+            finally
+            {
+                if (mutex != null)
+                {
+                    try { mutex.ReleaseMutex(); } catch {}
+                    mutex.Close();
+                }
             }
         }
     }
