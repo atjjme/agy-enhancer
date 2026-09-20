@@ -23,7 +23,12 @@ set "ROOT_DIR=%~dp0"
 if "%ROOT_DIR:~-1%"=="\" set "ROOT_DIR=%ROOT_DIR:~0,-1%"
 set "SCRIPTS_DIR=%ROOT_DIR%\scripts"
 
-:: 2. 配置 Windows 开机静默自启
+:: 2. 构建原生应用图标启动器并配置 Windows 开机静默自启
+if not exist "%SCRIPTS_DIR%\agy-enhancer.exe" (
+    if exist "%SystemRoot%\Microsoft.NET\Framework64\v4.0.30319\csc.exe" (
+        "%SystemRoot%\Microsoft.NET\Framework64\v4.0.30319\csc.exe" /nologo /target:winexe /win32icon:"%ROOT_DIR%\assets\icon.ico" /out:"%SCRIPTS_DIR%\agy-enhancer.exe" "%ROOT_DIR%\src\launcher.cs" >nul 2>&1
+    )
+)
 echo [1/2] 配置 Windows 开机静默自启快捷方式...
 call "%SCRIPTS_DIR%\setup-autostart.bat" --nopause
 

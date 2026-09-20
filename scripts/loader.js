@@ -169,11 +169,14 @@ function setAutostart(enable) {
 
     if (enable) {
       const vbsPath = path.resolve(__dirname, 'agy-enhancer.vbs');
+      const exePath = path.resolve(__dirname, 'agy-enhancer.exe');
       const rootDir = path.resolve(__dirname, '..');
+      const rootExe = path.resolve(rootDir, 'agy-enhancer.exe');
+      const targetPath = fs.existsSync(exePath) ? exePath : (fs.existsSync(rootExe) ? rootExe : vbsPath);
       const iconPath = path.resolve(rootDir, 'assets', 'icon.ico');
       const psCmd = `$ws = New-Object -ComObject WScript.Shell; ` +
         `$shortcut = $ws.CreateShortcut('${shortcutPath.replace(/'/g, "''")}'); ` +
-        `$shortcut.TargetPath = '${vbsPath.replace(/'/g, "''")}'; ` +
+        `$shortcut.TargetPath = '${targetPath.replace(/'/g, "''")}'; ` +
         `$shortcut.WorkingDirectory = '${rootDir.replace(/'/g, "''")}'; ` +
         `if (Test-Path '${iconPath.replace(/'/g, "''")}') { $shortcut.IconLocation = '${iconPath.replace(/'/g, "''")},0' }; ` +
         `$shortcut.Description = 'Antigravity Enhancer Silent Service'; ` +
