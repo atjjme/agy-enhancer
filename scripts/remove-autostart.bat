@@ -11,4 +11,5 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command "$startupDir = [Environme
 
 echo.
 echo ====================================================
-pause
+if /i "%1" neq "--nopause" pause
+

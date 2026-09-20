@@ -16,5 +16,5 @@ powershell -Command "Get-CimInstance Win32_Process | Where-Object { $_.CommandLi
 echo.
 echo 🎉 Uninstalled successfully. Service stopped.
 echo.
-pause
+if /i "%1" neq "--nopause" pause
 

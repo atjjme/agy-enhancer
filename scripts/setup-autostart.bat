@@ -64,6 +64,5 @@ if %ERRORLEVEL% equ 0 (
     echo [Failed] Failed to create shortcut. Please check permissions or antivirus settings.
 )
 
-echo.
 echo ====================================================
 if "%1" neq "--nopause" pause

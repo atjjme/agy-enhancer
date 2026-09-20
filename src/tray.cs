@@ -151,10 +151,15 @@ namespace AgyEnhancer
             itemHideTray.Click += (s, e) => DisableTrayAndExit();
             contextMenu.Items.Add(itemHideTray);
 
+            // 4. 启动服务
+            ToolStripMenuItem itemStartService = new ToolStripMenuItem("启动服务");
+            itemStartService.Click += (s, e) => StartService();
+            contextMenu.Items.Add(itemStartService);
+
             // 分割线
             contextMenu.Items.Add(new ToolStripSeparator());
 
-            // 4. 退出
+            // 5. 退出
             ToolStripMenuItem itemExit = new ToolStripMenuItem("退出");
             itemExit.Click += (s, e) => ExitAllServices();
             contextMenu.Items.Add(itemExit);
@@ -188,15 +193,7 @@ namespace AgyEnhancer
             notifyIcon.Visible = true;
             Log("NotifyIcon created with text 'agy-enhancer' and set to Visible=true");
 
-            // 左键单击或双击均打开设置
-            notifyIcon.Click += (s, e) =>
-            {
-                MouseEventArgs me = e as MouseEventArgs;
-                if (me != null && me.Button == MouseButtons.Left)
-                {
-                    OpenSettings();
-                }
-            };
+            // 仅双击打开设置，单击不再响应
             notifyIcon.DoubleClick += (s, e) => OpenSettings();
 
             // 每次右键展开菜单时，实时查询真实自启状态
@@ -264,7 +261,7 @@ namespace AgyEnhancer
                 if (currentState)
                 {
                     string bat = Path.Combine(scriptsDir, "remove-autostart.bat");
-                    RunBatHidden(bat);
+                    RunBatHidden(bat, "--nopause");
                 }
                 else
                 {
@@ -274,6 +271,45 @@ namespace AgyEnhancer
                 itemAutostart.Checked = !currentState;
             }
             catch {}
+        }
+
+        private void StartService()
+        {
+            try
+            {
+                string exe1 = Path.Combine(rootDir, "agy-enhancer.exe");
+                string exe2 = Path.Combine(scriptsDir, "agy-enhancer.exe");
+                string vbs = Path.Combine(scriptsDir, "agy-enhancer.vbs");
+
+                if (File.Exists(exe1))
+                {
+                    ProcessStartInfo psi = new ProcessStartInfo(exe1);
+                    psi.WorkingDirectory = rootDir;
+                    psi.UseShellExecute = true;
+                    Process.Start(psi);
+                    Log("[StartService] Started agy-enhancer.exe from rootDir");
+                }
+                else if (File.Exists(exe2))
+                {
+                    ProcessStartInfo psi = new ProcessStartInfo(exe2);
+                    psi.WorkingDirectory = rootDir;
+                    psi.UseShellExecute = true;
+                    Process.Start(psi);
+                    Log("[StartService] Started agy-enhancer.exe from scriptsDir");
+                }
+                else if (File.Exists(vbs))
+                {
+                    ProcessStartInfo psi = new ProcessStartInfo("wscript.exe", "\"" + vbs + "\"");
+                    psi.WorkingDirectory = rootDir;
+                    psi.UseShellExecute = false;
+                    Process.Start(psi);
+                    Log("[StartService] Started agy-enhancer.vbs");
+                }
+            }
+            catch (Exception ex)
+            {
+                Log("[StartService Error] " + ex.Message);
+            }
         }
 
         private void DisableTrayAndExit()
@@ -335,10 +371,19 @@ namespace AgyEnhancer
         {
             try
             {
+                try
+                {
+                    HttpWebRequest req = (HttpWebRequest)WebRequest.Create("http://127.0.0.1:37210/api/shutdown");
+                    req.Timeout = 600;
+                    req.Method = "GET";
+                    using (HttpWebResponse resp = (HttpWebResponse)req.GetResponse()) {}
+                }
+                catch {}
+
                 string stopBat = Path.Combine(scriptsDir, "stop-service.bat");
                 if (File.Exists(stopBat))
                 {
-                    RunBatHidden(stopBat);
+                    RunBatHidden(stopBat, "--nopause");
                 }
             }
             catch {}

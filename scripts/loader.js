@@ -750,6 +750,36 @@ function injectEnhancer(ws) {
   }
 }
 
+function cleanupEnhancer(ws) {
+  const targetWs = ws || currentWs;
+  const wsOpen = (typeof WebSocket !== 'undefined' && WebSocket.OPEN) ? WebSocket.OPEN : 1;
+  if (!targetWs || targetWs.readyState !== wsOpen) return;
+  try {
+    const code = `(() => {
+      try { if (typeof window.__AGY_ENHANCER_CLEANUP__ === 'function') window.__AGY_ENHANCER_CLEANUP__(); } catch (e) {}
+      document.getElementById('agy-enhancer-toast')?.remove();
+      document.getElementById('agy-page-nav-group')?.remove();
+      document.getElementById('agy-scroll-bottom-btn')?.remove();
+      document.getElementById('agy-archive-header-btn')?.remove();
+      document.getElementById('agy-archive-panel')?.remove();
+      document.getElementById('agy-project-options-dropdown')?.remove();
+      document.getElementById('agy-convo-options-dropdown')?.remove();
+      document.getElementById('agy-universal-context-menu')?.remove();
+      document.getElementById('agy-enhancer-styles')?.remove();
+      document.querySelectorAll('.agy-unread-dot-badge, .agy-pin-btn, .agy-user-pin-btn, .agy-ai-pin-btn, .agy-native-enhanced').forEach(el => el.remove());
+      window.__AGY_ENHANCER_LOADED__ = false;
+    })()`;
+    targetWs.send(JSON.stringify({
+      id: Math.floor(Math.random() * 100000),
+      method: 'Runtime.evaluate',
+      params: { expression: code, returnByValue: true }
+    }));
+    log('[Shutdown] Dispatched comprehensive UI cleanup to active window.');
+  } catch (e) {
+    log('[Shutdown Cleanup Error]', e?.message || e);
+  }
+}
+
 // 平衡轮询：未连接时每 1200ms 检测一次连接状态，每 3500ms 主动探测页面就绪状态
 setInterval(connectAndAttach, 1200);
 setInterval(checkPageReadiness, 3500);
@@ -1502,6 +1532,18 @@ function startEmbeddedSettingsServer() {
           res.end(JSON.stringify({ success: false, error: err?.message || 'Internal error' }));
         }
       });
+      return;
+    }
+
+    if (urlPath === '/api/shutdown') {
+      log('[Shutdown API] Received graceful shutdown request.');
+      cleanupEnhancer();
+      res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+      res.end(JSON.stringify({ success: true, message: 'Shutting down gracefully...' }));
+      setTimeout(() => {
+        log('[Shutdown API] Exiting daemon process gracefully.');
+        process.exit(0);
+      }, 300);
       return;
     }
 

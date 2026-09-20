@@ -341,9 +341,7 @@
     }
     document.getElementById('agy-page-nav-group')?.remove();
     document.getElementById('agy-scroll-bottom-btn')?.remove();
-    if (USER_CONFIG.ENABLE_MASTER === false || USER_CONFIG.ENABLE_STATUS_INDICATOR === false) {
-      document.getElementById('agy-enhancer-toast')?.remove();
-    }
+    document.getElementById('agy-enhancer-toast')?.remove();
     document.getElementById('agy-archive-header-btn')?.remove();
     document.getElementById('agy-archive-panel')?.remove();
     document.getElementById('agy-project-options-dropdown')?.remove();
