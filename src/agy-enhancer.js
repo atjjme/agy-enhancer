@@ -357,7 +357,8 @@
     document.getElementById('agy-pinned-styles')?.remove();
     document.querySelectorAll('.agy-pin-btn').forEach(el => el.remove());
     document.querySelectorAll('.agy-user-pin-btn').forEach(el => el.remove());
-    document.querySelectorAll('.agy-pulse-highlight').forEach(el => el.classList.remove('agy-pulse-highlight'));
+    document.querySelectorAll('.agy-ai-pin-btn').forEach(el => el.remove());
+    document.querySelectorAll('.agy-pulse-highlight, .agy-pulse-highlight-red').forEach(el => el.classList.remove('agy-pulse-highlight', 'agy-pulse-highlight-red'));
     document.querySelectorAll('.agy-native-enhanced').forEach(el => el.remove());
     window.__AGY_ENHANCER_LOADED__ = false;
   };
@@ -6980,15 +6981,15 @@
             transform: translateX(0) scale(1);
           }
 
-          /* 单个长条卡片 (根据用户截图一，去除“已钉选”标签，极致紧凑优雅) */
+          /* 单个长条卡片 (精致圆角胶囊，零位移无抖动) */
           .agy-pinned-card {
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 8px;
             background: rgba(22, 26, 38, 0.94);
             border: 1px solid rgba(255, 255, 255, 0.13);
             border-radius: 9999px;
-            padding: 6px 14px;
+            padding: 4px 6px 4px 12px;
             color: #f1f5f9;
             font-size: 13px;
             backdrop-filter: blur(24px);
@@ -6996,56 +6997,79 @@
             box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.05);
             white-space: nowrap;
             user-select: none;
-            transition: all 0.2s ease;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
           }
           .agy-pinned-card:hover {
-            border-color: rgba(16, 185, 129, 0.45);
-            box-shadow: 0 10px 28px rgba(0, 0, 0, 0.6), 0 0 14px rgba(16, 185, 129, 0.22);
-            transform: translateX(-2px);
+            border-color: rgba(255, 255, 255, 0.28);
+            box-shadow: 0 10px 28px rgba(0, 0, 0, 0.6);
           }
           .agy-card-pin-icon {
-            color: #10b981;
             font-size: 13px;
             flex-shrink: 0;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+          }
+          .agy-card-pin-icon.type-prompt {
+            color: #ef4444; /* 红色图钉代表提示词 */
+          }
+          .agy-card-pin-icon.type-ai {
+            color: #10b981; /* 绿色图钉代表 AI 回复 */
           }
           .agy-card-title {
             font-weight: 500;
-            max-width: 260px;
+            max-width: 210px;
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
             color: #f8fafc;
           }
+          .agy-card-rename-input {
+            background: rgba(15, 23, 42, 0.9);
+            border: 1px solid #3b82f6;
+            border-radius: 4px;
+            color: #f8fafc;
+            font-size: 12px;
+            padding: 2px 7px;
+            outline: none;
+            width: 190px;
+            max-width: 250px;
+            font-family: inherit;
+            box-shadow: 0 0 8px rgba(59, 130, 246, 0.35);
+          }
           .agy-card-actions {
             display: flex;
             align-items: center;
-            gap: 5px;
+            gap: 4px;
             flex-shrink: 0;
           }
           .agy-card-btn {
             background: rgba(255, 255, 255, 0.08);
             border: none;
             border-radius: 9999px;
-            padding: 3px 9px;
+            width: 26px;
+            height: 26px;
+            padding: 0;
             color: #cbd5e1;
-            font-size: 11.5px;
+            font-size: 12px;
             cursor: pointer;
             display: inline-flex;
             align-items: center;
-            gap: 4px;
+            justify-content: center;
             transition: all 0.15s ease;
           }
           .agy-card-btn:hover {
-            background: rgba(255, 255, 255, 0.18);
+            background: rgba(255, 255, 255, 0.22);
             color: #fff;
           }
           .agy-card-btn.danger:hover {
-            background: rgba(239, 68, 68, 0.25);
+            background: rgba(239, 68, 68, 0.28);
             color: #fca5a5;
           }
 
-          /* 用户提问 Prompt 气泡右下角的图钉按钮 */
-          .agy-user-pin-btn {
+          /* 用户提问 Prompt 气泡右下角图钉按钮 (红色高亮) */
+          .agy-user-pin-btn,
+          .agy-ai-pin-btn {
             display: inline-flex;
             align-items: center;
             justify-content: center;
@@ -7059,20 +7083,27 @@
             transition: all 0.18s ease;
             margin-right: 3px;
           }
-          .agy-user-pin-btn:hover {
+          .agy-user-pin-btn:hover,
+          .agy-ai-pin-btn:hover {
             background: var(--secondary, rgba(255, 255, 255, 0.1));
             color: var(--foreground, #fff);
           }
           .agy-user-pin-btn.active {
-            color: #10b981 !important;
+            color: #ef4444 !important;
           }
           .agy-user-pin-btn.active:hover {
+            background: rgba(239, 68, 68, 0.16) !important;
+            color: #f87171 !important;
+          }
+          .agy-ai-pin-btn.active {
+            color: #10b981 !important;
+          }
+          .agy-ai-pin-btn.active:hover {
             background: rgba(16, 185, 129, 0.16) !important;
             color: #34d399 !important;
           }
 
-
-          /* 原消息/段落高亮呼吸动效 (Plan A 精准聚光呼吸) */
+          /* 原消息/段落高亮呼吸动效 (绿色用于 AI 回复，红色用于提示词) */
           @keyframes agy-pin-pulse {
             0% {
               box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.85);
@@ -7090,8 +7121,31 @@
               background-color: transparent;
             }
           }
+          @keyframes agy-pin-pulse-red {
+            0% {
+              box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.85);
+              outline: 2px solid #ef4444;
+              background-color: rgba(239, 68, 68, 0.12);
+            }
+            40% {
+              box-shadow: 0 0 24px 6px rgba(239, 68, 68, 0.45);
+              outline: 2px solid #f87171;
+              background-color: rgba(239, 68, 68, 0.08);
+            }
+            100% {
+              box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+              outline: 2px solid transparent;
+              background-color: transparent;
+            }
+          }
           .agy-pulse-highlight {
             animation: agy-pin-pulse 2.2s cubic-bezier(0.25, 1, 0.5, 1) !important;
+            border-radius: 6px !important;
+            scroll-margin-top: 70px;
+            scroll-margin-bottom: 70px;
+          }
+          .agy-pulse-highlight-red {
+            animation: agy-pin-pulse-red 2.2s cubic-bezier(0.25, 1, 0.5, 1) !important;
             border-radius: 6px !important;
             scroll-margin-top: 70px;
             scroll-margin-bottom: 70px;
@@ -7369,8 +7423,8 @@
         return 'h_' + Math.abs(hash);
       }
 
-      function extractSummaryTitle(text) {
-        if (!text) return 'AI Summary';
+      function extractSummaryTitle(text, defaultTitle = 'Summary') {
+        if (!text) return defaultTitle;
         const lines = text.trim().split('\n');
         // 1. 优先提取 Markdown 标题行 (# 标题)
         for (let line of lines) {
@@ -7390,7 +7444,7 @@
           if (/^thinking(\.\.\.)?/i.test(clean)) continue;
           return clean.slice(0, 36) + (clean.length > 36 ? '...' : '');
         }
-        return 'AI Summary';
+        return defaultTitle;
       }
 
       function escapeHtml(str) {
@@ -7449,14 +7503,26 @@
         }
 
         if (!targetEl) {
-          const candidateTurns = chatContainer.querySelectorAll('.group.w-full, [class*="scroll-mt-4"], .flex.items-start');
-          const snippet = summary.text ? summary.text.slice(0, 50).trim() : '';
-          for (const turn of candidateTurns) {
-            if (turn.closest('.group\\/user-input-step, [class*="user-input-step"]')) continue;
-            if (snippet && (turn.innerText || '').includes(snippet)) {
-              targetEl = turn;
-              if (summary.hash) turn.setAttribute('data-agy-summary-hash', summary.hash);
-              break;
+          if (summary.type === 'prompt') {
+            const userTurns = chatContainer.querySelectorAll('.group\\/user-input-step, [class*="user-input-step"]');
+            const snippet = summary.text ? summary.text.slice(0, 50).trim() : '';
+            for (const turn of userTurns) {
+              if (snippet && (turn.innerText || '').includes(snippet)) {
+                targetEl = turn;
+                if (summary.hash) turn.setAttribute('data-agy-summary-hash', summary.hash);
+                break;
+              }
+            }
+          } else {
+            const candidateTurns = chatContainer.querySelectorAll('.group.w-full, [class*="scroll-mt-4"], .flex.items-start');
+            const snippet = summary.text ? summary.text.slice(0, 50).trim() : '';
+            for (const turn of candidateTurns) {
+              if (turn.closest('.group\\/user-input-step, [class*="user-input-step"]')) continue;
+              if (snippet && (turn.innerText || '').includes(snippet)) {
+                targetEl = turn;
+                if (summary.hash) turn.setAttribute('data-agy-summary-hash', summary.hash);
+                break;
+              }
             }
           }
         }
@@ -7503,10 +7569,11 @@
             }
 
             focusEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            focusEl.classList.remove('agy-pulse-highlight');
+            const pulseClass = summary.type === 'prompt' ? 'agy-pulse-highlight-red' : 'agy-pulse-highlight';
+            focusEl.classList.remove('agy-pulse-highlight', 'agy-pulse-highlight-red');
             void focusEl.offsetWidth;
-            focusEl.classList.add('agy-pulse-highlight');
-            setTimeout(() => focusEl.classList.remove('agy-pulse-highlight'), 2300);
+            focusEl.classList.add(pulseClass);
+            setTimeout(() => focusEl.classList.remove('agy-pulse-highlight', 'agy-pulse-highlight-red'), 2300);
             showNotification?.('Scrolled to original message');
           } catch (e) {}
         } else {
@@ -7583,13 +7650,17 @@
         const total = list.length;
         const currentIdx = currentActiveIndex >= 0 && currentActiveIndex < total ? currentActiveIndex : 0;
         const item = list[currentIdx] || summary;
+        const isPrompt = item.type === 'prompt';
 
         modal.innerHTML = `
           <div class="agy-pip-header" id="agy-pip-drag-handle">
             <div class="agy-pip-title-wrap">
-              <span style="color: #34d399; font-size: 14px;">📌</span>
+              <span style="color: ${isPrompt ? '#ef4444' : '#34d399'}; font-size: 14px;">📌</span>
               <span class="agy-pip-title" title="${escapeHtml(item.title)}">${escapeHtml(item.title)}</span>
-              ${total > 1 ? `<span style="font-size: 11px; background: rgba(16,185,129,0.18); color: #34d399; padding: 1px 6px; border-radius: 999px;">${currentIdx + 1}/${total}</span>` : ''}
+              ${isPrompt 
+                ? `<span style="font-size: 11px; background: rgba(239,68,68,0.18); color: #f87171; padding: 1px 6px; border-radius: 999px;">Prompt</span>`
+                : `<span style="font-size: 11px; background: rgba(16,185,129,0.18); color: #34d399; padding: 1px 6px; border-radius: 999px;">AI</span>`}
+              ${total > 1 ? `<span style="font-size: 11px; background: rgba(255,255,255,0.08); color: #94a3b8; padding: 1px 6px; border-radius: 999px;">${currentIdx + 1}/${total}</span>` : ''}
             </div>
             <div class="agy-pip-header-btns">
               <button class="agy-pip-icon-btn" id="agy-pip-jump-btn" title="Locate original message">
@@ -7649,7 +7720,9 @@
       }
 
       // 5. 右侧翻页按钮上方的指示器容器与悬停卡片抽屉 (Hover Drawer)
-      function renderPinnedIndicator() {
+      let lastRenderedPinSignature = '';
+
+      function renderPinnedIndicator(force = false) {
         const navGroup = document.getElementById('agy-page-nav-group');
         if (!navGroup) return;
 
@@ -7670,7 +7743,9 @@
 
           indicatorWrap.addEventListener('mouseleave', () => {
             drawerCloseTimeout = setTimeout(() => {
-              indicatorWrap.classList.remove('hovering');
+              if (!indicatorWrap.querySelector('.agy-card-rename-input')) {
+                indicatorWrap.classList.remove('hovering');
+              }
             }, 250);
           });
         }
@@ -7681,29 +7756,52 @@
           indicatorWrap.style.display = 'none';
           document.getElementById('agy-pip-modal')?.remove();
           document.getElementById('agy-pip-dock')?.remove();
+          lastRenderedPinSignature = '';
           return;
         }
 
         indicatorWrap.style.display = 'flex';
 
-        // 渲染长条卡片列表 (按图一样式，去掉“已钉选”)
+        // 核心防抖与状态保护：用户鼠标正在悬停或正在编辑标题时，心跳绝对不重写 innerHTML，彻底消除半秒抖动
+        const isHovering = indicatorWrap.classList.contains('hovering') || indicatorWrap.matches(':hover');
+        const isEditing = indicatorWrap.classList.contains('editing') || !!indicatorWrap.querySelector('.agy-card-rename-input');
+        const currentSignature = list.map(p => `${p.id}_${p.title}_${p.type || 'ai'}`).join('|');
+
+        if (!force && (isHovering || isEditing)) {
+          return;
+        }
+
+        if (!force && lastRenderedPinSignature === currentSignature && indicatorWrap.querySelector('#agy-pin-drawer')) {
+          return;
+        }
+
+        lastRenderedPinSignature = currentSignature;
+
+        // 渲染长条卡片列表 (纯图标优雅排版，红绿图钉区分提示词与AI回复)
         let cardsHtml = '';
         list.forEach((item, idx) => {
+          const isPrompt = item.type === 'prompt';
           cardsHtml += `
             <div class="agy-pinned-card" data-pin-id="${escapeHtml(item.id)}">
-              <span class="agy-card-pin-icon">📌</span>
+              <span class="agy-card-pin-icon ${isPrompt ? 'type-prompt' : 'type-ai'}" title="${isPrompt ? 'Prompt' : 'AI Response'}">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                  <line x1="12" y1="17" x2="12" y2="22"></line>
+                  <path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z" fill="currentColor"></path>
+                </svg>
+              </span>
               <span class="agy-card-title" title="${escapeHtml(item.title)}">${escapeHtml(item.title)}</span>
               <div class="agy-card-actions">
-                <button class="agy-card-btn agy-card-jump" data-idx="${idx}" title="Locate original message">
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="3"></circle></svg>
-                  Locate
+                <button class="agy-card-btn agy-card-rename" data-idx="${idx}" title="Rename">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
                 </button>
-                <button class="agy-card-btn agy-card-pip" data-idx="${idx}" title="Picture-in-picture preview">
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="9" y1="3" x2="9" y2="21"></line></svg>
-                  Preview
+                <button class="agy-card-btn agy-card-jump" data-idx="${idx}" title="Locate">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="3"></circle></svg>
                 </button>
-                <button class="agy-card-btn danger agy-card-unpin" data-pin-id="${escapeHtml(item.id)}" title="Unpin summary">
-                  ✕
+                <button class="agy-card-btn agy-card-pip" data-idx="${idx}" title="Preview">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><rect x="11" y="11" width="8" height="8" rx="1"></rect></svg>
+                </button>
+                <button class="agy-card-btn danger agy-card-unpin" data-pin-id="${escapeHtml(item.id)}" title="Remove">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
                 </button>
               </div>
             </div>
@@ -7728,11 +7826,73 @@
 
         drawer?.addEventListener('mouseleave', () => {
           drawerCloseTimeout = setTimeout(() => {
-            indicatorWrap.classList.remove('hovering');
+            if (!indicatorWrap.querySelector('.agy-card-rename-input')) {
+              indicatorWrap.classList.remove('hovering');
+            }
           }, 250);
         });
 
-        // 绑定卡片交互
+        // 绑定卡片交互：Rename (原地输入编辑，舒适交互)
+        indicatorWrap.querySelectorAll('.agy-card-rename').forEach(btn => {
+          btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const idx = parseInt(btn.getAttribute('data-idx') || '0', 10);
+            const targetItem = list[idx];
+            if (!targetItem) return;
+
+            const cardEl = btn.closest('.agy-pinned-card');
+            const titleEl = cardEl?.querySelector('.agy-card-title');
+            if (!cardEl || !titleEl || cardEl.querySelector('.agy-card-rename-input')) return;
+
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.className = 'agy-card-rename-input';
+            input.value = targetItem.title || '';
+
+            indicatorWrap.classList.add('editing');
+            titleEl.style.display = 'none';
+            titleEl.parentNode.insertBefore(input, titleEl);
+            input.focus();
+            input.select();
+
+            let finished = false;
+            const finishRename = (save) => {
+              if (finished) return;
+              finished = true;
+              indicatorWrap.classList.remove('editing');
+              const val = input.value.trim();
+              if (save && val && val !== targetItem.title) {
+                targetItem.title = val;
+                savePinnedList(list);
+                showNotification?.('Renamed');
+                const modalTitle = document.querySelector('#agy-pip-modal .agy-pip-title');
+                if (modalTitle && currentActiveIndex === idx) {
+                  modalTitle.textContent = val;
+                  modalTitle.title = val;
+                }
+              }
+              titleEl.textContent = targetItem.title;
+              titleEl.title = targetItem.title;
+              titleEl.style.display = '';
+              input.remove();
+              lastRenderedPinSignature = '';
+            };
+
+            input.addEventListener('keydown', (ev) => {
+              ev.stopPropagation();
+              if (ev.key === 'Enter') {
+                finishRename(true);
+              } else if (ev.key === 'Escape') {
+                finishRename(false);
+              }
+            });
+            input.addEventListener('blur', () => {
+              finishRename(true);
+            });
+          });
+        });
+
+        // 绑定卡片交互：Locate
         indicatorWrap.querySelectorAll('.agy-card-jump').forEach(btn => {
           btn.addEventListener('click', (e) => {
             e.stopPropagation();
@@ -7742,6 +7902,7 @@
           });
         });
 
+        // 绑定卡片交互：Preview
         indicatorWrap.querySelectorAll('.agy-card-pip').forEach(btn => {
           btn.addEventListener('click', (e) => {
             e.stopPropagation();
@@ -7755,6 +7916,7 @@
           });
         });
 
+        // 绑定卡片交互：Remove
         indicatorWrap.querySelectorAll('.agy-card-unpin').forEach(btn => {
           btn.addEventListener('click', (e) => {
             e.stopPropagation();
@@ -7774,8 +7936,9 @@
         list.unshift(item);
         savePinnedList(list);
         currentActiveIndex = 0;
-        showNotification?.('📌 Pinned summary');
-        renderPinnedIndicator();
+        showNotification?.(item.type === 'prompt' ? '📌 Prompt pinned' : '📌 AI response pinned');
+        lastRenderedPinSignature = '';
+        renderPinnedIndicator(true);
         syncAllPinButtons();
       }
 
@@ -7784,8 +7947,9 @@
         list = list.filter(p => p.id !== idOrHash && p.hash !== idOrHash);
         savePinnedList(list);
         if (currentActiveIndex >= list.length) currentActiveIndex = Math.max(0, list.length - 1);
-        showNotification?.('Unpinned summary');
-        renderPinnedIndicator();
+        showNotification?.('Unpinned');
+        lastRenderedPinSignature = '';
+        renderPinnedIndicator(true);
         if (list.length === 0) {
           document.getElementById('agy-pip-modal')?.remove();
           document.getElementById('agy-pip-dock')?.remove();
@@ -7795,35 +7959,34 @@
         syncAllPinButtons();
       }
 
-      // 7. 从用户提问气泡查找紧邻的后继 AI 回复
-      function findNextAiTurnFromUserTurn(userTurnEl) {
-        if (!userTurnEl) return null;
-        let curr = userTurnEl.nextElementSibling;
-        while (curr) {
-          if (!curr.closest('.group\\/user-input-step, [class*="user-input-step"]')) {
-            const hasToolbar = !!curr.querySelector('[data-testid="cascade-system-message-toolbar"]');
-            const isTurn = curr.classList.contains('group') || curr.matches('.flex.items-start') || curr.matches('.scroll-mt-4');
-            if (hasToolbar || isTurn) return curr;
+      // 7. 提取用户提示词数据 (User Prompt Data)
+      function extractUserPromptData(uTurn) {
+        let markdownText = '';
+        try {
+          const fiberKey = Object.keys(uTurn || {}).find(k => k.startsWith('__reactFiber$') || k.startsWith('__reactInternalInstance$'));
+          let f = uTurn[fiberKey];
+          while (f) {
+            if (f.memoizedProps) {
+              const p = f.memoizedProps;
+              const msg = p.message || p.userMessage || p.step?.userMessage || p.step?.text || p.step?.content || p.step?.value?.userMessage;
+              if (typeof msg === 'string' && msg.trim()) {
+                markdownText = msg.trim();
+                break;
+              }
+            }
+            f = f.return;
           }
-          curr = curr.nextElementSibling;
+        } catch (e) {}
+
+        if (!markdownText && uTurn) {
+          const clone = uTurn.cloneNode(true);
+          clone.querySelectorAll('button, svg, [role="toolbar"], .agy-user-pin-btn, [class*="user-input-step-buttons"]').forEach(el => el.remove());
+          markdownText = clone.innerText?.trim() || '';
         }
 
-        // 跨级后继查找
-        let parent = userTurnEl.parentElement;
-        while (parent && parent !== document.body) {
-          let sib = parent.nextElementSibling;
-          while (sib) {
-            const aiCand = sib.querySelector?.('[data-testid="cascade-system-message-toolbar"]')
-              ? sib
-              : sib.querySelector?.('.group.w-full, .flex.items-start');
-            if (aiCand && !aiCand.closest('.group\\/user-input-step')) {
-              return aiCand;
-            }
-            sib = sib.nextElementSibling;
-          }
-          parent = parent.parentElement;
-        }
-        return null;
+        const hash = computeHash('prompt:' + markdownText);
+        const title = extractSummaryTitle(markdownText, 'User Prompt');
+        return { markdownText, hash, title };
       }
 
       function extractAiTurnData(turnEl, toolbar = null) {
@@ -7872,22 +8035,21 @@
         }
 
         const hash = computeHash(markdownText);
-        const title = extractSummaryTitle(markdownText);
+        const title = extractSummaryTitle(markdownText, 'AI Summary');
         return { markdownText, hash, title };
       }
 
-      // 8. 巡检并同步用户提问右下角钉选按钮
+      // 8. 巡检并同步钉选按钮 (用户提问右下角 + AI 回复右下角复制前)
       function syncAllPinButtons() {
-        // 清理任何历史可能遗留的 AI 回复左下角旧图钉
+        // 清理任何历史可能遗留的旧式图钉
         document.querySelectorAll('.agy-pin-btn').forEach(el => el.remove());
 
         const list = getPinnedList();
         const pinnedHashes = new Set(list.map(p => p.hash));
 
-        // 用户发出后的提示词右下角：放置在复制和 Undo 前面
+        // A. 用户发出后的提示词右下角：放置在复制和 Undo 前面，提取【提示词】
         const userTurns = document.querySelectorAll('.group\\/user-input-step, [class*="user-input-step"]');
         for (const uTurn of userTurns) {
-          // 查找右下角的复制按钮
           const copyBtn = uTurn.querySelector('button[data-tooltip-id*="copy-user-message"], button[aria-label*="Copy prompt" i], button[aria-label*="Copy" i]');
           if (!copyBtn) continue;
           const btnRow = copyBtn.parentElement;
@@ -7903,14 +8065,9 @@
             uPinBtn.addEventListener('click', (e) => {
               e.preventDefault();
               e.stopPropagation();
-              const nextAi = findNextAiTurnFromUserTurn(uTurn);
-              if (!nextAi) {
-                showNotification?.('No subsequent AI response detected');
-                return;
-              }
-              const { markdownText, hash, title } = extractAiTurnData(nextAi);
+              const { markdownText, hash, title } = extractUserPromptData(uTurn);
               if (!markdownText) return;
-              nextAi.setAttribute('data-agy-summary-hash', hash);
+              uTurn.setAttribute('data-agy-summary-hash', hash);
               const isPinned = list.some(p => p.hash === hash);
               if (isPinned) {
                 removePinItem(hash);
@@ -7920,24 +8077,104 @@
                   hash,
                   title,
                   text: markdownText,
+                  type: 'prompt',
                   timestamp: Date.now()
                 });
               }
             });
 
-            // 关键：精确放到复制和 Undo 的前面
             btnRow.insertBefore(uPinBtn, copyBtn);
           }
 
-          // 同步用户提示词图钉的激活态与英文提示
-          const nextAi = findNextAiTurnFromUserTurn(uTurn);
-          const aiHash = nextAi?.getAttribute('data-agy-summary-hash') || computeHash(nextAi?.innerText || '');
-          if (aiHash && pinnedHashes.has(aiHash)) {
+          // 同步用户提示词图钉的激活态 (红色)
+          const promptHash = uTurn.getAttribute('data-agy-summary-hash') || computeHash('prompt:' + (uTurn.innerText || '').trim());
+          if (promptHash && pinnedHashes.has(promptHash)) {
             uPinBtn.classList.add('active');
-            uPinBtn.title = 'AI response pinned (Click to unpin)';
+            uPinBtn.title = 'Prompt pinned (Click to unpin)';
           } else {
-            uPinBtn.classList.remove('active');
-            uPinBtn.title = 'Pin AI response';
+            let matched = false;
+            for (const item of list) {
+              if (item.type === 'prompt' && item.hash && pinnedHashes.has(item.hash)) {
+                const snippet = (item.text || '').slice(0, 30).trim();
+                if (snippet && (uTurn.innerText || '').includes(snippet)) {
+                  uTurn.setAttribute('data-agy-summary-hash', item.hash);
+                  uPinBtn.classList.add('active');
+                  uPinBtn.title = 'Prompt pinned (Click to unpin)';
+                  matched = true;
+                  break;
+                }
+              }
+            }
+            if (!matched) {
+              uPinBtn.classList.remove('active');
+              uPinBtn.title = 'Pin prompt';
+            }
+          }
+        }
+
+        // B. AI 回复气泡：在右下角复制按钮前提供专属钉选入口，提取【AI 回复】
+        const toolbars = document.querySelectorAll('[data-testid="cascade-system-message-toolbar"]');
+        for (const toolbar of toolbars) {
+          const turnEl = toolbar.closest('.group.w-full, [class*="scroll-mt-4"], .flex.items-start') || toolbar.parentElement;
+          if (!turnEl) continue;
+
+          const copyBtn = toolbar.querySelector('button[aria-label="Copy"], button[aria-label="Copied"], button[data-tooltip-id*="copy-"]:not([data-tooltip-id*="copy-user-message"]):not([data-tooltip-id*="copy-code"])') || toolbar.querySelector('button[aria-label*="Copy" i]');
+          if (!copyBtn) continue;
+
+          let aiPinBtn = toolbar.querySelector('.agy-ai-pin-btn');
+          if (!aiPinBtn) {
+            aiPinBtn = document.createElement('button');
+            aiPinBtn.className = 'agy-ai-pin-btn';
+            aiPinBtn.type = 'button';
+            aiPinBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="17" x2="12" y2="22"></line><path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z"></path></svg>`;
+
+            aiPinBtn.addEventListener('click', (e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              const { markdownText, hash, title } = extractAiTurnData(turnEl, toolbar);
+              if (!markdownText) return;
+              turnEl.setAttribute('data-agy-summary-hash', hash);
+              const isPinned = list.some(p => p.hash === hash);
+              if (isPinned) {
+                removePinItem(hash);
+              } else {
+                addPinItem({
+                  id: 'pin_' + Date.now(),
+                  hash,
+                  title,
+                  text: markdownText,
+                  type: 'ai',
+                  timestamp: Date.now()
+                });
+              }
+            });
+
+            copyBtn.parentElement.insertBefore(aiPinBtn, copyBtn);
+          }
+
+          // 同步 AI 回复图钉的激活态 (绿色)
+          const aiHash = turnEl.getAttribute('data-agy-summary-hash') || computeHash(turnEl.innerText || '');
+          if (aiHash && pinnedHashes.has(aiHash)) {
+            aiPinBtn.classList.add('active');
+            aiPinBtn.title = 'AI response pinned (Click to unpin)';
+          } else {
+            let matched = false;
+            for (const item of list) {
+              if (item.type !== 'prompt' && item.hash && pinnedHashes.has(item.hash)) {
+                const snippet = (item.text || '').slice(0, 30).trim();
+                if (snippet && (turnEl.innerText || '').includes(snippet)) {
+                  turnEl.setAttribute('data-agy-summary-hash', item.hash);
+                  aiPinBtn.classList.add('active');
+                  aiPinBtn.title = 'AI response pinned (Click to unpin)';
+                  matched = true;
+                  break;
+                }
+              }
+            }
+            if (!matched) {
+              aiPinBtn.classList.remove('active');
+              aiPinBtn.title = 'Pin AI response';
+            }
           }
         }
       }
@@ -7955,7 +8192,7 @@
         const text = aiTurn.markdownText || aiTurn.turnEl?.innerText || '';
         if (!text) return;
         const hash = computeHash(text);
-        const title = extractSummaryTitle(text);
+        const title = extractSummaryTitle(text, 'AI Summary');
         if (aiTurn.turnEl) aiTurn.turnEl.setAttribute('data-agy-summary-hash', hash);
 
         const list = getPinnedList();
@@ -7968,6 +8205,7 @@
             hash,
             title,
             text,
+            type: 'ai',
             timestamp: Date.now()
           });
         }
@@ -7988,7 +8226,7 @@
 
         const extracted = startIndex !== -1 ? fullMarkdown.slice(startIndex).trim() : selectedText.trim();
         const hash = computeHash(extracted);
-        const title = extractSummaryTitle(extracted);
+        const title = extractSummaryTitle(extracted, 'AI Snippet');
         const anchorSnippet = selectedText.trim().slice(0, 45).replace(/\s+/g, ' ');
 
         if (aiTurn.turnEl) aiTurn.turnEl.setAttribute('data-agy-summary-hash', hash);
@@ -7998,6 +8236,7 @@
           hash,
           title,
           text: extracted,
+          type: 'ai',
           anchorSnippet,
           timestamp: Date.now()
         });
