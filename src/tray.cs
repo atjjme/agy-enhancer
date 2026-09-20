@@ -2,6 +2,8 @@ using System;
 using System.Diagnostics;
 using System.Drawing;
 using System.IO;
+using System.Net;
+using System.Text;
 using System.Threading;
 using System.Windows.Forms;
 
@@ -9,32 +11,54 @@ namespace AgyEnhancer
 {
     public class ModernDarkColorTable : ProfessionalColorTable
     {
-        public override Color MenuBorder { get { return Color.FromArgb(37, 42, 61); } }
-        public override Color ToolStripDropDownBackground { get { return Color.FromArgb(19, 22, 32); } }
-        public override Color ImageMarginGradientBegin { get { return Color.FromArgb(19, 22, 32); } }
-        public override Color ImageMarginGradientMiddle { get { return Color.FromArgb(19, 22, 32); } }
-        public override Color ImageMarginGradientEnd { get { return Color.FromArgb(19, 22, 32); } }
-        public override Color MenuItemSelected { get { return Color.FromArgb(32, 38, 56); } }
-        public override Color MenuItemSelectedGradientBegin { get { return Color.FromArgb(32, 38, 56); } }
-        public override Color MenuItemSelectedGradientEnd { get { return Color.FromArgb(32, 38, 56); } }
-        public override Color MenuItemBorder { get { return Color.FromArgb(45, 54, 80); } }
-        public override Color CheckBackground { get { return Color.FromArgb(24, 30, 44); } }
-        public override Color CheckSelectedBackground { get { return Color.FromArgb(32, 38, 56); } }
-        public override Color CheckPressedBackground { get { return Color.FromArgb(32, 38, 56); } }
-        public override Color SeparatorDark { get { return Color.FromArgb(35, 40, 58); } }
-        public override Color SeparatorLight { get { return Color.FromArgb(19, 22, 32); } }
+        public override Color MenuBorder { get { return Color.FromArgb(61, 35, 17); } }
+        public override Color ToolStripDropDownBackground { get { return Color.FromArgb(20, 12, 6); } }
+        public override Color ImageMarginGradientBegin { get { return Color.FromArgb(20, 12, 6); } }
+        public override Color ImageMarginGradientMiddle { get { return Color.FromArgb(20, 12, 6); } }
+        public override Color ImageMarginGradientEnd { get { return Color.FromArgb(20, 12, 6); } }
+        public override Color MenuItemSelected { get { return Color.FromArgb(45, 26, 13); } }
+        public override Color MenuItemSelectedGradientBegin { get { return Color.FromArgb(45, 26, 13); } }
+        public override Color MenuItemSelectedGradientEnd { get { return Color.FromArgb(45, 26, 13); } }
+        public override Color MenuItemBorder { get { return Color.FromArgb(84, 49, 24); } }
+        public override Color CheckBackground { get { return Color.FromArgb(32, 20, 10); } }
+        public override Color CheckSelectedBackground { get { return Color.FromArgb(50, 30, 15); } }
+        public override Color CheckPressedBackground { get { return Color.FromArgb(50, 30, 15); } }
+        public override Color SeparatorDark { get { return Color.FromArgb(61, 35, 17); } }
+        public override Color SeparatorLight { get { return Color.FromArgb(20, 12, 6); } }
     }
 
     public class ModernDarkMenuRenderer : ToolStripProfessionalRenderer
     {
+        public ToolStripMenuItem AutostartMenuItem { get; set; }
+
         public ModernDarkMenuRenderer() : base(new ModernDarkColorTable())
         {
         }
 
         protected override void OnRenderItemText(ToolStripItemTextRenderEventArgs e)
         {
-            e.TextColor = e.Item.Selected ? Color.FromArgb(56, 189, 248) : Color.FromArgb(241, 245, 249);
+            e.TextColor = e.Item.Selected ? Color.FromArgb(251, 191, 36) : Color.FromArgb(241, 245, 249);
             base.OnRenderItemText(e);
+        }
+
+        protected override void OnRenderMenuItemBackground(ToolStripItemRenderEventArgs e)
+        {
+            base.OnRenderMenuItemBackground(e);
+
+            // 当开机自启未勾选时，在左侧复选区域渲染半透明空方框，让状态一目了然
+            ToolStripMenuItem item = e.Item as ToolStripMenuItem;
+            if (item != null && item == AutostartMenuItem && !item.Checked)
+            {
+                Graphics g = e.Graphics;
+                g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+                int size = 14;
+                int x = 6;
+                int y = (item.Height - size) / 2;
+                using (Pen pen = new Pen(Color.FromArgb(90, 70, 55), 1.2f))
+                {
+                    g.DrawRectangle(pen, x, y, size, size);
+                }
+            }
         }
 
         protected override void OnRenderItemCheck(ToolStripItemImageRenderEventArgs e)
@@ -42,13 +66,31 @@ namespace AgyEnhancer
             Graphics g = e.Graphics;
             g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
             Rectangle rect = e.ImageRectangle;
-            using (Pen pen = new Pen(Color.FromArgb(34, 211, 238), 2f))
+
+            int size = 14;
+            int x = rect.Left + (rect.Width - size) / 2;
+            int y = rect.Top + (rect.Height - size) / 2;
+            Rectangle box = new Rectangle(x, y, size, size);
+
+            // 绘制日冕暖橙微光背景方框
+            using (SolidBrush bgBrush = new SolidBrush(Color.FromArgb(55, 249, 115, 22)))
+            using (Pen borderPen = new Pen(Color.FromArgb(249, 115, 22), 1.2f))
             {
+                g.FillRectangle(bgBrush, box);
+                g.DrawRectangle(borderPen, box);
+            }
+
+            // 绘制日冕金黄对号
+            using (Pen pen = new Pen(Color.FromArgb(251, 191, 36), 2.0f))
+            {
+                pen.StartCap = System.Drawing.Drawing2D.LineCap.Round;
+                pen.EndCap = System.Drawing.Drawing2D.LineCap.Round;
+                pen.LineJoin = System.Drawing.Drawing2D.LineJoin.Round;
                 Point[] checkPoints = new Point[]
                 {
-                    new Point(rect.Left + 3, rect.Top + rect.Height / 2),
-                    new Point(rect.Left + rect.Width / 2 - 1, rect.Bottom - 4),
-                    new Point(rect.Right - 2, rect.Top + 4)
+                    new Point(box.Left + 3, box.Top + 7),
+                    new Point(box.Left + 6, box.Bottom - 4),
+                    new Point(box.Right - 3, box.Top + 4)
                 };
                 g.DrawLines(pen, checkPoints);
             }
@@ -82,43 +124,57 @@ namespace AgyEnhancer
 
         private void InitUI()
         {
-            contextMenu = new ContextMenuStrip();
-            contextMenu.Renderer = new ModernDarkMenuRenderer();
-            contextMenu.ShowImageMargin = false;
-            contextMenu.Font = new Font("Microsoft YaHei UI", 9.5f, FontStyle.Regular);
-            contextMenu.Padding = new Padding(4, 6, 4, 6);
+            ModernDarkMenuRenderer renderer = new ModernDarkMenuRenderer();
 
-            // 1. 设置中心 (网页)
-            ToolStripMenuItem itemSettings = new ToolStripMenuItem("⚙️  设置中心 (网页)");
+            contextMenu = new ContextMenuStrip();
+            contextMenu.Renderer = renderer;
+            contextMenu.ShowImageMargin = false;
+            contextMenu.ShowCheckMargin = true;
+            contextMenu.Font = new Font("Microsoft YaHei UI", 9.5f, FontStyle.Regular);
+            contextMenu.Padding = new Padding(2, 6, 4, 6);
+
+            // 1. 设置中心
+            ToolStripMenuItem itemSettings = new ToolStripMenuItem("设置中心");
             itemSettings.Click += (s, e) => OpenSettings();
             contextMenu.Items.Add(itemSettings);
 
-            // 2. 开机静默自启
-            itemAutostart = new ToolStripMenuItem("🚀  开机静默自启");
+            // 2. 开机自启
+            itemAutostart = new ToolStripMenuItem("开机自启");
             itemAutostart.CheckOnClick = true;
             itemAutostart.Checked = IsAutostartConfigured();
             itemAutostart.Click += (s, e) => ToggleAutostart();
+            renderer.AutostartMenuItem = itemAutostart;
             contextMenu.Items.Add(itemAutostart);
 
-            // 3. 隐藏托盘图标
-            ToolStripMenuItem itemHideTray = new ToolStripMenuItem("👁️  隐藏托盘图标");
+            // 3. 隐藏托盘
+            ToolStripMenuItem itemHideTray = new ToolStripMenuItem("隐藏托盘");
             itemHideTray.Click += (s, e) => DisableTrayAndExit();
             contextMenu.Items.Add(itemHideTray);
 
             // 分割线
             contextMenu.Items.Add(new ToolStripSeparator());
 
-            // 4. 退出后台服务
-            ToolStripMenuItem itemExit = new ToolStripMenuItem("❌  退出后台服务");
+            // 4. 退出
+            ToolStripMenuItem itemExit = new ToolStripMenuItem("退出");
             itemExit.Click += (s, e) => ExitAllServices();
             contextMenu.Items.Add(itemExit);
 
-            // 加载图标
+            // 无锁加载图标 (使用 FileShare.ReadWrite 与 Clone 解除文件锁定并避免 stream 提前释放)
             Icon icon = null;
             string icoPath = Path.Combine(rootDir, "assets", "icon.ico");
             if (File.Exists(icoPath))
             {
-                try { icon = new Icon(icoPath); } catch {}
+                try
+                {
+                    using (FileStream fs = new FileStream(icoPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+                    {
+                        using (Icon tempIcon = new Icon(fs))
+                        {
+                            icon = (Icon)tempIcon.Clone();
+                        }
+                    }
+                }
+                catch {}
             }
             if (icon == null)
             {
@@ -131,7 +187,7 @@ namespace AgyEnhancer
             notifyIcon.ContextMenuStrip = contextMenu;
             notifyIcon.Visible = true;
 
-            // 左键单击或双击打开设置
+            // 左键单击或双击均打开设置
             notifyIcon.Click += (s, e) =>
             {
                 MouseEventArgs me = e as MouseEventArgs;
@@ -142,7 +198,7 @@ namespace AgyEnhancer
             };
             notifyIcon.DoubleClick += (s, e) => OpenSettings();
 
-            // 每次弹出右键菜单时，动态刷新开机自启的真实状态
+            // 每次右键展开菜单时，实时查询真实自启状态
             contextMenu.Opening += (s, e) =>
             {
                 itemAutostart.Checked = IsAutostartConfigured();
@@ -153,6 +209,29 @@ namespace AgyEnhancer
         {
             try
             {
+                // 优先访问本地守护进程设置微服务，以保证同源与多主题联动
+                bool serverOnline = false;
+                try
+                {
+                    HttpWebRequest req = (HttpWebRequest)WebRequest.Create("http://127.0.0.1:37210/api/config");
+                    req.Timeout = 600;
+                    req.Method = "GET";
+                    using (HttpWebResponse resp = (HttpWebResponse)req.GetResponse())
+                    {
+                        if (resp.StatusCode == HttpStatusCode.OK)
+                        {
+                            serverOnline = true;
+                        }
+                    }
+                }
+                catch {}
+
+                if (serverOnline)
+                {
+                    Process.Start(new ProcessStartInfo("http://127.0.0.1:37210/") { UseShellExecute = true });
+                    return;
+                }
+
                 string settingsHtml = Path.Combine(rootDir, "settings.html");
                 if (File.Exists(settingsHtml))
                 {
@@ -200,10 +279,28 @@ namespace AgyEnhancer
         {
             try
             {
-                // 将本地配置文件的 ENABLE_SYSTEM_TRAY 写入 false
+                // 1. 同步向守护服务提交禁用系统托盘 API
+                try
+                {
+                    HttpWebRequest req = (HttpWebRequest)WebRequest.Create("http://127.0.0.1:37210/api/config");
+                    req.Method = "POST";
+                    req.ContentType = "application/json";
+                    req.Timeout = 800;
+                    byte[] postBytes = Encoding.UTF8.GetBytes("{\"ENABLE_SYSTEM_TRAY\":false}");
+                    req.ContentLength = postBytes.Length;
+                    using (Stream stream = req.GetRequestStream())
+                    {
+                        stream.Write(postBytes, 0, postBytes.Length);
+                    }
+                    using (WebResponse resp = req.GetResponse()) {}
+                }
+                catch {}
+
+                // 2. 修改真实持久化配置文件的 ENABLE_SYSTEM_TRAY 为 false
                 string[] possibleConfigs = new string[]
                 {
-                    Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".antigravity", "agy-enhancer-config.json"),
+                    Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "antigravity", "agy-enhancer-config.json"),
+                    Path.Combine(scriptsDir, "agy-enhancer-config.json"),
                     Path.Combine(rootDir, "agy-enhancer-config.json")
                 };
 

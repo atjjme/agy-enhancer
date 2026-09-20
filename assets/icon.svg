@@ -1,30 +1,30 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
   <defs>
-    <linearGradient id="chevronGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#22d3ee" />
-      <stop offset="100%" stop-color="#06b6d4" />
+    <linearGradient id="solarAmberGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fbbf24" />
+      <stop offset="100%" stop-color="#f97316" />
     </linearGradient>
   </defs>
 
-  <!-- Dark Squircle Base -->
-  <rect x="32" y="32" width="448" height="448" rx="112" fill="#090d16" />
-  <rect x="32" y="32" width="448" height="448" rx="112" fill="none" stroke="#1e293b" stroke-width="4" />
+  <!-- Dark Solar Squircle Base -->
+  <rect x="16" y="16" width="480" height="480" rx="120" fill="#140c06" />
+  <rect x="16" y="16" width="480" height="480" rx="120" fill="none" stroke="#3d2311" stroke-width="12" />
 
   <!-- Geometric Levitating Chevrons -->
   <g stroke-linecap="round" stroke-linejoin="round">
-    <!-- Floating Upper Chevron (Escaping Gravity) -->
-    <path d="M160 216 L256 136 L352 216" 
+    <!-- Floating Upper Chevron (Escaping Gravity - Solar Amber) -->
+    <path d="M 96 200 L 256 96 L 416 200" 
           fill="none" 
-          stroke="url(#chevronGrad)" 
-          stroke-width="36" />
+          stroke="url(#solarAmberGrad)" 
+          stroke-width="52" />
 
     <!-- Anchor Lower Chevron (Base Platform) -->
-    <path d="M160 328 L256 248 L352 328" 
+    <path d="M 96 332 L 256 228 L 416 332" 
           fill="none" 
-          stroke="#334155" 
-          stroke-width="36" />
+          stroke="#543118" 
+          stroke-width="52" />
           
     <!-- Core Horizon Dot -->
-    <circle cx="256" cy="372" r="10" fill="#64748b" />
+    <circle cx="256" cy="392" r="20" fill="#fbbf24" />
   </g>
 </svg>

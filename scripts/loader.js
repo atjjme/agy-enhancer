@@ -66,6 +66,8 @@ const DEFAULT_CONFIG = {
   ENABLE_PROJECT_ARCHIVER: true,
   ENABLE_SCROLL_PERSISTENCE: true,
   ENABLE_SMART_UNREAD: true,
+  UI_THEME: 'classic-default.html',
+  UI_LANG: 'auto',
 };
 
 const MAX_LOG_SIZE = 3 * 1024 * 1024; // 3MB 日志上限
@@ -198,6 +200,15 @@ function setAutostart(enable) {
   }
 }
 
+function isSystemTrayRunning() {
+  try {
+    const out = execSync('tasklist /FI "IMAGENAME eq agy-tray.exe" /NH', { encoding: 'utf8', timeout: 2000 });
+    return out.toLowerCase().includes('agy-tray.exe');
+  } catch (e) {
+    return false;
+  }
+}
+
 function manageSystemTray(enable) {
   try {
     const trayExe = path.resolve(__dirname, 'agy-tray.exe');
@@ -215,15 +226,7 @@ function manageSystemTray(enable) {
         }
       }
 
-      let isRunning = false;
-      try {
-        const psCheck = execSync('powershell -NoProfile -Command "Get-Process agy-tray -ErrorAction SilentlyContinue"', { encoding: 'utf8', timeout: 3000 });
-        if (psCheck && psCheck.includes('agy-tray')) {
-          isRunning = true;
-        }
-      } catch (e) {}
-
-      if (!isRunning && fs.existsSync(trayExe)) {
+      if (!isSystemTrayRunning() && fs.existsSync(trayExe)) {
         const child = exec(`"${trayExe}"`, { detached: true, stdio: 'ignore', windowsHide: true });
         child.unref();
         log('[SystemTray] Launched agy-tray.exe successfully (PID: ' + child.pid + ')');
@@ -253,9 +256,26 @@ function getStoredConfig() {
 
   const config = {};
   for (const key of Object.keys(DEFAULT_CONFIG)) {
-    config[key] = typeof rawConfig[key] === 'boolean' ? rawConfig[key] : DEFAULT_CONFIG[key];
+    if (typeof DEFAULT_CONFIG[key] === 'boolean') {
+      config[key] = typeof rawConfig[key] === 'boolean' ? rawConfig[key] : DEFAULT_CONFIG[key];
+    } else {
+      config[key] = typeof rawConfig[key] === 'string' ? rawConfig[key] : DEFAULT_CONFIG[key];
+    }
   }
   config.ENABLE_AUTOSTART = isAutostartEnabled();
+
+  // 动态同步托盘真实运行状态：若用户在托盘右键隐藏托盘或进程已关闭，实时反馈为 false 并纠正落盘配置
+  const trayAlive = isSystemTrayRunning();
+  if (config.ENABLE_SYSTEM_TRAY !== trayAlive) {
+    config.ENABLE_SYSTEM_TRAY = trayAlive;
+    try {
+      rawConfig.ENABLE_SYSTEM_TRAY = trayAlive;
+      const jsonStr = JSON.stringify(rawConfig, null, 2);
+      if (fs.existsSync(configFile)) fs.writeFileSync(configFile, jsonStr, 'utf8');
+      if (fs.existsSync(localConfigFile)) fs.writeFileSync(localConfigFile, jsonStr, 'utf8');
+    } catch (e) {}
+  }
+
   return config;
 }
 
@@ -1153,20 +1173,38 @@ function startEmbeddedSettingsServer() {
 
     const urlPath = req.url.split('?')[0];
 
-    if (req.method === 'GET' && (urlPath === '/' || urlPath === '/settings.html')) {
-      if (fs.existsSync(settingsHtmlFile)) {
-        res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-        fs.createReadStream(settingsHtmlFile).pipe(res);
-      } else {
-        res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
-        res.end('settings.html not found in project directory');
+    if (req.method === 'GET' || req.method === 'HEAD') {
+      let filePath = null;
+      if (urlPath === '/' || urlPath === '/settings.html') {
+        filePath = settingsHtmlFile;
+      } else if (urlPath.startsWith('/docs/') || urlPath.startsWith('/assets/') || urlPath.startsWith('/scripts/')) {
+        const rootDir = path.resolve(__dirname, '..');
+        const candidate = path.resolve(rootDir, '.' + urlPath);
+        if (candidate.toLowerCase().startsWith(rootDir.toLowerCase()) && fs.existsSync(candidate) && !fs.statSync(candidate).isDirectory()) {
+          filePath = candidate;
+        }
       }
-      return;
+
+      if (filePath) {
+        const ext = path.extname(filePath).toLowerCase();
+        const mimeMap = {
+          '.html': 'text/html; charset=utf-8',
+          '.js': 'application/javascript; charset=utf-8',
+          '.css': 'text/css; charset=utf-8',
+          '.svg': 'image/svg+xml',
+          '.ico': 'image/x-icon',
+          '.png': 'image/png',
+          '.jpg': 'image/jpeg',
+          '.json': 'application/json; charset=utf-8'
+        };
+        res.writeHead(200, { 'Content-Type': mimeMap[ext] || 'application/octet-stream' });
+        fs.createReadStream(filePath).pipe(res);
+        return;
+      }
     }
 
     if (req.method === 'GET' && urlPath === '/api/config') {
       const config = getStoredConfig();
-      config.ENABLE_AUTOSTART = isAutostartEnabled();
 
       res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
       res.end(JSON.stringify({

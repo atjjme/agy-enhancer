@@ -599,7 +599,7 @@
 
         <div class="theme-nav-pill">
           <span>🌐 </span>
-          <select id="agyLangSelect" onchange="I18N.setLanguage(this.value)">
+          <select id="agyLangSelect" onchange="changeGlobalLanguage(this.value)">
             <option value="auto" data-i18n="lang_auto">🌐 跟随系统</option>
             <option value="en" data-i18n="lang_en">English</option>
             <option value="zh-CN" data-i18n="lang_zh_cn">简体中文</option>
@@ -839,9 +839,28 @@
   </div>
 
   <script>
-    function changeGlobalTheme(val) {
+    async function changeGlobalTheme(val) {
       localStorage.setItem('agy_theme', 'docs/themes/' + val);
+      try {
+        await fetch(`${API_BASE}/api/config`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ UI_THEME: val })
+        });
+      } catch (e) {}
       location.href = val;
+    }
+
+    function changeGlobalLanguage(val) {
+      I18N.setLanguage(val);
+      markDirty();
+      try {
+        fetch(`${API_BASE}/api/config`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ UI_LANG: val })
+        }).catch(() => {});
+      } catch (e) {}
     }
 
     const API_BASE = (location.protocol === 'http:' || location.protocol === 'https:') 
@@ -1004,6 +1023,14 @@
         document.getElementById('ENABLE_BLOCK_QUOTE_POPUP').checked = false;
       }
 
+      if (liveCfg.UI_LANG && typeof I18N !== 'undefined') {
+        I18N.setLanguage(liveCfg.UI_LANG);
+      }
+      if (liveCfg.UI_THEME) {
+        const themeSelect = document.getElementById('agyThemeSelect');
+        if (themeSelect) themeSelect.value = liveCfg.UI_THEME;
+      }
+
       isDirty = false;
       updateHierarchyVisuals();
       document.getElementById('dockHint').textContent = I18N.t('dock_synced');
@@ -1049,6 +1076,11 @@
         const el = document.getElementById(k);
         if (el) payload[k] = el.checked;
       });
+
+      const themeSelect = document.getElementById('agyThemeSelect');
+      if (themeSelect) payload.UI_THEME = themeSelect.value;
+      const langSelect = document.getElementById('agyLangSelect');
+      if (langSelect) payload.UI_LANG = langSelect.value;
 
       if (!payload.ENABLE_CONTEXT_MENU) {
         payload.ENABLE_BLOCK_QUOTE_POPUP = false;

@@ -35,11 +35,7 @@
   </style>
   <script>
     (function() {
-      // 默认使用经典默认主题 (classic-default.html)
       var defaultTheme = 'docs/themes/classic-default.html';
-      var currentTheme = localStorage.getItem('agy_theme');
-
-      // 确保目标路径有效合法
       var validThemes = [
         'docs/themes/classic-default.html',
         'docs/themes/aurora-bento.html',
@@ -48,13 +44,40 @@
         'docs/themes/spatial-3d.html',
         'docs/themes/retro-arcade.html'
       ];
+      var currentTheme = localStorage.getItem('agy_theme');
 
-      var target = (currentTheme && validThemes.indexOf(currentTheme) !== -1)
-        ? currentTheme
-        : defaultTheme;
+      function jumpTo(themePath) {
+        var target = (themePath && validThemes.indexOf(themePath) !== -1) ? themePath : defaultTheme;
+        location.replace(target);
+      }
 
-      // 瞬间直达目标主题，不留下多余的历史记录，不加载其他主题任何字节
-      location.replace(target);
+      var controller = window.AbortController ? new AbortController() : null;
+      var timeoutId = setTimeout(function() {
+        if (controller) controller.abort();
+        jumpTo(currentTheme);
+      }, 150);
+
+      var fetchOpt = { cache: 'no-store' };
+      if (controller) fetchOpt.signal = controller.signal;
+
+      fetch('http://127.0.0.1:37210/api/config', fetchOpt)
+        .then(function(res) { return res.json(); })
+        .then(function(data) {
+          clearTimeout(timeoutId);
+          if (data && data.config && data.config.UI_THEME) {
+            var themePath = 'docs/themes/' + data.config.UI_THEME;
+            if (validThemes.indexOf(themePath) !== -1) {
+              localStorage.setItem('agy_theme', themePath);
+              jumpTo(themePath);
+              return;
+            }
+          }
+          jumpTo(currentTheme);
+        })
+        .catch(function() {
+          clearTimeout(timeoutId);
+          jumpTo(currentTheme);
+        });
     })();
   </script>
 </head>
