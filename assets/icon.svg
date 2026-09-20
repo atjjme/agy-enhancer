@@ -8,21 +8,21 @@
       <feDropShadow dx="0" dy="2" stdDeviation="4" flood-color="#000000" flood-opacity="0.35"/>
     </filter>
   </defs>
-  <!-- Pure Glyph with Enhanced Stroke for Tray & Web Nav (Scheme A) -->
+  <!-- Pure Glyph with Enlarged Geometry for Tray & Web Nav (Scheme A Enlarged) -->
   <g stroke-linecap="round" stroke-linejoin="round" filter="url(#subtle_halo)">
-    <!-- Floating Upper Chevron (Escaping Gravity) -->
-    <path d="M140 216 L256 120 L372 216" 
+    <!-- Floating Upper Chevron -->
+    <path d="M72 204 L256 64 L440 204" 
           fill="none" 
           stroke="url(#univ_solar_grad)" 
-          stroke-width="44" />
+          stroke-width="56" />
 
-    <!-- Anchor Lower Chevron (Dark Slate Base - high contrast on both white & black) -->
-    <path d="M140 336 L256 240 L372 336" 
+    <!-- Anchor Lower Chevron (Dark Slate Base) -->
+    <path d="M72 356 L256 216 L440 356" 
           fill="none" 
           stroke="#334155" 
-          stroke-width="44" />
+          stroke-width="56" />
           
     <!-- Core Horizon Dot -->
-    <circle cx="256" cy="392" r="14" fill="#ea580c" />
+    <circle cx="256" cy="428" r="22" fill="#ea580c" />
   </g>
 </svg>

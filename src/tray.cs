@@ -183,10 +183,10 @@ namespace AgyEnhancer
 
             notifyIcon = new NotifyIcon();
             notifyIcon.Icon = icon;
-            notifyIcon.Text = "Antigravity 增强器 (守护中)";
+            notifyIcon.Text = "agy-enhancer";
             notifyIcon.ContextMenuStrip = contextMenu;
             notifyIcon.Visible = true;
-            Log("NotifyIcon created and set to Visible=true");
+            Log("NotifyIcon created with text 'agy-enhancer' and set to Visible=true");
 
             // 左键单击或双击均打开设置
             notifyIcon.Click += (s, e) =>

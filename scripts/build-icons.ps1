@@ -13,7 +13,7 @@ function Create-RoundedRectPath([float]$x, [float]$y, [float]$w, [float]$h, [flo
     return $path
 }
 
-# 方案 A: 纯几何加粗通用折线 (针对托盘 16px/24px/32px 与 Web Logo，高锐度无底板)
+# 方案 A (放大饱满版): 纯几何加粗通用折线 (针对托盘 16px/24px/32px 与 Web Logo，高锐度无底板)
 function Render-GlyphIcon([int]$size) {
     $bmp = New-Object System.Drawing.Bitmap $size, $size, ([System.Drawing.Imaging.PixelFormat]::Format32bppArgb)
     $g = [System.Drawing.Graphics]::FromImage($bmp)
@@ -24,13 +24,13 @@ function Render-GlyphIcon([int]$size) {
 
     $s = [double]$size / 512.0
 
-    # 1. 跃升折角 (Upper Chevron)
-    $p1 = New-Object System.Drawing.PointF ([float](140.0 * $s)), ([float](216.0 * $s))
-    $p2 = New-Object System.Drawing.PointF ([float](256.0 * $s)), ([float](120.0 * $s))
-    $p3 = New-Object System.Drawing.PointF ([float](372.0 * $s)), ([float](216.0 * $s))
+    # 1. 跃升折角 (Upper Chevron: 更加饱满的几何布局，跨度扩大至 82%)
+    $p1 = New-Object System.Drawing.PointF ([float](72.0 * $s)), ([float](204.0 * $s))
+    $p2 = New-Object System.Drawing.PointF ([float](256.0 * $s)), ([float](64.0 * $s))
+    $p3 = New-Object System.Drawing.PointF ([float](440.0 * $s)), ([float](204.0 * $s))
 
-    $minStroke = if ($size -le 24) { 2.8 } elseif ($size -le 32) { 3.5 } else { 2.0 }
-    $upperStroke = [float][Math]::Max($minStroke, 48.0 * $s)
+    $minStroke = if ($size -le 24) { 3.2 } elseif ($size -le 32) { 4.2 } else { 2.5 }
+    $upperStroke = [float][Math]::Max($minStroke, 56.0 * $s)
 
     $upperBrush = New-Object System.Drawing.SolidBrush ([System.Drawing.Color]::FromArgb(255, 249, 115, 22))
     $upperPen = New-Object System.Drawing.Pen -ArgumentList $upperBrush, $upperStroke
@@ -45,12 +45,12 @@ function Render-GlyphIcon([int]$size) {
     $upperPen.Dispose()
     $upperBrush.Dispose()
 
-    # 2. 底座折角 (Lower Chevron: #334155 深岩灰，黑白双向高对比)
-    $p4 = New-Object System.Drawing.PointF ([float](140.0 * $s)), ([float](336.0 * $s))
-    $p5 = New-Object System.Drawing.PointF ([float](256.0 * $s)), ([float](240.0 * $s))
-    $p6 = New-Object System.Drawing.PointF ([float](372.0 * $s)), ([float](336.0 * $s))
+    # 2. 底座折角 (Lower Chevron: #334155 深岩灰，高对比)
+    $p4 = New-Object System.Drawing.PointF ([float](72.0 * $s)), ([float](356.0 * $s))
+    $p5 = New-Object System.Drawing.PointF ([float](256.0 * $s)), ([float](216.0 * $s))
+    $p6 = New-Object System.Drawing.PointF ([float](440.0 * $s)), ([float](356.0 * $s))
 
-    $lowerStroke = [float][Math]::Max($minStroke, 48.0 * $s)
+    $lowerStroke = [float][Math]::Max($minStroke, 56.0 * $s)
     $lowerBrush = New-Object System.Drawing.SolidBrush ([System.Drawing.Color]::FromArgb(255, 51, 65, 85))
     $lowerPen = New-Object System.Drawing.Pen -ArgumentList $lowerBrush, $lowerStroke
     $lowerPen.StartCap = [System.Drawing.Drawing2D.LineCap]::Round
@@ -65,10 +65,10 @@ function Render-GlyphIcon([int]$size) {
     $lowerBrush.Dispose()
 
     # 3. 核心地平线原点 (#ea580c)
-    $minDot = if ($size -le 24) { 1.8 } else { 1.5 }
-    $dotR = [float][Math]::Max($minDot, 15.0 * $s)
+    $minDot = if ($size -le 24) { 2.2 } else { 2.0 }
+    $dotR = [float][Math]::Max($minDot, 22.0 * $s)
     $dotBrush = New-Object System.Drawing.SolidBrush ([System.Drawing.Color]::FromArgb(255, 234, 88, 12))
-    $g.FillEllipse($dotBrush, [float](256.0 * $s - $dotR), [float](392.0 * $s - $dotR), [float]($dotR * 2.0), [float]($dotR * 2.0))
+    $g.FillEllipse($dotBrush, [float](256.0 * $s - $dotR), [float](428.0 * $s - $dotR), [float]($dotR * 2.0), [float]($dotR * 2.0))
     $dotBrush.Dispose()
 
     $g.Dispose()
@@ -87,7 +87,7 @@ function Render-BadgeIcon([int]$size) {
     $s = [double]$size / 512.0
 
     # 1. 纯白底板 + 橙金主题外框
-    $bgPath = Create-RoundedRectPath (32.0 * $s) (32.0 * $s) (448.0 * $s) (448.0 * $s) (112.0 * $s)
+    $bgPath = Create-RoundedRectPath (24.0 * $s) (24.0 * $s) (464.0 * $s) (464.0 * $s) (116.0 * $s)
     $bgBrush = New-Object System.Drawing.SolidBrush ([System.Drawing.Color]::FromArgb(255, 255, 255, 255))
     
     $borderColor = [System.Drawing.Color]::FromArgb(255, 249, 115, 22)
@@ -101,11 +101,11 @@ function Render-BadgeIcon([int]$size) {
     $bgPath.Dispose()
 
     # 2. 内部跃升折角
-    $p1 = New-Object System.Drawing.PointF ([float](160.0 * $s)), ([float](216.0 * $s))
-    $p2 = New-Object System.Drawing.PointF ([float](256.0 * $s)), ([float](136.0 * $s))
-    $p3 = New-Object System.Drawing.PointF ([float](352.0 * $s)), ([float](216.0 * $s))
+    $p1 = New-Object System.Drawing.PointF ([float](140.0 * $s)), ([float](216.0 * $s))
+    $p2 = New-Object System.Drawing.PointF ([float](256.0 * $s)), ([float](120.0 * $s))
+    $p3 = New-Object System.Drawing.PointF ([float](372.0 * $s)), ([float](216.0 * $s))
 
-    $upperStroke = [float][Math]::Max(2.0, 36.0 * $s)
+    $upperStroke = [float][Math]::Max(2.0, 44.0 * $s)
     $upperBrush = New-Object System.Drawing.SolidBrush ([System.Drawing.Color]::FromArgb(255, 249, 115, 22))
     $upperPen = New-Object System.Drawing.Pen -ArgumentList $upperBrush, $upperStroke
     $upperPen.StartCap = [System.Drawing.Drawing2D.LineCap]::Round
@@ -120,11 +120,11 @@ function Render-BadgeIcon([int]$size) {
     $upperBrush.Dispose()
 
     # 3. 内部底座折角 (#57534e)
-    $p4 = New-Object System.Drawing.PointF ([float](160.0 * $s)), ([float](328.0 * $s))
-    $p5 = New-Object System.Drawing.PointF ([float](256.0 * $s)), ([float](248.0 * $s))
-    $p6 = New-Object System.Drawing.PointF ([float](352.0 * $s)), ([float](328.0 * $s))
+    $p4 = New-Object System.Drawing.PointF ([float](140.0 * $s)), ([float](336.0 * $s))
+    $p5 = New-Object System.Drawing.PointF ([float](256.0 * $s)), ([float](240.0 * $s))
+    $p6 = New-Object System.Drawing.PointF ([float](372.0 * $s)), ([float](336.0 * $s))
 
-    $lowerStroke = [float][Math]::Max(2.0, 36.0 * $s)
+    $lowerStroke = [float][Math]::Max(2.0, 44.0 * $s)
     $lowerBrush = New-Object System.Drawing.SolidBrush ([System.Drawing.Color]::FromArgb(255, 87, 83, 78))
     $lowerPen = New-Object System.Drawing.Pen -ArgumentList $lowerBrush, $lowerStroke
     $lowerPen.StartCap = [System.Drawing.Drawing2D.LineCap]::Round
@@ -139,9 +139,9 @@ function Render-BadgeIcon([int]$size) {
     $lowerBrush.Dispose()
 
     # 4. 内部原点 (#f97316)
-    $dotR = [float][Math]::Max(1.5, 11.0 * $s)
+    $dotR = [float][Math]::Max(1.5, 14.0 * $s)
     $dotBrush = New-Object System.Drawing.SolidBrush ([System.Drawing.Color]::FromArgb(255, 249, 115, 22))
-    $g.FillEllipse($dotBrush, [float](256.0 * $s - $dotR), [float](372.0 * $s - $dotR), [float]($dotR * 2.0), [float]($dotR * 2.0))
+    $g.FillEllipse($dotBrush, [float](256.0 * $s - $dotR), [float](392.0 * $s - $dotR), [float]($dotR * 2.0), [float]($dotR * 2.0))
     $dotBrush.Dispose()
 
     $g.Dispose()
@@ -214,4 +214,4 @@ for ($i = 0; $i -lt $sizes.Count; $i++) {
 $bw.Flush()
 $bw.Close()
 $fs.Close()
-Write-Host "Generated Scheme A Adaptive ICO: $icoPath successfully with 7 resolutions."
+Write-Host "Generated Scheme A Enlarged Adaptive ICO: $icoPath successfully."
