@@ -4921,9 +4921,7 @@
           e.preventDefault();
           e.stopPropagation();
           const imgDiskPath = resolveImageDiskPath(imgEl);
-          const items = [
-            { label: 'Copy Image', icon: 'image', action: () => copyImageBlob(imgEl) }
-          ];
+          const items = [];
 
           // 仅当图片在本地磁盘上存在（已落盘/已上传/本地文件）时才提供“打开”、“打开所在目录”与“复制路径”
           if (imgDiskPath) {
@@ -4935,6 +4933,7 @@
             }});
           }
 
+          items.push({ label: 'Copy Image', icon: 'image', action: () => copyImageBlob(imgEl) });
           // 另存为：自动生成或沿用 media_时间戳.png 命名，免去手动输入
           items.push({ label: 'Save Image As...', icon: 'save', action: () => saveImageLocally(imgEl) });
 
@@ -5026,20 +5025,10 @@
               { label: 'Explain', icon: 'explain', action: () => appendExplainToPrompt(selectedText) }
             ];
           } else {
-            // 聊天区选中文本: 若选中文本包含 URL 或 本地路径，智能附加相应直达快捷动作
+            // 聊天区选中文本: 若选中文本包含 URL 或 本地路径，智能附加相应直达快捷动作且置于首位
             const selUrl = resolveHyperlinkUrl(null, selectedText);
             const selPath = selUrl ? null : resolveLocalPathString(null, selectedText);
-            items = [
-              { label: 'Copy', icon: 'copy', action: () => copyText(selectedText) },
-              { label: 'Quote', icon: 'quote', action: () => triggerNativeQuote(selectedText) }
-            ];
-            if (selUrl) {
-              items.push({ label: 'Open Link in Browser', icon: 'external', action: () => openExternalUrl(selUrl) });
-              items.push({ label: 'Copy Link Address', icon: 'link', action: () => {
-                copyText(selUrl);
-                showNotification?.('已复制链接地址');
-              }});
-            }
+            items = [];
             if (selPath) {
               items.push({ label: 'Open', icon: 'open', action: () => openPath(selPath) });
               items.push({ label: 'Reveal in Explorer', icon: 'folder', action: () => revealPath(selPath) });
@@ -5047,12 +5036,22 @@
                 copyText(getDirectoryPath(selPath));
                 showNotification?.('已复制所在目录');
               }});
+            } else if (selUrl) {
+              items.push({ label: 'Open Link in Browser', icon: 'external', action: () => openExternalUrl(selUrl) });
+              items.push({ label: 'Copy Link Address', icon: 'link', action: () => {
+                copyText(selUrl);
+                showNotification?.('已复制链接地址');
+              }});
             }
-            items.push({
-              label: 'Search', icon: 'search', action: () => {
-                window.open('https://www.google.com/search?q=' + encodeURIComponent(selectedText), '_blank');
+            items.push(
+              { label: 'Copy', icon: 'copy', action: () => copyText(selectedText) },
+              { label: 'Quote', icon: 'quote', action: () => triggerNativeQuote(selectedText) },
+              {
+                label: 'Search', icon: 'search', action: () => {
+                  window.open('https://www.google.com/search?q=' + encodeURIComponent(selectedText), '_blank');
+                }
               }
-            });
+            );
             if (USER_CONFIG.ENABLE_PINNED_SUMMARY !== false && typeof pinAiTurnFromSelection === 'function') {
               const aiTurn = resolveAiResponseTurn(target);
               if (aiTurn) {
@@ -5076,19 +5075,8 @@
         if (codeInfo) {
           e.preventDefault();
           e.stopPropagation();
-          const nativeCopyCodeBtn = target.closest('pre, code, .code-block, .monaco-editor')?.querySelector?.('button[aria-label="Copy code"]');
-          const items = [
-            { label: 'Copy Code', icon: 'code', action: () => {
-                if (nativeCopyCodeBtn) {
-                  nativeCopyCodeBtn.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true }));
-                  nativeCopyCodeBtn.click();
-                } else {
-                  copyText(codeInfo.codeText);
-                }
-              }
-            }
-          ];
-          // 如果该代码块位于已打开的 Artifact Viewer 或右侧栏中，补充 Open, Reveal in Explorer 与纯所在目录 Copy Path
+          const items = [];
+          // 如果该代码块位于已打开的 Artifact Viewer 或右侧栏中，优先补充 Open, Reveal in Explorer 与纯所在目录 Copy Path
           const inArtifactViewer = target.closest('[aria-label="Artifact Viewer"], [role="region"][aria-label="Artifact Viewer"], #artifact-container, .artifact-view, [data-aux-pane-open="true"]') || isRightSidebar(target);
           if (inArtifactViewer) {
             const activePath = getActiveArtifactPath(target);
@@ -5101,6 +5089,17 @@
               }});
             }
           }
+          const nativeCopyCodeBtn = target.closest('pre, code, .code-block, .monaco-editor')?.querySelector?.('button[aria-label="Copy code"]');
+          items.push({
+            label: 'Copy Code', icon: 'code', action: () => {
+              if (nativeCopyCodeBtn) {
+                nativeCopyCodeBtn.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true }));
+                nativeCopyCodeBtn.click();
+              } else {
+                copyText(codeInfo.codeText);
+              }
+            }
+          });
           items.push({ label: 'Save As...', icon: 'save', action: () => saveFileLocally(codeInfo.codeText, codeInfo.filename) });
           renderMenu(items, e.clientX, e.clientY);
           return;
