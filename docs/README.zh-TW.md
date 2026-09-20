@@ -43,7 +43,7 @@
 
 | 腳本檔案 | 存放路徑 | 核心用途與使用場景 |
 | :--- | :--- | :--- |
-| **`start-service-silent.vbs`** | `scripts/` | **後台靜默啟動**：透過 Windows 腳本宿主在完全隱藏視窗的狀態下啟動 `loader.js`。Windows 啟動資料夾中的捷徑即是指向該腳本。 |
+| **`agy-enhancer.vbs`** | `scripts/` | **後台靜默啟動**：透過 Windows 腳本宿主在完全隱藏視窗的狀態下啟動 `loader.js`。Windows 啟動資料夾中的捷徑即是指向該腳本。 |
 | **`stop-service.bat`** | `scripts/` | **停止後台服務**：一鍵安全終止正在執行的 Node.js 守護注入進程，立刻釋放所有本機資源。 |
 | **`settings.bat`** | `scripts/` | **輔助調出設定**：確保守護服務執行並打開瀏覽器（日常使用直接按兩下根目錄 `settings.html` 即可）。 |
 | **`start-enhancer.bat`** | `scripts/` | **前台除錯排錯**：如果遇到注入問題或想觀察程式碼熱更新過程，按兩下此腳本會彈出控制台黑框，實時輸出 CDP 連接埠檢測、視窗掛載與控制台互動記錄。 |

@@ -42,7 +42,7 @@
 
 | 脚本文件 | 存放路径 | 核心用途与使用场景 |
 | :--- | :--- | :--- |
-| **`start-service-silent.vbs`** | `scripts/` | **后台静默启动**：通过 Windows 脚本宿主在完全隐藏窗口的状态下启动 `loader.js`。Windows 启动文件夹中的快捷方式就是指向该脚本。 |
+| **`agy-enhancer.vbs`** | `scripts/` | **后台静默启动**：通过 Windows 脚本宿主在完全隐藏窗口的状态下启动 `loader.js`。Windows 启动文件夹中的快捷方式就是指向该脚本。 |
 | **`stop-service.bat`** | `scripts/` | **停止后台服务**：一键安全终止正在运行的 Node.js 守护注入进程，立刻释放所有资源。 |
 | **`settings.bat`** | `scripts/` | **辅助调出设置**：确保守护服务运行并打开浏览器（日常使用直接双击根目录 `settings.html` 即可）。 |
 | **`start-enhancer.bat`** | `scripts/` | **前台调试排错**：如果遇到注入问题或想观察代码热更新过程，双击此脚本会弹出控制台黑框，实时输出 CDP 端口检测、窗口挂载与控制台交互日志。 |

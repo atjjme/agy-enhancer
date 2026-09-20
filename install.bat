@@ -30,7 +30,7 @@ call "%SCRIPTS_DIR%\setup-autostart.bat" --nopause
 :: 3. 静默启动后台守护注入服务与设置中心 (loader.js)
 echo.
 echo [2/2] 启动后台守护注入服务与设置中心...
-wscript.exe "%SCRIPTS_DIR%\start-service-silent.vbs"
+wscript.exe "%SCRIPTS_DIR%\agy-enhancer.vbs"
 
 :: 稍微等待服务端口初始化并唤起设置中心网页
 timeout /t 1 >nul 2>&1

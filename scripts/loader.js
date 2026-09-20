@@ -168,12 +168,14 @@ function setAutostart(enable) {
     }
 
     if (enable) {
-      const vbsPath = path.resolve(__dirname, 'start-service-silent.vbs');
+      const vbsPath = path.resolve(__dirname, 'agy-enhancer.vbs');
       const rootDir = path.resolve(__dirname, '..');
+      const iconPath = path.resolve(rootDir, 'assets', 'icon.ico');
       const psCmd = `$ws = New-Object -ComObject WScript.Shell; ` +
         `$shortcut = $ws.CreateShortcut('${shortcutPath.replace(/'/g, "''")}'); ` +
         `$shortcut.TargetPath = '${vbsPath.replace(/'/g, "''")}'; ` +
         `$shortcut.WorkingDirectory = '${rootDir.replace(/'/g, "''")}'; ` +
+        `if (Test-Path '${iconPath.replace(/'/g, "''")}') { $shortcut.IconLocation = '${iconPath.replace(/'/g, "''")},0' }; ` +
         `$shortcut.Description = 'Antigravity Enhancer Silent Service'; ` +
         `$shortcut.Save();`;
       execSync(`powershell -NoProfile -ExecutionPolicy Bypass -Command "${psCmd}"`, { timeout: 3500 });

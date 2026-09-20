@@ -43,7 +43,7 @@ After extraction, the root directory is kept clean and minimal with only 3 files
 
 | Script File | Path | Core Purpose & Usage |
 | :--- | :--- | :--- |
-| **`start-service-silent.vbs`** | `scripts/` | **Silent Launch**: Launches `loader.js` hidden via Windows Script Host without any console popup. The Startup shortcut points here. |
+| **`agy-enhancer.vbs`** | `scripts/` | **Silent Launch**: Launches `loader.js` hidden via Windows Script Host without any console popup. The Startup shortcut points here. |
 | **`stop-service.bat`** | `scripts/` | **Stop Service**: Immediately terminates active Node.js injector daemons and frees all local resources. |
 | **`settings.bat`** | `scripts/` | **Launch Settings**: Ensures the daemon is running and opens `settings.html` in default browser (simply double-clicking `settings.html` works identically). |
 | **`start-enhancer.bat`** | `scripts/` | **Debug Console**: Shows a terminal window with real-time CDP port detection, injection status, and interaction logs. |

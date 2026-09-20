@@ -11,7 +11,8 @@ set "SCRIPTS_DIR=%~dp0"
 pushd "%SCRIPTS_DIR%.."
 set "ROOT_DIR=%CD%\"
 popd
-set "VBS_PATH=%SCRIPTS_DIR%start-service-silent.vbs"
+set "VBS_PATH=%SCRIPTS_DIR%agy-enhancer.vbs"
+set "ICON_PATH=%ROOT_DIR%assets\icon.ico"
 
 if not exist "%VBS_PATH%" (
     echo [Error] Silent start script not found: "%VBS_PATH%"
@@ -29,6 +30,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command ^
     "$shortcut = $ws.CreateShortcut($shortcutPath);" ^
     "$shortcut.TargetPath = '%VBS_PATH%';" ^
     "$shortcut.WorkingDirectory = '%ROOT_DIR%';" ^
+    "if (Test-Path '%ICON_PATH%') { $shortcut.IconLocation = '%ICON_PATH%,0' };" ^
     "$shortcut.Description = 'Antigravity Enhancer Silent Service';" ^
     "$shortcut.Save();" ^
     "if (Test-Path $shortcutPath) { exit 0 } else { exit 1 }"

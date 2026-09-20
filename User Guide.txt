@@ -1,4 +1,4 @@
-﻿================================================================================
+================================================================================
                     AGY Enhancer Instructions & User Guide
 ================================================================================
 
@@ -24,7 +24,7 @@ Welcome to AGY Enhancer! 【下划有中文简体，中文繁体介绍】
 2. Scripts & Utilities in scripts/ (Manual Operation Guide)
 --------------------------------------------------------------------------------
 
-1. [Silent Launch] start-service-silent.vbs  Launches the loader daemon silently in the background without any console popups.
+1. [Silent Launch] agy-enhancer.vbs  Launches the loader daemon silently in the background without any console popups.
 
 2. [Stop Service] stop-service.bat  Safely stops all currently running background services (frees port 37210).
 
@@ -65,7 +65,7 @@ Welcome to AGY Enhancer! 【下划有中文简体，中文繁体介绍】
 二、 scripts 目录下所有程序与脚本详解（手动运行指引）
 --------------------------------------------------------------------------------
 
-1. 【静默启动服务】 start-service-silent.vbs  在后台彻底静默启动 loader 守护进程，完全没有任何黑框或命令行弹窗。
+1. 【静默启动服务】 agy-enhancer.vbs  在后台彻底静默启动 loader 守护进程，完全没有任何黑框或命令行弹窗。
 
 2. 【停止服务】 stop-service.bat  安全停止当前正在运行的所有增强器后台服务（包括释放 37210 本地端口）。
 
@@ -106,7 +106,7 @@ Welcome to AGY Enhancer! 【下划有中文简体，中文繁体介绍】
 二、 scripts 目錄下所有程式與腳本詳解（手動執行指引）
 --------------------------------------------------------------------------------
 
-1. 【靜默啟動服務】 start-service-silent.vbs  在後台徹底靜默啟動 loader 守護進程，完全沒有任何黑框或命令列彈窗。
+1. 【靜默啟動服務】 agy-enhancer.vbs  在後台徹底靜默啟動 loader 守護進程，完全沒有任何黑框或命令列彈窗。
 
 2. 【停止服務】 stop-service.bat  安全停止當前正在執行的所有增強器後台服務（包括釋放 37210 本地端口）。
 
