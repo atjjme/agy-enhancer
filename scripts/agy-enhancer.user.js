@@ -4102,28 +4102,29 @@
             }
           } catch (e) {}
 
-          // 5c. 若 Fiber 内未直接找到明文，但确认是已落盘历史气泡，采用全局次序索引定位具体文件
+          // 5c. 若 Fiber 内未直接找到明文，但确认是已落盘历史气泡，采用次序索引定位具体文件
+          // 若为第 0 个或默认，直接返回 MEDIA_DIR:${convoId} 保证完全向后兼容任何后台版本
           try {
             const allUserTurns = Array.from(document.querySelectorAll('.group\\/user-input-step, [class*="user-input-step"]'));
-            let globalIndex = 0;
-            let found = false;
+            let foundIndex = -1;
+            let count = 0;
             for (const ut of allUserTurns) {
               const imgs = Array.from(ut.querySelectorAll('img')).filter(im => !im.closest('button[data-tooltip-id*="avatar"], .avatar, [class*="avatar"]'));
               for (const im of imgs) {
                 if (im === imgEl) {
-                  found = true;
+                  foundIndex = count;
                   break;
                 }
-                globalIndex++;
+                count++;
               }
-              if (found) break;
+              if (foundIndex !== -1) break;
             }
-            if (found) {
-              return `MEDIA_INDEX:${convoId}:${globalIndex}`;
+            if (foundIndex > 0) {
+              return `MEDIA_INDEX:${convoId}:${foundIndex}`;
             }
           } catch (e2) {}
 
-          return `MEDIA_INDEX:${convoId}:0`;
+          return `MEDIA_DIR:${convoId}`;
         }
 
         // 5d. 如果图片在提示词输入框中（尚未发送，纯内存 blob/dataURL 预览，且无本地物理路径）
