@@ -29,6 +29,11 @@ if not exist "%SCRIPTS_DIR%\agy-enhancer.exe" (
         "%SystemRoot%\Microsoft.NET\Framework64\v4.0.30319\csc.exe" /nologo /target:winexe /win32icon:"%ROOT_DIR%\assets\icon.ico" /out:"%SCRIPTS_DIR%\agy-enhancer.exe" "%ROOT_DIR%\src\launcher.cs" >nul 2>&1
     )
 )
+if not exist "%SCRIPTS_DIR%\agy-tray.exe" (
+    if exist "%SystemRoot%\Microsoft.NET\Framework64\v4.0.30319\csc.exe" (
+        "%SystemRoot%\Microsoft.NET\Framework64\v4.0.30319\csc.exe" /nologo /target:winexe /win32icon:"%ROOT_DIR%\assets\icon.ico" /out:"%SCRIPTS_DIR%\agy-tray.exe" "%ROOT_DIR%\src\tray.cs" >nul 2>&1
+    )
+)
 echo [1/2] 配置 Windows 开机静默自启快捷方式...
 call "%SCRIPTS_DIR%\setup-autostart.bat" --nopause
 

@@ -607,6 +607,17 @@
             <span class="pixel-slider"></span>
           </label>
         </div>
+
+        <div class="pixel-row">
+          <div class="pixel-row-text">
+            <div class="pixel-row-name" data-i18n="sw_system_tray_title">Windows 系统托盘常驻图标</div>
+            <div class="pixel-row-desc" data-i18n="sw_system_tray_desc">在任务栏右下角显示跃升折角托盘图标，提供右键快速设置与安全退出。默认关闭，关闭时彻底清退进程不占内存。</div>
+          </div>
+          <label class="pixel-switch">
+            <input type="checkbox" id="ENABLE_SYSTEM_TRAY">
+            <span class="pixel-slider"></span>
+          </label>
+        </div>
       </div>
 
       <!-- 模块 2: 交互与视觉 -->
@@ -774,6 +785,7 @@
     const SWITCH_KEYS = [
       'ENABLE_MASTER',
       'ENABLE_AUTOSTART',
+      'ENABLE_SYSTEM_TRAY',
       'ENABLE_CONTEXT_MENU',
       'ENABLE_BLOCK_QUOTE_POPUP',
       'ENABLE_FORK_CONVERSATION',
@@ -790,6 +802,7 @@
     const DEFAULTS = {
       ENABLE_MASTER: true,
       ENABLE_AUTOSTART: true,
+      ENABLE_SYSTEM_TRAY: false,
       ENABLE_CONTEXT_MENU: true,
       ENABLE_BLOCK_QUOTE_POPUP: true,
       ENABLE_FORK_CONVERSATION: true,

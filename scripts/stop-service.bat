@@ -16,7 +16,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command ^
     "    }" ^
     "} else {" ^
     "    Write-Host '[Info] No running background service found.' -ForegroundColor Yellow;" ^
-    "}"
+    "};" ^
+    "Get-Process agy-tray -ErrorAction SilentlyContinue | Stop-Process -Force"
 
 echo.
 echo ====================================================

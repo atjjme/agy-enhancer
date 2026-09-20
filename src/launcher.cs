@@ -21,6 +21,7 @@ namespace AgyEnhancer
                 if (File.Exists(vbs))
                 {
                     ProcessStartInfo psi = new ProcessStartInfo("wscript.exe", "\"" + vbs + "\"");
+                    psi.WorkingDirectory = Path.GetDirectoryName(vbs);
                     psi.CreateNoWindow = true;
                     psi.UseShellExecute = false;
                     psi.WindowStyle = ProcessWindowStyle.Hidden;

@@ -54,6 +54,7 @@ const SETTINGS_PORT = 37210;
 const DEFAULT_CONFIG = {
   ENABLE_MASTER: true,
   ENABLE_AUTOSTART: true,
+  ENABLE_SYSTEM_TRAY: false,
   ENABLE_STATUS_INDICATOR: true,
   ENABLE_CONTEXT_MENU: true,
   ENABLE_BLOCK_QUOTE_POPUP: true,
@@ -194,6 +195,47 @@ function setAutostart(enable) {
   } catch (e) {
     log('[Autostart Error]', e.message);
     return false;
+  }
+}
+
+function manageSystemTray(enable) {
+  try {
+    const trayExe = path.resolve(__dirname, 'agy-tray.exe');
+    const trayCs = path.resolve(__dirname, '../src/tray.cs');
+    const iconIco = path.resolve(__dirname, '../assets/icon.ico');
+    const cscPath = 'C:\\Windows\\Microsoft.NET\\Framework64\\v4.0.30319\\csc.exe';
+
+    if (enable) {
+      if (!fs.existsSync(trayExe) && fs.existsSync(trayCs) && fs.existsSync(cscPath)) {
+        try {
+          execSync(`"${cscPath}" /nologo /target:winexe /win32icon:"${iconIco}" /out:"${trayExe}" "${trayCs}"`, { timeout: 8000 });
+          log('[SystemTray] Auto-compiled agy-tray.exe successfully');
+        } catch (compileErr) {
+          log('[SystemTray Compile Error]', compileErr?.message || compileErr);
+        }
+      }
+
+      let isRunning = false;
+      try {
+        const psCheck = execSync('powershell -NoProfile -Command "Get-Process agy-tray -ErrorAction SilentlyContinue"', { encoding: 'utf8', timeout: 3000 });
+        if (psCheck && psCheck.includes('agy-tray')) {
+          isRunning = true;
+        }
+      } catch (e) {}
+
+      if (!isRunning && fs.existsSync(trayExe)) {
+        const child = exec(`"${trayExe}"`, { detached: true, stdio: 'ignore', windowsHide: true });
+        child.unref();
+        log('[SystemTray] Launched agy-tray.exe successfully (PID: ' + child.pid + ')');
+      }
+    } else {
+      try {
+        execSync('powershell -NoProfile -Command "Get-Process agy-tray -ErrorAction SilentlyContinue | Stop-Process -Force"', { timeout: 3000 });
+        log('[SystemTray] Terminated agy-tray.exe, completely freed memory');
+      } catch (e) {}
+    }
+  } catch (err) {
+    log('[SystemTray Manage Error]', err?.message || err);
   }
 }
 
@@ -1151,6 +1193,9 @@ function startEmbeddedSettingsServer() {
           if (typeof newConfig.ENABLE_AUTOSTART === 'boolean') {
             setAutostart(newConfig.ENABLE_AUTOSTART);
           }
+          if (typeof newConfig.ENABLE_SYSTEM_TRAY === 'boolean') {
+            manageSystemTray(newConfig.ENABLE_SYSTEM_TRAY);
+          }
           const saved = saveStoredConfig(newConfig);
 
           // 核心优势：配置保存瞬间，直接内存热重载注入客户端！
@@ -1422,3 +1467,11 @@ function startEmbeddedSettingsServer() {
   });
 }
 startEmbeddedSettingsServer();
+
+// 若用户在设置中开启了系统托盘，按需唤醒托盘组件（默认关闭）
+try {
+  const initialConfig = getStoredConfig();
+  if (initialConfig.ENABLE_SYSTEM_TRAY) {
+    manageSystemTray(true);
+  }
+} catch (_) {}
