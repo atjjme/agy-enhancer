@@ -315,6 +315,52 @@ function resolveArtifactOnDisk(convoId, title) {
   return brainConvoDir;
 }
 
+function resolveCleanDiskPath(rawPath) {
+  if (!rawPath) return '';
+  let cleanPath = rawPath.replace(/^file:\/\/\/?/i, '').replace(/\//g, '\\');
+  cleanPath = cleanPath.replace(/^\/([a-zA-Z]:)/, '$1');
+  const homeDir = process.env.USERPROFILE || process.env.HOME || os.homedir();
+
+  if (cleanPath.startsWith('MEDIA_DIR:')) {
+    const convoId = cleanPath.slice('MEDIA_DIR:'.length).trim();
+    const userUploadedDir = path.join(homeDir, '.gemini', 'antigravity', 'brain', convoId, '.user_uploaded');
+    if (fs.existsSync(userUploadedDir)) {
+      try {
+        const files = fs.readdirSync(userUploadedDir)
+          .filter(f => f.startsWith('media_'))
+          .map(f => ({ name: f, time: fs.statSync(path.join(userUploadedDir, f)).mtimeMs }))
+          .sort((a, b) => b.time - a.time);
+        if (files.length > 0) {
+          cleanPath = path.join(userUploadedDir, files[0].name);
+        } else {
+          cleanPath = userUploadedDir;
+        }
+      } catch (e) {
+        cleanPath = userUploadedDir;
+      }
+    } else {
+      cleanPath = path.join(homeDir, '.gemini', 'antigravity', 'brain', convoId);
+    }
+  } else if (cleanPath.startsWith('MEDIA:')) {
+    const parts = cleanPath.split(':');
+    const convoId = parts[1];
+    const filename = parts[2];
+    const mediaPath = path.join(homeDir, '.gemini', 'antigravity', 'brain', convoId, '.user_uploaded', filename);
+    if (fs.existsSync(mediaPath)) {
+      cleanPath = mediaPath;
+    } else {
+      cleanPath = path.join(homeDir, '.gemini', 'antigravity', 'brain', convoId, '.user_uploaded');
+    }
+  } else if (cleanPath.startsWith('ARTIFACT:')) {
+    const parts = cleanPath.split(':');
+    const convoId = parts[1];
+    const title = parts.slice(2).join(':').trim();
+    cleanPath = resolveArtifactOnDisk(convoId, title);
+  }
+
+  return cleanPath;
+}
+
 function getActivePortInfo() {
   if (!fs.existsSync(activePortFile)) return null;
   try {
@@ -408,6 +454,47 @@ async function connectAndAttach() {
             const jsonStr = text.slice('[AGY_PERSIST_UNREAD]'.length);
             log(`Persisting unread states to disk: ` + jsonStr);
             saveStoredUnreadStates(jsonStr);
+          } else if (typeof text === 'string' && text.startsWith('[AGY_OPEN_PATH]')) {
+            let rawPath = text.slice('[AGY_OPEN_PATH]'.length).trim();
+            const tokenMatch = rawPath.match(/^\[([0-9]+)_([a-zA-Z0-9]+)\](.*)/);
+            if (!tokenMatch) {
+              log(`[Legacy/Untokened Ignored] Ignored untokened openPath: ` + rawPath);
+              return;
+            }
+            const tokenTime = parseInt(tokenMatch[1], 10);
+            const token = tokenMatch[1] + '_' + tokenMatch[2];
+            rawPath = tokenMatch[3].trim();
+
+            if (tokenTime < connectionEstablishedTime - 500 || (Date.now() - tokenTime) > 5000) {
+              log(`[Stale Token Ignored] Ignored stale openPath token: ` + token);
+              return;
+            }
+
+            if (handledConsoleTokens.has(token)) {
+              log(`[Duplicate Ignored] Ignored duplicate openPath token: ` + token);
+              return;
+            }
+            handledConsoleTokens.add(token);
+            if (handledConsoleTokens.size > 500) {
+              const first = handledConsoleTokens.values().next().value;
+              handledConsoleTokens.delete(first);
+            }
+
+            log(`Opening path with system default tool: ` + rawPath);
+            try {
+              let cleanPath = resolveCleanDiskPath(rawPath);
+              if (/^[a-zA-Z]:/.test(cleanPath)) {
+                if (fs.existsSync(cleanPath)) {
+                  exec(`start "" "${cleanPath}"`);
+                } else if (fs.existsSync(path.dirname(cleanPath))) {
+                  exec(`start "" "${path.dirname(cleanPath)}"`);
+                } else {
+                  exec(`start "" "${cleanPath}"`);
+                }
+              }
+            } catch (e) {
+              log(`Failed to open path: ` + e.message);
+            }
           } else if (typeof text === 'string' && text.startsWith('[AGY_REVEAL_PATH]')) {
             let rawPath = text.slice('[AGY_REVEAL_PATH]'.length).trim();
             // 防重放拦截 1：必须携带合法 actionToken [timestamp_random]，历史无 Token 旧日志一律彻底丢弃
@@ -439,46 +526,7 @@ async function connectAndAttach() {
 
             log(`Revealing path in Explorer: ` + rawPath);
             try {
-              let cleanPath = rawPath.replace(/^file:\/\/\/?/i, '').replace(/\//g, '\\');
-              const homeDir = process.env.USERPROFILE || process.env.HOME || 'C:\\Users\\Juste';
-
-              if (cleanPath.startsWith('MEDIA_DIR:')) {
-                const convoId = cleanPath.slice('MEDIA_DIR:'.length).trim();
-                const userUploadedDir = path.join(homeDir, '.gemini', 'antigravity', 'brain', convoId, '.user_uploaded');
-                if (fs.existsSync(userUploadedDir)) {
-                  try {
-                    const files = fs.readdirSync(userUploadedDir)
-                      .filter(f => f.startsWith('media_'))
-                      .map(f => ({ name: f, time: fs.statSync(path.join(userUploadedDir, f)).mtimeMs }))
-                      .sort((a, b) => b.time - a.time);
-                    if (files.length > 0) {
-                      cleanPath = path.join(userUploadedDir, files[0].name);
-                    } else {
-                      cleanPath = userUploadedDir;
-                    }
-                  } catch (e) {
-                    cleanPath = userUploadedDir;
-                  }
-                } else {
-                  cleanPath = path.join(homeDir, '.gemini', 'antigravity', 'brain', convoId);
-                }
-              } else if (cleanPath.startsWith('MEDIA:')) {
-                const parts = cleanPath.split(':');
-                const convoId = parts[1];
-                const filename = parts[2];
-                const mediaPath = path.join(homeDir, '.gemini', 'antigravity', 'brain', convoId, '.user_uploaded', filename);
-                if (fs.existsSync(mediaPath)) {
-                  cleanPath = mediaPath;
-                } else {
-                  cleanPath = path.join(homeDir, '.gemini', 'antigravity', 'brain', convoId, '.user_uploaded');
-                }
-              } else if (cleanPath.startsWith('ARTIFACT:')) {
-                const parts = cleanPath.split(':');
-                const convoId = parts[1];
-                const title = parts.slice(2).join(':').trim();
-                cleanPath = resolveArtifactOnDisk(convoId, title);
-              }
-
+              let cleanPath = resolveCleanDiskPath(rawPath);
               if (/^[a-zA-Z]:/.test(cleanPath)) {
                 if (fs.existsSync(cleanPath)) {
                   if (fs.statSync(cleanPath).isDirectory()) {

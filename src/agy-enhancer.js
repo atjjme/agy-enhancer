@@ -3491,7 +3491,8 @@
       clean: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 3l3 3-9 9H9v-3l9-9z"></path><path d="M2.5 21.5l3.5-3.5"></path><path d="M6 18l3 3"></path><path d="M8 16l3 3"></path></svg>',
       branch: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="3" x2="6" y2="15"></line><circle cx="18" cy="6" r="3"></circle><circle cx="6" cy="18" r="3"></circle><path d="M18 9a9 9 0 0 1-9 9"></path></svg>',
       pin: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="17" x2="12" y2="22"></line><path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z"></path></svg>',
-      unpin: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="2" y1="2" x2="22" y2="22"></line><path d="M12 17v5"></path><path d="M9 9V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v2"></path><path d="M5 17h12"></path><path d="M17 11.5a2 2 0 0 0-.89-1.66l-1.11-.56"></path></svg>'
+      unpin: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="2" y1="2" x2="22" y2="22"></line><path d="M12 17v5"></path><path d="M9 9V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v2"></path><path d="M5 17h12"></path><path d="M17 11.5a2 2 0 0 0-.89-1.66l-1.11-.56"></path></svg>',
+      open: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>'
     };
 
     let ensureContextMenuStyles = function () {
@@ -3698,6 +3699,12 @@
             if (img) copyImageBlob(img);
           }
         } catch (e) {}
+      }
+
+      function openPath(pathStr) {
+        if (!pathStr) return;
+        const actionToken = Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+        console.log(`[AGY_OPEN_PATH][${actionToken}]` + pathStr);
       }
 
       function revealPath(pathStr) {
@@ -4905,8 +4912,9 @@
             { label: 'Copy Image', icon: 'image', action: () => copyImageBlob(imgEl) }
           ];
 
-          // 仅当图片在本地磁盘上存在（已落盘/已上传/本地文件）时才提供“打开所在目录”与“复制路径”
+          // 仅当图片在本地磁盘上存在（已落盘/已上传/本地文件）时才提供“打开”、“打开所在目录”与“复制路径”
           if (imgDiskPath) {
+            items.push({ label: 'Open', icon: 'open', action: () => openPath(imgDiskPath) });
             items.push({ label: 'Reveal in Explorer', icon: 'folder', action: () => revealPath(imgDiskPath) });
             items.push({ label: 'Copy Path', icon: 'copy', action: () => {
               copyText(getDirectoryPath(imgDiskPath));
@@ -4948,6 +4956,7 @@
           e.stopPropagation();
           const isImg = isImageFilePath(localPath);
           const items = [
+            { label: 'Open', icon: 'open', action: () => openPath(localPath) },
             { label: 'Reveal in Explorer', icon: 'folder', action: () => revealPath(localPath) },
             { label: 'Copy Path', icon: 'copy', action: () => {
               copyText(getDirectoryPath(localPath));
@@ -4972,6 +4981,7 @@
           e.stopPropagation();
           const isImg = isImageFilePath(fileEntity.filePath) || isImageFilePath(fileEntity.filename);
           const items = [
+            { label: 'Open', icon: 'open', action: () => openPath(fileEntity.filePath) },
             { label: 'Reveal in Explorer', icon: 'folder', action: () => revealPath(fileEntity.filePath) },
             { label: 'Copy Path', icon: 'copy', action: () => {
               copyText(getDirectoryPath(fileEntity.filePath));
@@ -5018,6 +5028,7 @@
               }});
             }
             if (selPath) {
+              items.push({ label: 'Open', icon: 'open', action: () => openPath(selPath) });
               items.push({ label: 'Reveal in Explorer', icon: 'folder', action: () => revealPath(selPath) });
               items.push({ label: 'Copy Path', icon: 'copy', action: () => {
                 copyText(getDirectoryPath(selPath));
@@ -5064,11 +5075,12 @@
               }
             }
           ];
-          // 如果该代码块位于已打开的 Artifact Viewer 或右侧栏中，补充 Reveal in Explorer 与纯所在目录 Copy Path
+          // 如果该代码块位于已打开的 Artifact Viewer 或右侧栏中，补充 Open, Reveal in Explorer 与纯所在目录 Copy Path
           const inArtifactViewer = target.closest('[aria-label="Artifact Viewer"], [role="region"][aria-label="Artifact Viewer"], #artifact-container, .artifact-view, [data-aux-pane-open="true"]') || isRightSidebar(target);
           if (inArtifactViewer) {
             const activePath = getActiveArtifactPath(target);
             if (activePath) {
+              items.push({ label: 'Open', icon: 'open', action: () => openPath(activePath) });
               items.push({ label: 'Reveal in Explorer', icon: 'folder', action: () => revealPath(activePath) });
               items.push({ label: 'Copy Path', icon: 'copy', action: () => {
                 copyText(getDirectoryPath(activePath));
@@ -5081,7 +5093,7 @@
           return;
         }
 
-        // 目标 7: 右侧栏空白处 (Right Sidebar Blank Area - 打开所在目录 / 复制所在目录路径)
+        // 目标 7: 右侧栏空白处 (Right Sidebar Blank Area - 打开 / 打开所在目录 / 复制所在目录路径)
         if (inSidebar && !selectedText) {
           const activePath = getActiveArtifactPath(target);
           if (activePath) {
@@ -5089,6 +5101,7 @@
             e.stopPropagation();
             const isImg = isImageFilePath(activePath);
             const items = [
+              { label: 'Open', icon: 'open', action: () => openPath(activePath) },
               { label: 'Reveal in Explorer', icon: 'folder', action: () => revealPath(activePath) },
               { label: 'Copy Path', icon: 'copy', action: () => {
                 copyText(getDirectoryPath(activePath));
