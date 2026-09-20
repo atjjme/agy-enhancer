@@ -351,6 +351,29 @@ function resolveCleanDiskPath(rawPath) {
     } else {
       cleanPath = path.join(homeDir, '.gemini', 'antigravity', 'brain', convoId, '.user_uploaded');
     }
+  } else if (cleanPath.startsWith('MEDIA_INDEX:')) {
+    const parts = cleanPath.split(':');
+    const convoId = parts[1];
+    const idx = parseInt(parts[2], 10) || 0;
+    const userUploadedDir = path.join(homeDir, '.gemini', 'antigravity', 'brain', convoId, '.user_uploaded');
+    if (fs.existsSync(userUploadedDir)) {
+      try {
+        const files = fs.readdirSync(userUploadedDir)
+          .filter(f => f.startsWith('media_'))
+          .map(f => ({ name: f, time: fs.statSync(path.join(userUploadedDir, f)).mtimeMs }))
+          .sort((a, b) => a.time - b.time);
+        if (files.length > 0) {
+          const chosen = files[idx] || files[files.length - 1];
+          cleanPath = path.join(userUploadedDir, chosen.name);
+        } else {
+          cleanPath = userUploadedDir;
+        }
+      } catch (e) {
+        cleanPath = userUploadedDir;
+      }
+    } else {
+      cleanPath = path.join(homeDir, '.gemini', 'antigravity', 'brain', convoId);
+    }
   } else if (cleanPath.startsWith('ARTIFACT:')) {
     const parts = cleanPath.split(':');
     const convoId = parts[1];
@@ -574,18 +597,7 @@ async function connectAndAttach() {
 
             log(`Requested copy image: ` + rawPath);
             try {
-              let cleanPath = rawPath;
-              if (cleanPath.startsWith('ARTIFACT:')) {
-                const parts = cleanPath.split(':');
-                const convoId = parts[1];
-                const title = parts.slice(2).join(':').trim();
-                cleanPath = resolveArtifactOnDisk(convoId, title);
-              } else if (cleanPath.startsWith('MEDIA:')) {
-                const parts = cleanPath.split(':');
-                const convoId = parts[1];
-                const filename = parts[2];
-                cleanPath = path.join(homeDir, '.gemini', 'antigravity', 'brain', convoId, '.user_uploaded', filename);
-              }
+              let cleanPath = resolveCleanDiskPath(rawPath);
               if (fs.existsSync(cleanPath) && !fs.statSync(cleanPath).isDirectory()) {
                 const escaped = cleanPath.replace(/'/g, "''");
                 const psCmd = `& { Add-Type -AssemblyName System.Windows.Forms; Add-Type -AssemblyName System.Drawing; [System.Windows.Forms.Clipboard]::SetImage([System.Drawing.Image]::FromFile('${escaped}')) }`;
