@@ -11,6 +11,8 @@
 // @run-at       document-idle
 // ==/UserScript==
 
+window.__AGY_BRANCH_TAG__ = " (branch)";
+window.__AGY_BRANCH_NAME__ = "sort_pinned_list";
 /**
  * Antigravity 增强器 (agy-enhancer enhancer)
  * 
@@ -5477,16 +5479,16 @@
           const capturedMarkdown = extractSelectedMarkdown(selection, target, selectedText);
           let items = [];
           if (inSidebar) {
-            // 右侧栏选中文本: Search, Comment, Copy, Quote, Export as Markdown, Explain
+            // 右侧栏选中文本: Comment, Copy, Quote, Search, Export as Markdown, Explain
             items = [
+              { label: 'Comment', icon: 'comment', action: () => triggerNativeComment(selectedText) },
+              { label: 'Copy', icon: 'copy', action: () => copyText(selectedText) },
+              { label: 'Quote', icon: 'quote', action: () => triggerNativeQuote(selectedText) },
               {
                 label: 'Search', icon: 'search', action: () => {
                   window.open('https://www.google.com/search?q=' + encodeURIComponent(selectedText), '_blank');
                 }
               },
-              { label: 'Comment', icon: 'comment', action: () => triggerNativeComment(selectedText) },
-              { label: 'Copy', icon: 'copy', action: () => copyText(selectedText) },
-              { label: 'Quote', icon: 'quote', action: () => triggerNativeQuote(selectedText) },
               { label: 'Export as Markdown', icon: 'save', action: () => saveMarkdownLocally(capturedMarkdown, 'selection') },
               { label: 'Explain', icon: 'explain', action: () => appendExplainToPrompt(selectedText) }
             ];
@@ -5510,24 +5512,45 @@
               }});
             }
             items.push(
+              { label: 'Copy', icon: 'copy', action: () => copyText(selectedText) },
+              { label: 'Quote', icon: 'quote', action: () => triggerNativeQuote(selectedText) },
               {
                 label: 'Search', icon: 'search', action: () => {
                   window.open('https://www.google.com/search?q=' + encodeURIComponent(selectedText), '_blank');
                 }
               },
-              { label: 'Copy', icon: 'copy', action: () => copyText(selectedText) },
-              { label: 'Quote', icon: 'quote', action: () => triggerNativeQuote(selectedText) },
               { label: 'Export as Markdown', icon: 'save', action: () => saveMarkdownLocally(capturedMarkdown, 'selection') }
             );
             if (USER_CONFIG.ENABLE_PINNED_SUMMARY !== false && typeof pinAiTurnFromSelection === 'function') {
               const aiTurn = resolveAiResponseTurn(target);
               if (aiTurn) {
+                // 在右键菜单打开时立即提取选区到末尾的内容，彻底避免后续点击导致 selection Range 丢失
+                let capturedTailMarkdown = '';
+                try {
+                  if (selection && selection.rangeCount > 0 && aiTurn.turnEl) {
+                    const range = selection.getRangeAt(0);
+                    const cloned = range.cloneRange();
+                    const lastChild = aiTurn.turnEl.lastChild || aiTurn.turnEl;
+                    cloned.setEndAfter(lastChild);
+                    const frag = cloned.cloneContents();
+                    if (frag) {
+                      // 移除可能混入的代码审查栏、工具条与 diff 状态
+                      frag.querySelectorAll?.('[data-testid*="review"], [data-testid*="diff"], [data-testid="cascade-system-message-toolbar"]')?.forEach(el => el.remove());
+                      frag.querySelectorAll?.('*')?.forEach(el => {
+                        const txt = el.innerText || '';
+                        if (/\d+\s*files?\s*changed/i.test(txt) && /review/i.test(txt)) el.remove();
+                      });
+                      capturedTailMarkdown = htmlToMarkdown(frag).replace(/\n{3,}/g, '\n\n').trim();
+                    }
+                  }
+                } catch (err) {}
+
                 items.push({ separator: true });
                 items.push({
                   label: 'Pin from Selection',
                   icon: 'pin',
                   action: () => {
-                    pinAiTurnFromSelection(aiTurn, selectedText);
+                    pinAiTurnFromSelection(aiTurn, selectedText, capturedTailMarkdown);
                   }
                 });
               }
@@ -7660,7 +7683,7 @@
             right: calc(100% + 12px);
             bottom: -6px;
             display: flex;
-            flex-direction: column-reverse;
+            flex-direction: column;
             gap: 8px;
             align-items: flex-end;
             opacity: 0;
@@ -7732,6 +7755,12 @@
             text-overflow: ellipsis;
             white-space: nowrap;
             color: #f8fafc;
+            cursor: pointer;
+            user-select: none;
+            transition: color 0.15s ease;
+          }
+          .agy-card-title:hover {
+            color: #60a5fa;
           }
           .agy-card-rename-input {
             background: rgba(15, 23, 42, 0.9);
@@ -8145,25 +8174,51 @@
         return 'h_' + Math.abs(hash);
       }
 
+      function isNoiseLine(line) {
+        if (!line) return true;
+        const clean = line.trim();
+        if (!clean) return true;
+        if (/^(worked|thought)\s+for/i.test(clean)) return true;
+        if (/^thinking(\.\.\.)?/i.test(clean)) return true;
+        if (/\d+\s*files?\s*changed/i.test(clean)) return true;
+        if (/[+\-]\d+.*Review/i.test(clean)) return true;
+        if (/Review\s*\d+:\d+/i.test(clean)) return true;
+        if (/files?\s*changed/i.test(clean)) return true;
+        return false;
+      }
+
+      function cleanSystemAndReviewNoise(text) {
+        if (!text) return '';
+        return text
+          // 移除耗时与思考过程标记
+          .replace(/^(worked|thought)\s+for\s+[\d\w\s\.\>\-]+\n*/gim, '')
+          // 移除如 "1 file changed+85-13Review6:39 PM" 或带空格形式的代码审查状态栏
+          .replace(/(?:^|\n)\s*\d+\s*files?\s*changed[^\n]*(?:Review|[\+\-]\d+)[^\n]*/gi, '')
+          .replace(/(?:^|\n)\s*[+\-]\d+\s+[+\-]\d+\s+Review[^\n]*/gi, '')
+          .replace(/(?:^|\n)\s*Review\s+\d+:\d+\s*(?:AM|PM)?[^\n]*/gi, '')
+          .replace(/(?:^|\n)\s*\d+\s*files?\s*changed[^\n]*/gi, '')
+          .replace(/\n{3,}/g, '\n\n')
+          .trim();
+      }
+
       function extractSummaryTitle(text, defaultTitle = 'Summary') {
         if (!text) return defaultTitle;
-        const lines = text.trim().split('\n');
+        const cleanedText = cleanSystemAndReviewNoise(text);
+        const lines = cleanedText.trim().split('\n');
         // 1. 优先提取 Markdown 标题行 (# 标题)
         for (let line of lines) {
           const trimmed = line.trim();
           if (trimmed.startsWith('#')) {
             const clean = trimmed.replace(/^#+\s*/, '').trim();
-            if (clean && !/^(worked|thought)\s+for/i.test(clean) && !/^thinking/i.test(clean)) {
+            if (clean && !isNoiseLine(clean)) {
               return clean.slice(0, 36);
             }
           }
         }
-        // 2. 查找首个有实际内容的自然文本行（过滤 Worked for 34s、Thought for Xs、Thinking 等系统标记）
+        // 2. 查找首个有实际内容的自然文本行（过滤 Worked for 34s、Thought for Xs、Review 等系统与工具标记）
         for (let line of lines) {
           let clean = line.trim().replace(/^[>\-\*\d\.\s#]+/, '').trim();
-          if (!clean) continue;
-          if (/^(worked|thought)\s+for/i.test(clean)) continue;
-          if (/^thinking(\.\.\.)?/i.test(clean)) continue;
+          if (!clean || isNoiseLine(clean)) continue;
           return clean.slice(0, 36) + (clean.length > 36 ? '...' : '');
         }
         return defaultTitle;
@@ -8547,7 +8602,7 @@
                   <path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z" fill="currentColor"></path>
                 </svg>
               </span>
-              <span class="agy-card-title" title="${escapeHtml(item.title)}">${escapeHtml(item.title)}</span>
+              <span class="agy-card-title" title="${escapeHtml(item.title)} (双击打开预览)">${escapeHtml(item.title)}</span>
               <div class="agy-card-actions">
                 <button class="agy-card-btn agy-card-rename" data-idx="${idx}" title="Rename">
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
@@ -8630,7 +8685,7 @@
                 }
               }
               titleEl.textContent = targetItem.title;
-              titleEl.title = targetItem.title;
+              titleEl.title = `${targetItem.title} (双击打开预览)`;
               titleEl.style.display = '';
               input.remove();
               lastRenderedPinSignature = '';
@@ -8674,6 +8729,23 @@
           });
         });
 
+        // 绑定卡片交互：双击标题或卡片主体直接打开画中画预览 (Preview)
+        indicatorWrap.querySelectorAll('.agy-pinned-card').forEach(cardEl => {
+          cardEl.addEventListener('dblclick', (e) => {
+            if (e.target.closest('.agy-card-actions') || e.target.closest('input')) return;
+            e.stopPropagation();
+            e.preventDefault();
+            const pinId = cardEl.getAttribute('data-pin-id');
+            const curList = getPinnedList();
+            const targetIdx = curList.findIndex(p => p.id === pinId);
+            if (targetIdx !== -1) {
+              currentActiveIndex = targetIdx;
+              isPipMinimized = false;
+              renderPipModal(curList[targetIdx]);
+            }
+          });
+        });
+
         // 绑定卡片交互：Remove
         indicatorWrap.querySelectorAll('.agy-card-unpin').forEach(btn => {
           btn.addEventListener('click', (e) => {
@@ -8684,16 +8756,261 @@
         });
       }
 
-      // 6. 添加与移除操作
-      function addPinItem(item) {
-        const list = getPinnedList();
+      // 6. 辅助定位与对话位置排序（多维层级排序体系，彻底解决虚拟滚动及倒序问题）
+      function extractStepMeta(el) {
+        let stepIndex = null;
+        let messageTimestamp = null;
+        if (!el) return { stepIndex, messageTimestamp };
+
+        try {
+          const fiberKey = Object.keys(el || {}).find(k => k.startsWith('__reactFiber$') || k.startsWith('__reactInternalInstance$'));
+          let f = el[fiberKey];
+          let depth = 0;
+          while (f && depth < 30) {
+            depth++;
+            const p = f.memoizedProps;
+            if (p) {
+              // 1. 直接检查 props 中的 step 信息
+              if (typeof p.stepIndex === 'number') {
+                stepIndex = p.stepIndex;
+              } else if (p.step) {
+                const sObj = p.step.value || p.step;
+                if (typeof sObj.step_index === 'number') stepIndex = sObj.step_index;
+                else if (typeof sObj.stepIndex === 'number') stepIndex = sObj.stepIndex;
+                else if (typeof sObj.index === 'number') stepIndex = sObj.index;
+
+                if (!messageTimestamp) {
+                  const ts = sObj.created_at || sObj.createdAt || sObj.timestamp;
+                  if (ts) messageTimestamp = typeof ts === 'number' ? ts : Date.parse(ts);
+                }
+              }
+
+              // 2. 检查 props.steps 数组
+              if (stepIndex === null && Array.isArray(p.steps) && p.steps.length > 0) {
+                for (const s of p.steps) {
+                  const sObj = s?.step?.value || s?.step || s;
+                  if (typeof sObj?.step_index === 'number') stepIndex = sObj.step_index;
+                  else if (typeof sObj?.stepIndex === 'number') stepIndex = sObj.stepIndex;
+                  else if (typeof sObj?.index === 'number') stepIndex = sObj.index;
+
+                  if (!messageTimestamp && sObj) {
+                    const ts = sObj.created_at || sObj.createdAt || sObj.timestamp;
+                    if (ts) messageTimestamp = typeof ts === 'number' ? ts : Date.parse(ts);
+                  }
+                  if (stepIndex !== null) break;
+                }
+              }
+
+              // 3. 检查 userMessage 或 timestamp
+              if (!messageTimestamp && p.timestamp) {
+                messageTimestamp = typeof p.timestamp === 'number' ? p.timestamp : Date.parse(p.timestamp);
+              }
+            }
+            if (stepIndex !== null && messageTimestamp) break;
+            f = f.return;
+          }
+        } catch (e) {}
+
+        return { stepIndex, messageTimestamp };
+      }
+
+      function getElementTurnIndex(el) {
+        if (!el) return -1;
+        const activePane = (typeof getActivePane === 'function') ? getActivePane() : null;
+        const container = getChatScrollContainer(activePane);
+        const turnContainer = container?.querySelector?.('.relative.flex.flex-col.gap-y-3, .flex.flex-col.gap-y-3') ||
+                              activePane?.querySelector?.('.relative.flex.flex-col.gap-y-3, .flex.flex-col.gap-y-3') ||
+                              document.querySelector('.relative.flex.flex-col.gap-y-3, .flex.flex-col.gap-y-3');
+        if (!turnContainer || !turnContainer.children || turnContainer.children.length === 0) {
+          return -1;
+        }
+        const children = turnContainer.children;
+        for (let i = 0; i < children.length; i++) {
+          const child = children[i];
+          if (child === el || child.contains(el) || el.contains(child)) {
+            return i;
+          }
+        }
+        return -1;
+      }
+
+      function getPinTurnElement(item) {
+        if (!item) return null;
+        const chatContainer = getChatScrollContainer();
+        if (!chatContainer) return null;
+
+        // 1. 精确哈希匹配
+        if (item.hash) {
+          const el = chatContainer.querySelector(`[data-agy-summary-hash="${item.hash}"]`);
+          if (el) return el;
+        }
+
+        // 2. 锚点特征短句匹配 (针对选区钉选最精准)
+        const anchor = (item.anchorSnippet || '').trim();
+        const snippet = (item.text || '').slice(0, 40).trim();
+        const title = (item.title || '').trim();
+        const searchTerms = [anchor, snippet, title].filter(t => t && t.length >= 4);
+
+        if (searchTerms.length === 0) return null;
+
+        if (item.type === 'prompt') {
+          const userTurns = chatContainer.querySelectorAll('.group\\/user-input-step, [class*="user-input-step"]');
+          for (const term of searchTerms) {
+            for (const turn of userTurns) {
+              if ((turn.innerText || '').includes(term)) {
+                if (item.hash) turn.setAttribute('data-agy-summary-hash', item.hash);
+                return turn;
+              }
+            }
+          }
+        } else {
+          const candidateTurns = chatContainer.querySelectorAll('.group.w-full, [class*="scroll-mt-4"], .flex.items-start');
+          for (const term of searchTerms) {
+            for (const turn of candidateTurns) {
+              if (turn.closest('.group\\/user-input-step, [class*="user-input-step"]')) continue;
+              if ((turn.innerText || '').includes(term)) {
+                if (item.hash) turn.setAttribute('data-agy-summary-hash', item.hash);
+                return turn;
+              }
+            }
+          }
+        }
+        return null;
+      }
+
+      function sortPinsByConversationOrder(list, currentTurnEl = null, currentItem = null) {
+        if (!Array.isArray(list) || list.length <= 1) return list;
+        const chatContainer = getChatScrollContainer();
+
+        const elMap = new Map();
+        if (currentItem && currentTurnEl) {
+          elMap.set(currentItem.id || currentItem.hash, currentTurnEl);
+        }
+
+        // 预查所有元素的 DOM 节点，并为老数据自愈补齐 stepIndex 和元数据
+        for (const item of list) {
+          const key = item.id || item.hash;
+          let el = elMap.get(key);
+          if (!el) {
+            el = getPinTurnElement(item);
+            if (el) elMap.set(key, el);
+          }
+          if (el) {
+            if (typeof item.stepIndex !== 'number' || !item.messageTimestamp) {
+              const meta = extractStepMeta(el);
+              if (typeof meta.stepIndex === 'number') item.stepIndex = meta.stepIndex;
+              if (meta.messageTimestamp) item.messageTimestamp = meta.messageTimestamp;
+            }
+            if (typeof item.turnIndex !== 'number') {
+              const tIdx = getElementTurnIndex(el);
+              if (tIdx !== -1) item.turnIndex = tIdx;
+            }
+          }
+        }
+
+        const sorted = list.slice().sort((a, b) => {
+          const elA = elMap.get(a.id || a.hash);
+          const elB = elMap.get(b.id || b.hash);
+
+          // 1. 第一优先级：当前 DOM 中均活跃可见的真实节点比较（最高保真）
+          if (elA && elB) {
+            if (elA === elB) {
+              if (a.type !== b.type) {
+                return a.type === 'prompt' ? -1 : 1;
+              }
+              const offA = typeof a.textOffset === 'number' ? a.textOffset : 0;
+              const offB = typeof b.textOffset === 'number' ? b.textOffset : 0;
+              if (offA !== offB) return offA - offB;
+            } else {
+              const tIdxA = getElementTurnIndex(elA);
+              const tIdxB = getElementTurnIndex(elB);
+              if (tIdxA !== -1 && tIdxB !== -1 && tIdxA !== tIdxB) {
+                return tIdxA - tIdxB;
+              }
+              if (tIdxA !== -1 && tIdxA === tIdxB) {
+                if (a.type !== b.type) {
+                  return a.type === 'prompt' ? -1 : 1;
+                }
+              }
+              const comp = elA.compareDocumentPosition(elB);
+              if (comp & Node.DOCUMENT_POSITION_FOLLOWING) {
+                return -1; // elA 在 elB 上方（较早对话）
+              } else if (comp & Node.DOCUMENT_POSITION_PRECEDING) {
+                return 1;  // elA 在 elB 下方（较晚对话）
+              }
+            }
+          }
+
+          // 2. 第二优先级：记录的回合索引 turnIndex（单调递增）
+          const tIdxA = (typeof a.turnIndex === 'number' && a.turnIndex >= 0) ? a.turnIndex : null;
+          const tIdxB = (typeof b.turnIndex === 'number' && b.turnIndex >= 0) ? b.turnIndex : null;
+          if (tIdxA !== null && tIdxB !== null && tIdxA !== tIdxB) {
+            return tIdxA - tIdxB;
+          }
+
+          // 3. 第三优先级：React Fiber 全局单调递增步骤序列号 stepIndex
+          if (typeof a.stepIndex === 'number' && typeof b.stepIndex === 'number') {
+            if (a.stepIndex !== b.stepIndex) {
+              return a.stepIndex - b.stepIndex;
+            }
+          }
+
+          // 4. 同一回合或步骤内部细分（用户提问在前，AI 回复在后；选区偏移在前在后）
+          if ((tIdxA !== null && tIdxA === tIdxB) || (typeof a.stepIndex === 'number' && a.stepIndex === b.stepIndex)) {
+            if (a.type !== b.type) {
+              return a.type === 'prompt' ? -1 : 1;
+            }
+            const offA = typeof a.textOffset === 'number' ? a.textOffset : 0;
+            const offB = typeof b.textOffset === 'number' ? b.textOffset : 0;
+            if (offA !== offB) return offA - offB;
+          }
+
+          // 5. 第四优先级：消息生成的时间戳 messageTimestamp
+          if (a.messageTimestamp && b.messageTimestamp) {
+            const tA = typeof a.messageTimestamp === 'number' ? a.messageTimestamp : Date.parse(a.messageTimestamp);
+            const tB = typeof b.messageTimestamp === 'number' ? b.messageTimestamp : Date.parse(b.messageTimestamp);
+            if (!isNaN(tA) && !isNaN(tB) && tA !== tB) {
+              return tA - tB;
+            }
+          }
+
+          // 6. 保底优先级：历史分配索引或创建时刻时间戳，绝不倒错
+          if (typeof a.orderIndex === 'number' && typeof b.orderIndex === 'number') {
+            if (a.orderIndex !== b.orderIndex) {
+              return a.orderIndex - b.orderIndex;
+            }
+          }
+
+          return (a.timestamp || 0) - (b.timestamp || 0);
+        });
+
+        // 重新分配连续递增的 orderIndex
+        sorted.forEach((item, idx) => {
+          item.orderIndex = idx;
+        });
+
+        return sorted;
+      }
+
+      // 添加与移除操作（按对话中出现的位置从上到下排序）
+      function addPinItem(item, targetEl = null) {
+        let list = getPinnedList();
         const existingIdx = list.findIndex(p => p.hash === item.hash || p.id === item.id);
         if (existingIdx !== -1) {
           list.splice(existingIdx, 1);
         }
-        list.unshift(item);
+
+        if (targetEl && item.hash) {
+          try { targetEl.setAttribute('data-agy-summary-hash', item.hash); } catch (e) {}
+        }
+
+        list.push(item);
+        list = sortPinsByConversationOrder(list, targetEl, item);
         savePinnedList(list);
-        currentActiveIndex = 0;
+
+        const newIdx = list.findIndex(p => p.id === item.id || p.hash === item.hash);
+        currentActiveIndex = newIdx !== -1 ? newIdx : 0;
+
         showNotification?.(item.type === 'prompt' ? '📌 Prompt pinned' : '📌 AI response pinned');
         lastRenderedPinSignature = '';
         renderPinnedIndicator(true);
@@ -8703,6 +9020,9 @@
       function removePinItem(idOrHash) {
         let list = getPinnedList();
         list = list.filter(p => p.id !== idOrHash && p.hash !== idOrHash);
+        list.forEach((item, idx) => {
+          item.orderIndex = idx;
+        });
         savePinnedList(list);
         if (currentActiveIndex >= list.length) currentActiveIndex = Math.max(0, list.length - 1);
         showNotification?.('Unpinned');
@@ -8720,18 +9040,34 @@
       // 7. 提取用户提示词数据 (User Prompt Data)
       function extractUserPromptData(uTurn) {
         let markdownText = '';
+        let stepIndex = null;
+        let messageTimestamp = null;
+
         try {
           const fiberKey = Object.keys(uTurn || {}).find(k => k.startsWith('__reactFiber$') || k.startsWith('__reactInternalInstance$'));
           let f = uTurn[fiberKey];
-          while (f) {
+          let depth = 0;
+          while (f && depth < 25) {
+            depth++;
             if (f.memoizedProps) {
               const p = f.memoizedProps;
               const msg = p.message || p.userMessage || p.step?.userMessage || p.step?.text || p.step?.content || p.step?.value?.userMessage;
-              if (typeof msg === 'string' && msg.trim()) {
+              if (typeof msg === 'string' && msg.trim() && !markdownText) {
                 markdownText = msg.trim();
-                break;
+              }
+              if (stepIndex === null) {
+                const sObj = p.step?.value || p.step;
+                if (typeof p.stepIndex === 'number') stepIndex = p.stepIndex;
+                else if (typeof sObj?.step_index === 'number') stepIndex = sObj.step_index;
+                else if (typeof sObj?.stepIndex === 'number') stepIndex = sObj.stepIndex;
+                else if (typeof sObj?.index === 'number') stepIndex = sObj.index;
+              }
+              if (!messageTimestamp) {
+                const ts = p.timestamp || p.step?.timestamp || p.step?.created_at || p.step?.createdAt;
+                if (ts) messageTimestamp = typeof ts === 'number' ? ts : Date.parse(ts);
               }
             }
+            if (markdownText && stepIndex !== null && messageTimestamp) break;
             f = f.return;
           }
         } catch (e) {}
@@ -8742,13 +9078,17 @@
           markdownText = clone.innerText?.trim() || '';
         }
 
+        markdownText = cleanSystemAndReviewNoise(markdownText);
         const hash = computeHash('prompt:' + markdownText);
         const title = extractSummaryTitle(markdownText, 'User Prompt');
-        return { markdownText, hash, title };
+        const turnIndex = getElementTurnIndex(uTurn);
+        return { markdownText, hash, title, stepIndex, messageTimestamp, turnIndex };
       }
 
       function extractAiTurnData(turnEl, toolbar = null) {
         let markdownText = '';
+        let stepIndex = null;
+        let messageTimestamp = null;
         const effectiveToolbar = toolbar || turnEl?.querySelector?.('[data-testid="cascade-system-message-toolbar"]');
 
         try {
@@ -8756,45 +9096,59 @@
           for (const root of searchRoots) {
             const fiberKey = Object.keys(root).find(k => k.startsWith('__reactFiber$') || k.startsWith('__reactInternalInstance$'));
             let f = root[fiberKey];
-            while (f) {
+            let depth = 0;
+            while (f && depth < 25) {
+              depth++;
               if (f.memoizedProps?.steps) {
                 const steps = f.memoizedProps.steps;
                 for (const s of steps) {
                   const stepObj = s.step?.value || s.step;
                   if (stepObj?.response || stepObj?.modifiedResponse) {
-                    markdownText = stepObj.modifiedResponse || stepObj.response || '';
-                    break;
+                    if (!markdownText) markdownText = stepObj.modifiedResponse || stepObj.response || '';
+                  }
+                  if (stepIndex === null) {
+                    if (typeof s.stepIndex === 'number') stepIndex = s.stepIndex;
+                    else if (typeof s.index === 'number') stepIndex = s.index;
+                    else if (typeof stepObj?.step_index === 'number') stepIndex = stepObj.step_index;
+                    else if (typeof stepObj?.stepIndex === 'number') stepIndex = stepObj.stepIndex;
+                    else if (typeof stepObj?.index === 'number') stepIndex = stepObj.index;
+                  }
+                  if (!messageTimestamp && stepObj) {
+                    const ts = stepObj.created_at || stepObj.createdAt || stepObj.timestamp;
+                    if (ts) messageTimestamp = typeof ts === 'number' ? ts : Date.parse(ts);
                   }
                 }
-                if (markdownText) break;
+                if (markdownText && stepIndex !== null) break;
               }
               f = f.return;
             }
-            if (markdownText) break;
+            if (markdownText && stepIndex !== null) break;
           }
         } catch (e) {}
 
         if (!markdownText && turnEl) {
           const clone = turnEl.cloneNode(true);
           clone.querySelectorAll('[data-testid="cascade-system-message-toolbar"]')?.forEach(el => el.remove());
-          // 移除耗时、思考过程折叠头 (如 Worked for 34s, Thought for 10s)
+          clone.querySelectorAll('[data-testid*="review"], [data-testid*="diff"]')?.forEach(el => el.remove());
+          // 移除耗时、思考过程折叠头 (如 Worked for 34s, Thought for 10s) 与代码审查栏
           clone.querySelectorAll('button, div, span, [data-testid*="thought"], [class*="thought"]').forEach(el => {
             const t = el.innerText?.trim() || '';
             if (/^(worked|thought)\s+for\s+\d+/i.test(t) && t.length < 60) {
+              el.remove();
+            } else if (/\d+\s*files?\s*changed/i.test(t) && /review/i.test(t)) {
               el.remove();
             }
           });
           markdownText = clone.innerText?.trim() || '';
         }
 
-        if (markdownText) {
-          // 彻底剥离可能残留于开头的 "Worked for 34s >" 或 "Thought for Xs" 标记
-          markdownText = markdownText.replace(/^(worked|thought)\s+for\s+[\d\w\s\.\>\-]+\n*/i, '').trim();
-        }
+        // 统一彻底清理审查栏和系统噪音
+        markdownText = cleanSystemAndReviewNoise(markdownText);
 
         const hash = computeHash(markdownText);
         const title = extractSummaryTitle(markdownText, 'AI Summary');
-        return { markdownText, hash, title };
+        const turnIndex = getElementTurnIndex(turnEl || effectiveToolbar);
+        return { markdownText, hash, title, stepIndex, messageTimestamp, turnIndex };
       }
 
       // 8. 巡检并同步钉选按钮 (用户提问右下角 + AI 回复右下角复制前)
@@ -8823,7 +9177,7 @@
             uPinBtn.addEventListener('click', (e) => {
               e.preventDefault();
               e.stopPropagation();
-              const { markdownText, hash, title } = extractUserPromptData(uTurn);
+              const { markdownText, hash, title, stepIndex, messageTimestamp, turnIndex } = extractUserPromptData(uTurn);
               if (!markdownText) return;
               uTurn.setAttribute('data-agy-summary-hash', hash);
               const isPinned = list.some(p => p.hash === hash);
@@ -8836,8 +9190,11 @@
                   title,
                   text: markdownText,
                   type: 'prompt',
+                  stepIndex: typeof stepIndex === 'number' ? stepIndex : null,
+                  messageTimestamp: messageTimestamp || null,
+                  turnIndex: typeof turnIndex === 'number' ? turnIndex : null,
                   timestamp: Date.now()
-                });
+                }, uTurn);
               }
             });
 
@@ -8889,7 +9246,7 @@
             aiPinBtn.addEventListener('click', (e) => {
               e.preventDefault();
               e.stopPropagation();
-              const { markdownText, hash, title } = extractAiTurnData(turnEl, toolbar);
+              const { markdownText, hash, title, stepIndex, messageTimestamp, turnIndex } = extractAiTurnData(turnEl, toolbar);
               if (!markdownText) return;
               turnEl.setAttribute('data-agy-summary-hash', hash);
               const isPinned = list.some(p => p.hash === hash);
@@ -8902,8 +9259,11 @@
                   title,
                   text: markdownText,
                   type: 'ai',
+                  stepIndex: typeof stepIndex === 'number' ? stepIndex : null,
+                  messageTimestamp: messageTimestamp || null,
+                  turnIndex: typeof turnIndex === 'number' ? turnIndex : null,
                   timestamp: Date.now()
-                });
+                }, turnEl);
               }
             });
 
@@ -8958,34 +9318,109 @@
         if (isPinned) {
           removePinItem(hash);
         } else {
+          const { stepIndex, messageTimestamp } = extractStepMeta(aiTurn.turnEl || aiTurn.toolbar);
+          const domTurnIndex = getDomTurnIndex(aiTurn.turnEl || aiTurn.toolbar);
           addPinItem({
             id: 'pin_' + Date.now(),
             hash,
             title,
             text,
             type: 'ai',
+            stepIndex: typeof stepIndex === 'number' ? stepIndex : null,
+            messageTimestamp: messageTimestamp || null,
+            domTurnIndex: domTurnIndex !== -1 ? domTurnIndex : null,
             timestamp: Date.now()
-          });
+          }, aiTurn.turnEl);
         }
       };
 
-      // 10. 选中文本时：从当前选中位置向后截取提取并钉选
-      pinAiTurnFromSelection = function (aiTurn, selectedText) {
-        if (!aiTurn || !selectedText) return;
-        const fullMarkdown = aiTurn.markdownText || aiTurn.turnEl?.innerText || '';
-        if (!fullMarkdown) return;
+      // 10. 选中文本时：从当前选中位置向后截取提取至消息末尾并钉选
+      function extractFromSelectionToEnd(aiTurn, selectedText, tailMarkdown = null) {
+        const fullMarkdown = cleanSystemAndReviewNoise(aiTurn.markdownText || aiTurn.turnEl?.innerText || '');
+        const selTrim = (selectedText || '').trim();
 
-        let startIndex = fullMarkdown.indexOf(selectedText.trim());
-        if (startIndex === -1) {
-          // 容错模糊匹配：取选区前 15 个字
-          const snippet = selectedText.trim().slice(0, 15);
-          startIndex = fullMarkdown.indexOf(snippet);
+        // 1. 若外部已通过 DOM Range 向后克隆到末尾成功提取了 tailMarkdown，优先清洗后使用
+        if (tailMarkdown && tailMarkdown.trim()) {
+          const cleanedTail = cleanSystemAndReviewNoise(tailMarkdown);
+          if (cleanedTail.length >= selTrim.length) {
+            return cleanedTail;
+          }
         }
 
-        const extracted = startIndex !== -1 ? fullMarkdown.slice(startIndex).trim() : selectedText.trim();
+        if (fullMarkdown && selTrim) {
+          // 2. 完全精确查找
+          let idx = fullMarkdown.indexOf(selTrim);
+          if (idx !== -1) {
+            return cleanSystemAndReviewNoise(fullMarkdown.slice(idx));
+          }
+
+          // 3. 忽略空白符差异模糊定位
+          const coreSnippet = selTrim.slice(0, Math.min(25, selTrim.length)).replace(/\s+/g, '');
+          if (coreSnippet.length >= 4) {
+            for (let i = 0; i < fullMarkdown.length - coreSnippet.length; i++) {
+              const windowSub = fullMarkdown.slice(i, i + coreSnippet.length + 12).replace(/\s+/g, '');
+              if (windowSub.startsWith(coreSnippet)) {
+                const lineStart = fullMarkdown.lastIndexOf('\n', i);
+                const cutIdx = lineStart !== -1 ? lineStart + 1 : i;
+                return cleanSystemAndReviewNoise(fullMarkdown.slice(cutIdx));
+              }
+            }
+          }
+
+          // 4. 纯汉字/字母前缀定位 (过滤掉所有标点符号)
+          const pureWords = selTrim.replace(/[\s\r\n`*#_~>|\-\[\]\(\):：。，、！？"']/g, '').slice(0, 10);
+          if (pureWords.length >= 3) {
+            for (let i = 0; i < fullMarkdown.length - pureWords.length; i++) {
+              const windowSub = fullMarkdown.slice(i, i + 30).replace(/[\s\r\n`*#_~>|\-\[\]\(\):：。，、！？"']/g, '');
+              if (windowSub.startsWith(pureWords)) {
+                const lineStart = fullMarkdown.lastIndexOf('\n', i);
+                const cutIdx = lineStart !== -1 ? lineStart + 1 : i;
+                return cleanSystemAndReviewNoise(fullMarkdown.slice(cutIdx));
+              }
+            }
+          }
+        }
+
+        // 5. 若有 tailMarkdown 则使用
+        if (tailMarkdown && tailMarkdown.trim()) {
+          return cleanSystemAndReviewNoise(tailMarkdown);
+        }
+
+        // 6. 从 DOM innerText 从选中位置截取到末尾，绝不只留下几个字
+        if (aiTurn.turnEl?.innerText && selTrim) {
+          const domText = cleanSystemAndReviewNoise(aiTurn.turnEl.innerText);
+          const pos = domText.indexOf(selTrim.slice(0, 20));
+          if (pos !== -1) {
+            return cleanSystemAndReviewNoise(domText.slice(pos));
+          }
+        }
+
+        // 7. 终极保底：返回整段完整回复，坚决杜绝只保留选中的几个字
+        return fullMarkdown ? fullMarkdown : selTrim;
+      }
+
+      pinAiTurnFromSelection = function (aiTurn, selectedText, tailMarkdown = null) {
+        if (!aiTurn || (!selectedText && !tailMarkdown)) return;
+
+        // 从选中位置一直向后截取至整条回复末尾，彻底消除只截取选中几个字的 bug
+        const extracted = cleanSystemAndReviewNoise(extractFromSelectionToEnd(aiTurn, selectedText, tailMarkdown));
+        if (!extracted) return;
+
         const hash = computeHash(extracted);
         const title = extractSummaryTitle(extracted, 'AI Snippet');
-        const anchorSnippet = selectedText.trim().slice(0, 45).replace(/\s+/g, ' ');
+        const anchorSnippet = (selectedText || extracted).trim().slice(0, 45).replace(/\s+/g, ' ');
+
+        // 提取该选区在完整文本中的字符起始偏移位置，用于同一消息内部多个选区的精确先后排序
+        const fullMarkdown = aiTurn.markdownText || aiTurn.turnEl?.innerText || '';
+        let textOffset = 0;
+        if (fullMarkdown && anchorSnippet) {
+          const rawIdx = fullMarkdown.indexOf(anchorSnippet.slice(0, 20));
+          if (rawIdx !== -1) textOffset = rawIdx;
+        }
+
+        // 提取消息所属步骤的绝对元数据（stepIndex / messageTimestamp / turnIndex）
+        const { stepIndex, messageTimestamp } = extractStepMeta(aiTurn.turnEl || aiTurn.toolbar);
+        const turnIndex = getElementTurnIndex(aiTurn.turnEl || aiTurn.toolbar);
 
         if (aiTurn.turnEl) aiTurn.turnEl.setAttribute('data-agy-summary-hash', hash);
 
@@ -8996,19 +9431,29 @@
           text: extracted,
           type: 'ai',
           anchorSnippet,
+          turnIndex: turnIndex !== -1 ? turnIndex : null,
+          stepIndex: typeof stepIndex === 'number' ? stepIndex : null,
+          messageTimestamp: messageTimestamp || null,
+          textOffset,
           timestamp: Date.now()
-        });
+        }, aiTurn.turnEl);
         showNotification?.('📌 Pinned from selection');
       };
 
       // 11. 心跳同步与会话切换
+      let lastCheckedPinOrderSignature = '';
       onHeartbeatPinnedSummary = function () {
         const currentConvoId = getCurrentUrlConvoId();
         if (currentConvoId !== lastConvoIdForPins) {
           lastConvoIdForPins = currentConvoId;
           currentActiveIndex = 0;
+          lastCheckedPinOrderSignature = '';
+          let list = getPinnedList();
+          if (list.length > 1) {
+            list = sortPinsByConversationOrder(list);
+            savePinnedList(list);
+          }
           renderPinnedIndicator();
-          const list = getPinnedList();
           if (list.length === 0) {
             document.getElementById('agy-pip-modal')?.remove();
             document.getElementById('agy-pip-dock')?.remove();
@@ -9016,6 +9461,16 @@
             renderPipModal(list[0]);
           }
         } else {
+          // 增量自愈：若存在未解析 stepIndex 的老数据，尝试在 DOM 就绪后静默校准一次
+          const list = getPinnedList();
+          if (list.length > 1 && !lastCheckedPinOrderSignature) {
+            const hasUnresolved = list.some(p => typeof p.stepIndex !== 'number');
+            if (hasUnresolved) {
+              const sorted = sortPinsByConversationOrder(list);
+              savePinnedList(sorted);
+              lastCheckedPinOrderSignature = 'checked';
+            }
+          }
           renderPinnedIndicator();
         }
 
@@ -9025,6 +9480,11 @@
       // 12. 初始化装载
       ensurePinnedSummaryStyles();
       lastConvoIdForPins = getCurrentUrlConvoId();
+      let initList = getPinnedList();
+      if (initList.length > 1) {
+        initList = sortPinsByConversationOrder(initList);
+        savePinnedList(initList);
+      }
       renderPinnedIndicator();
       syncAllPinButtons();
     }
