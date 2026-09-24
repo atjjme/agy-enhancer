@@ -5509,24 +5509,33 @@
             if (USER_CONFIG.ENABLE_PINNED_SUMMARY !== false && typeof pinAiTurnFromSelection === 'function') {
               const aiTurn = resolveAiResponseTurn(target);
               if (aiTurn) {
+                // 在右键菜单打开时立即提取选区到末尾的内容，彻底避免后续点击导致 selection Range 丢失
+                let capturedTailMarkdown = '';
+                try {
+                  if (selection && selection.rangeCount > 0 && aiTurn.turnEl) {
+                    const range = selection.getRangeAt(0);
+                    const cloned = range.cloneRange();
+                    const lastChild = aiTurn.turnEl.lastChild || aiTurn.turnEl;
+                    cloned.setEndAfter(lastChild);
+                    const frag = cloned.cloneContents();
+                    if (frag) {
+                      // 移除可能混入的代码审查栏、工具条与 diff 状态
+                      frag.querySelectorAll?.('[data-testid*="review"], [data-testid*="diff"], [data-testid="cascade-system-message-toolbar"]')?.forEach(el => el.remove());
+                      frag.querySelectorAll?.('*')?.forEach(el => {
+                        const txt = el.innerText || '';
+                        if (/\d+\s*files?\s*changed/i.test(txt) && /review/i.test(txt)) el.remove();
+                      });
+                      capturedTailMarkdown = htmlToMarkdown(frag).replace(/\n{3,}/g, '\n\n').trim();
+                    }
+                  }
+                } catch (err) {}
+
                 items.push({ separator: true });
                 items.push({
                   label: 'Pin from Selection',
                   icon: 'pin',
                   action: () => {
-                    let tailMarkdown = '';
-                    try {
-                      if (selection && selection.rangeCount > 0 && aiTurn.turnEl) {
-                        const range = selection.getRangeAt(0);
-                        const cloned = range.cloneRange();
-                        cloned.setEndAfter(aiTurn.turnEl.lastChild || aiTurn.turnEl);
-                        const frag = cloned.cloneContents();
-                        if (frag) {
-                          tailMarkdown = htmlToMarkdown(frag).replace(/\n{3,}/g, '\n\n').trim();
-                        }
-                      }
-                    } catch (err) {}
-                    pinAiTurnFromSelection(aiTurn, selectedText, tailMarkdown);
+                    pinAiTurnFromSelection(aiTurn, selectedText, capturedTailMarkdown);
                   }
                 });
               }
@@ -7659,7 +7668,7 @@
             right: calc(100% + 12px);
             bottom: -6px;
             display: flex;
-            flex-direction: column-reverse;
+            flex-direction: column;
             gap: 8px;
             align-items: flex-end;
             opacity: 0;
@@ -8150,25 +8159,51 @@
         return 'h_' + Math.abs(hash);
       }
 
+      function isNoiseLine(line) {
+        if (!line) return true;
+        const clean = line.trim();
+        if (!clean) return true;
+        if (/^(worked|thought)\s+for/i.test(clean)) return true;
+        if (/^thinking(\.\.\.)?/i.test(clean)) return true;
+        if (/\d+\s*files?\s*changed/i.test(clean)) return true;
+        if (/[+\-]\d+.*Review/i.test(clean)) return true;
+        if (/Review\s*\d+:\d+/i.test(clean)) return true;
+        if (/files?\s*changed/i.test(clean)) return true;
+        return false;
+      }
+
+      function cleanSystemAndReviewNoise(text) {
+        if (!text) return '';
+        return text
+          // 移除耗时与思考过程标记
+          .replace(/^(worked|thought)\s+for\s+[\d\w\s\.\>\-]+\n*/gim, '')
+          // 移除如 "1 file changed+85-13Review6:39 PM" 或带空格形式的代码审查状态栏
+          .replace(/(?:^|\n)\s*\d+\s*files?\s*changed[^\n]*(?:Review|[\+\-]\d+)[^\n]*/gi, '')
+          .replace(/(?:^|\n)\s*[+\-]\d+\s+[+\-]\d+\s+Review[^\n]*/gi, '')
+          .replace(/(?:^|\n)\s*Review\s+\d+:\d+\s*(?:AM|PM)?[^\n]*/gi, '')
+          .replace(/(?:^|\n)\s*\d+\s*files?\s*changed[^\n]*/gi, '')
+          .replace(/\n{3,}/g, '\n\n')
+          .trim();
+      }
+
       function extractSummaryTitle(text, defaultTitle = 'Summary') {
         if (!text) return defaultTitle;
-        const lines = text.trim().split('\n');
+        const cleanedText = cleanSystemAndReviewNoise(text);
+        const lines = cleanedText.trim().split('\n');
         // 1. 优先提取 Markdown 标题行 (# 标题)
         for (let line of lines) {
           const trimmed = line.trim();
           if (trimmed.startsWith('#')) {
             const clean = trimmed.replace(/^#+\s*/, '').trim();
-            if (clean && !/^(worked|thought)\s+for/i.test(clean) && !/^thinking/i.test(clean)) {
+            if (clean && !isNoiseLine(clean)) {
               return clean.slice(0, 36);
             }
           }
         }
-        // 2. 查找首个有实际内容的自然文本行（过滤 Worked for 34s、Thought for Xs、Thinking 等系统标记）
+        // 2. 查找首个有实际内容的自然文本行（过滤 Worked for 34s、Thought for Xs、Review 等系统与工具标记）
         for (let line of lines) {
           let clean = line.trim().replace(/^[>\-\*\d\.\s#]+/, '').trim();
-          if (!clean) continue;
-          if (/^(worked|thought)\s+for/i.test(clean)) continue;
-          if (/^thinking(\.\.\.)?/i.test(clean)) continue;
+          if (!clean || isNoiseLine(clean)) continue;
           return clean.slice(0, 36) + (clean.length > 36 ? '...' : '');
         }
         return defaultTitle;
@@ -8764,14 +8799,20 @@
         return { stepIndex, messageTimestamp };
       }
 
-      function getDomTurnIndex(el) {
+      function getElementTurnIndex(el) {
         if (!el) return -1;
-        const container = getChatScrollContainer();
-        if (!container) return -1;
-        const turns = container.querySelectorAll('.group\\/user-input-step, [class*="user-input-step"], [data-testid="cascade-system-message-toolbar"], .group.w-full, [class*="scroll-mt-4"], .flex.items-start');
-        for (let i = 0; i < turns.length; i++) {
-          const t = turns[i];
-          if (t === el || t.contains(el) || el.contains(t)) {
+        const activePane = (typeof getActivePane === 'function') ? getActivePane() : null;
+        const container = getChatScrollContainer(activePane);
+        const turnContainer = container?.querySelector?.('.relative.flex.flex-col.gap-y-3, .flex.flex-col.gap-y-3') ||
+                              activePane?.querySelector?.('.relative.flex.flex-col.gap-y-3, .flex.flex-col.gap-y-3') ||
+                              document.querySelector('.relative.flex.flex-col.gap-y-3, .flex.flex-col.gap-y-3');
+        if (!turnContainer || !turnContainer.children || turnContainer.children.length === 0) {
+          return -1;
+        }
+        const children = turnContainer.children;
+        for (let i = 0; i < children.length; i++) {
+          const child = children[i];
+          if (child === el || child.contains(el) || el.contains(child)) {
             return i;
           }
         }
@@ -8845,71 +8886,71 @@
               if (typeof meta.stepIndex === 'number') item.stepIndex = meta.stepIndex;
               if (meta.messageTimestamp) item.messageTimestamp = meta.messageTimestamp;
             }
-            if (typeof item.domTurnIndex !== 'number') {
-              const dIdx = getDomTurnIndex(el);
-              if (dIdx !== -1) item.domTurnIndex = dIdx;
+            if (typeof item.turnIndex !== 'number') {
+              const tIdx = getElementTurnIndex(el);
+              if (tIdx !== -1) item.turnIndex = tIdx;
             }
           }
         }
 
-        // 预计算容器内的文本流快照，作为无 Fiber 时的全局位置支撑
-        const containerText = chatContainer ? (chatContainer.innerText || '') : '';
-
         const sorted = list.slice().sort((a, b) => {
-          // 1. 第一优先级：stepIndex 步骤主键（单调递增）
+          const elA = elMap.get(a.id || a.hash);
+          const elB = elMap.get(b.id || b.hash);
+
+          // 1. 第一优先级：当前 DOM 中均活跃可见的真实节点比较（最高保真）
+          if (elA && elB) {
+            if (elA === elB) {
+              if (a.type !== b.type) {
+                return a.type === 'prompt' ? -1 : 1;
+              }
+              const offA = typeof a.textOffset === 'number' ? a.textOffset : 0;
+              const offB = typeof b.textOffset === 'number' ? b.textOffset : 0;
+              if (offA !== offB) return offA - offB;
+            } else {
+              const tIdxA = getElementTurnIndex(elA);
+              const tIdxB = getElementTurnIndex(elB);
+              if (tIdxA !== -1 && tIdxB !== -1 && tIdxA !== tIdxB) {
+                return tIdxA - tIdxB;
+              }
+              if (tIdxA !== -1 && tIdxA === tIdxB) {
+                if (a.type !== b.type) {
+                  return a.type === 'prompt' ? -1 : 1;
+                }
+              }
+              const comp = elA.compareDocumentPosition(elB);
+              if (comp & Node.DOCUMENT_POSITION_FOLLOWING) {
+                return -1; // elA 在 elB 上方（较早对话）
+              } else if (comp & Node.DOCUMENT_POSITION_PRECEDING) {
+                return 1;  // elA 在 elB 下方（较晚对话）
+              }
+            }
+          }
+
+          // 2. 第二优先级：记录的回合索引 turnIndex（单调递增）
+          const tIdxA = (typeof a.turnIndex === 'number' && a.turnIndex >= 0) ? a.turnIndex : null;
+          const tIdxB = (typeof b.turnIndex === 'number' && b.turnIndex >= 0) ? b.turnIndex : null;
+          if (tIdxA !== null && tIdxB !== null && tIdxA !== tIdxB) {
+            return tIdxA - tIdxB;
+          }
+
+          // 3. 第三优先级：React Fiber 全局单调递增步骤序列号 stepIndex
           if (typeof a.stepIndex === 'number' && typeof b.stepIndex === 'number') {
             if (a.stepIndex !== b.stepIndex) {
               return a.stepIndex - b.stepIndex;
             }
-            // 同一个 step 内部，按文本起始偏移 textOffset 排序
+          }
+
+          // 4. 同一回合或步骤内部细分（用户提问在前，AI 回复在后；选区偏移在前在后）
+          if ((tIdxA !== null && tIdxA === tIdxB) || (typeof a.stepIndex === 'number' && a.stepIndex === b.stepIndex)) {
+            if (a.type !== b.type) {
+              return a.type === 'prompt' ? -1 : 1;
+            }
             const offA = typeof a.textOffset === 'number' ? a.textOffset : 0;
             const offB = typeof b.textOffset === 'number' ? b.textOffset : 0;
             if (offA !== offB) return offA - offB;
           }
 
-          const elA = elMap.get(a.id || a.hash);
-          const elB = elMap.get(b.id || b.hash);
-
-          // 2. 第二优先级：当前文档流中同时可见的真实 DOM 节点比较
-          if (elA && elB) {
-            if (elA === elB) {
-              const offA = typeof a.textOffset === 'number' ? a.textOffset : 0;
-              const offB = typeof b.textOffset === 'number' ? b.textOffset : 0;
-              if (offA !== offB) return offA - offB;
-              const termA = a.anchorSnippet || (a.text || '').slice(0, 30);
-              const termB = b.anchorSnippet || (b.text || '').slice(0, 30);
-              const posA = (elA.innerText || '').indexOf(termA);
-              const posB = (elB.innerText || '').indexOf(termB);
-              if (posA !== -1 && posB !== -1 && posA !== posB) return posA - posB;
-            } else {
-              const comp = elA.compareDocumentPosition(elB);
-              if (comp & Node.DOCUMENT_POSITION_FOLLOWING) {
-                return -1; // elA 在 elB 上方（较前）
-              } else if (comp & Node.DOCUMENT_POSITION_PRECEDING) {
-                return 1;  // elA 在 elB 下方（较后）
-              }
-            }
-          }
-
-          // 3. 第三优先级：在页面上的相对步骤序号 domTurnIndex
-          if (typeof a.domTurnIndex === 'number' && typeof b.domTurnIndex === 'number') {
-            if (a.domTurnIndex !== b.domTurnIndex) {
-              return a.domTurnIndex - b.domTurnIndex;
-            }
-          }
-
-          // 4. 第四优先级：容器纯文本流位置检索（对齐未渲染但文本已在流中的情况）
-          if (containerText) {
-            const termA = a.anchorSnippet || a.title || (a.text || '').slice(0, 30);
-            const termB = b.anchorSnippet || b.title || (b.text || '').slice(0, 30);
-            const posA = termA ? containerText.indexOf(termA.slice(0, 20)) : -1;
-            const posB = termB ? containerText.indexOf(termB.slice(0, 20)) : -1;
-            if (posA !== -1 && posB !== -1 && posA !== posB) {
-              return posA - posB;
-            }
-          }
-
-          // 5. 第五优先级：消息生成的自然时间戳 messageTimestamp
+          // 5. 第四优先级：消息生成的时间戳 messageTimestamp
           if (a.messageTimestamp && b.messageTimestamp) {
             const tA = typeof a.messageTimestamp === 'number' ? a.messageTimestamp : Date.parse(a.messageTimestamp);
             const tB = typeof b.messageTimestamp === 'number' ? b.messageTimestamp : Date.parse(b.messageTimestamp);
@@ -8918,14 +8959,13 @@
             }
           }
 
-          // 6. 第六优先级：历史分配的稳定 orderIndex
+          // 6. 保底优先级：历史分配索引或创建时刻时间戳，绝不倒错
           if (typeof a.orderIndex === 'number' && typeof b.orderIndex === 'number') {
             if (a.orderIndex !== b.orderIndex) {
               return a.orderIndex - b.orderIndex;
             }
           }
 
-          // 7. 终极保底：保持稳定，绝不倒错
           return (a.timestamp || 0) - (b.timestamp || 0);
         });
 
@@ -9023,10 +9063,11 @@
           markdownText = clone.innerText?.trim() || '';
         }
 
+        markdownText = cleanSystemAndReviewNoise(markdownText);
         const hash = computeHash('prompt:' + markdownText);
         const title = extractSummaryTitle(markdownText, 'User Prompt');
-        const domTurnIndex = getDomTurnIndex(uTurn);
-        return { markdownText, hash, title, stepIndex, messageTimestamp, domTurnIndex };
+        const turnIndex = getElementTurnIndex(uTurn);
+        return { markdownText, hash, title, stepIndex, messageTimestamp, turnIndex };
       }
 
       function extractAiTurnData(turnEl, toolbar = null) {
@@ -9073,25 +9114,26 @@
         if (!markdownText && turnEl) {
           const clone = turnEl.cloneNode(true);
           clone.querySelectorAll('[data-testid="cascade-system-message-toolbar"]')?.forEach(el => el.remove());
-          // 移除耗时、思考过程折叠头 (如 Worked for 34s, Thought for 10s)
+          clone.querySelectorAll('[data-testid*="review"], [data-testid*="diff"]')?.forEach(el => el.remove());
+          // 移除耗时、思考过程折叠头 (如 Worked for 34s, Thought for 10s) 与代码审查栏
           clone.querySelectorAll('button, div, span, [data-testid*="thought"], [class*="thought"]').forEach(el => {
             const t = el.innerText?.trim() || '';
             if (/^(worked|thought)\s+for\s+\d+/i.test(t) && t.length < 60) {
+              el.remove();
+            } else if (/\d+\s*files?\s*changed/i.test(t) && /review/i.test(t)) {
               el.remove();
             }
           });
           markdownText = clone.innerText?.trim() || '';
         }
 
-        if (markdownText) {
-          // 彻底剥离可能残留于开头的 "Worked for 34s >" 或 "Thought for Xs" 标记
-          markdownText = markdownText.replace(/^(worked|thought)\s+for\s+[\d\w\s\.\>\-]+\n*/i, '').trim();
-        }
+        // 统一彻底清理审查栏和系统噪音
+        markdownText = cleanSystemAndReviewNoise(markdownText);
 
         const hash = computeHash(markdownText);
         const title = extractSummaryTitle(markdownText, 'AI Summary');
-        const domTurnIndex = getDomTurnIndex(turnEl || effectiveToolbar);
-        return { markdownText, hash, title, stepIndex, messageTimestamp, domTurnIndex };
+        const turnIndex = getElementTurnIndex(turnEl || effectiveToolbar);
+        return { markdownText, hash, title, stepIndex, messageTimestamp, turnIndex };
       }
 
       // 8. 巡检并同步钉选按钮 (用户提问右下角 + AI 回复右下角复制前)
@@ -9120,7 +9162,7 @@
             uPinBtn.addEventListener('click', (e) => {
               e.preventDefault();
               e.stopPropagation();
-              const { markdownText, hash, title } = extractUserPromptData(uTurn);
+              const { markdownText, hash, title, stepIndex, messageTimestamp, turnIndex } = extractUserPromptData(uTurn);
               if (!markdownText) return;
               uTurn.setAttribute('data-agy-summary-hash', hash);
               const isPinned = list.some(p => p.hash === hash);
@@ -9135,7 +9177,7 @@
                   type: 'prompt',
                   stepIndex: typeof stepIndex === 'number' ? stepIndex : null,
                   messageTimestamp: messageTimestamp || null,
-                  domTurnIndex: domTurnIndex !== -1 ? domTurnIndex : null,
+                  turnIndex: typeof turnIndex === 'number' ? turnIndex : null,
                   timestamp: Date.now()
                 }, uTurn);
               }
@@ -9189,7 +9231,7 @@
             aiPinBtn.addEventListener('click', (e) => {
               e.preventDefault();
               e.stopPropagation();
-              const { markdownText, hash, title } = extractAiTurnData(turnEl, toolbar);
+              const { markdownText, hash, title, stepIndex, messageTimestamp, turnIndex } = extractAiTurnData(turnEl, toolbar);
               if (!markdownText) return;
               turnEl.setAttribute('data-agy-summary-hash', hash);
               const isPinned = list.some(p => p.hash === hash);
@@ -9204,7 +9246,7 @@
                   type: 'ai',
                   stepIndex: typeof stepIndex === 'number' ? stepIndex : null,
                   messageTimestamp: messageTimestamp || null,
-                  domTurnIndex: domTurnIndex !== -1 ? domTurnIndex : null,
+                  turnIndex: typeof turnIndex === 'number' ? turnIndex : null,
                   timestamp: Date.now()
                 }, turnEl);
               }
@@ -9279,19 +9321,22 @@
 
       // 10. 选中文本时：从当前选中位置向后截取提取至消息末尾并钉选
       function extractFromSelectionToEnd(aiTurn, selectedText, tailMarkdown = null) {
-        const fullMarkdown = aiTurn.markdownText || aiTurn.turnEl?.innerText || '';
+        const fullMarkdown = cleanSystemAndReviewNoise(aiTurn.markdownText || aiTurn.turnEl?.innerText || '');
         const selTrim = (selectedText || '').trim();
 
-        // 1. 若外部已通过 DOM Range 向后克隆到末尾成功提取了 tailMarkdown，且内容完整充实，优先使用
-        if (tailMarkdown && tailMarkdown.length > selTrim.length + 10) {
-          return tailMarkdown.trim();
+        // 1. 若外部已通过 DOM Range 向后克隆到末尾成功提取了 tailMarkdown，优先清洗后使用
+        if (tailMarkdown && tailMarkdown.trim()) {
+          const cleanedTail = cleanSystemAndReviewNoise(tailMarkdown);
+          if (cleanedTail.length >= selTrim.length) {
+            return cleanedTail;
+          }
         }
 
         if (fullMarkdown && selTrim) {
           // 2. 完全精确查找
           let idx = fullMarkdown.indexOf(selTrim);
           if (idx !== -1) {
-            return fullMarkdown.slice(idx).trim();
+            return cleanSystemAndReviewNoise(fullMarkdown.slice(idx));
           }
 
           // 3. 忽略空白符差异模糊定位
@@ -9302,7 +9347,7 @@
               if (windowSub.startsWith(coreSnippet)) {
                 const lineStart = fullMarkdown.lastIndexOf('\n', i);
                 const cutIdx = lineStart !== -1 ? lineStart + 1 : i;
-                return fullMarkdown.slice(cutIdx).trim();
+                return cleanSystemAndReviewNoise(fullMarkdown.slice(cutIdx));
               }
             }
           }
@@ -9315,7 +9360,7 @@
               if (windowSub.startsWith(pureWords)) {
                 const lineStart = fullMarkdown.lastIndexOf('\n', i);
                 const cutIdx = lineStart !== -1 ? lineStart + 1 : i;
-                return fullMarkdown.slice(cutIdx).trim();
+                return cleanSystemAndReviewNoise(fullMarkdown.slice(cutIdx));
               }
             }
           }
@@ -9323,26 +9368,27 @@
 
         // 5. 若有 tailMarkdown 则使用
         if (tailMarkdown && tailMarkdown.trim()) {
-          return tailMarkdown.trim();
+          return cleanSystemAndReviewNoise(tailMarkdown);
         }
 
         // 6. 从 DOM innerText 从选中位置截取到末尾，绝不只留下几个字
         if (aiTurn.turnEl?.innerText && selTrim) {
-          const domText = aiTurn.turnEl.innerText;
+          const domText = cleanSystemAndReviewNoise(aiTurn.turnEl.innerText);
           const pos = domText.indexOf(selTrim.slice(0, 20));
           if (pos !== -1) {
-            return domText.slice(pos).trim();
+            return cleanSystemAndReviewNoise(domText.slice(pos));
           }
         }
 
-        return fullMarkdown ? fullMarkdown.trim() : selTrim;
+        // 7. 终极保底：返回整段完整回复，坚决杜绝只保留选中的几个字
+        return fullMarkdown ? fullMarkdown : selTrim;
       }
 
       pinAiTurnFromSelection = function (aiTurn, selectedText, tailMarkdown = null) {
         if (!aiTurn || (!selectedText && !tailMarkdown)) return;
 
         // 从选中位置一直向后截取至整条回复末尾，彻底消除只截取选中几个字的 bug
-        const extracted = extractFromSelectionToEnd(aiTurn, selectedText, tailMarkdown);
+        const extracted = cleanSystemAndReviewNoise(extractFromSelectionToEnd(aiTurn, selectedText, tailMarkdown));
         if (!extracted) return;
 
         const hash = computeHash(extracted);
@@ -9357,9 +9403,9 @@
           if (rawIdx !== -1) textOffset = rawIdx;
         }
 
-        // 提取消息所属步骤的绝对元数据（stepIndex / messageTimestamp / domTurnIndex）
+        // 提取消息所属步骤的绝对元数据（stepIndex / messageTimestamp / turnIndex）
         const { stepIndex, messageTimestamp } = extractStepMeta(aiTurn.turnEl || aiTurn.toolbar);
-        const domTurnIndex = getDomTurnIndex(aiTurn.turnEl || aiTurn.toolbar);
+        const turnIndex = getElementTurnIndex(aiTurn.turnEl || aiTurn.toolbar);
 
         if (aiTurn.turnEl) aiTurn.turnEl.setAttribute('data-agy-summary-hash', hash);
 
@@ -9370,9 +9416,9 @@
           text: extracted,
           type: 'ai',
           anchorSnippet,
+          turnIndex: turnIndex !== -1 ? turnIndex : null,
           stepIndex: typeof stepIndex === 'number' ? stepIndex : null,
           messageTimestamp: messageTimestamp || null,
-          domTurnIndex: domTurnIndex !== -1 ? domTurnIndex : null,
           textOffset,
           timestamp: Date.now()
         }, aiTurn.turnEl);
