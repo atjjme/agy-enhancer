@@ -5529,7 +5529,7 @@ window.__AGY_BRANCH_NAME__ = "sort_pinned_list";
                   label: 'Pin from Selection',
                   icon: 'pin',
                   action: () => {
-                    pinAiTurnFromSelection(aiTurn, selectedText);
+                    pinAiTurnFromSelection(aiTurn, selectedText, capturedMarkdown);
                   }
                 });
               }
@@ -8709,35 +8709,116 @@ window.__AGY_BRANCH_NAME__ = "sort_pinned_list";
         });
       }
 
-      // 6. 辅助定位与对话位置排序
+      // 6. 辅助定位与对话位置排序（多维层级排序体系，彻底解决虚拟滚动及倒序问题）
+      function extractStepMeta(el) {
+        let stepIndex = null;
+        let messageTimestamp = null;
+        if (!el) return { stepIndex, messageTimestamp };
+
+        try {
+          const fiberKey = Object.keys(el || {}).find(k => k.startsWith('__reactFiber$') || k.startsWith('__reactInternalInstance$'));
+          let f = el[fiberKey];
+          let depth = 0;
+          while (f && depth < 30) {
+            depth++;
+            const p = f.memoizedProps;
+            if (p) {
+              // 1. 直接检查 props 中的 step 信息
+              if (typeof p.stepIndex === 'number') {
+                stepIndex = p.stepIndex;
+              } else if (p.step) {
+                const sObj = p.step.value || p.step;
+                if (typeof sObj.step_index === 'number') stepIndex = sObj.step_index;
+                else if (typeof sObj.stepIndex === 'number') stepIndex = sObj.stepIndex;
+                else if (typeof sObj.index === 'number') stepIndex = sObj.index;
+
+                if (!messageTimestamp) {
+                  const ts = sObj.created_at || sObj.createdAt || sObj.timestamp;
+                  if (ts) messageTimestamp = typeof ts === 'number' ? ts : Date.parse(ts);
+                }
+              }
+
+              // 2. 检查 props.steps 数组
+              if (stepIndex === null && Array.isArray(p.steps) && p.steps.length > 0) {
+                for (const s of p.steps) {
+                  const sObj = s?.step?.value || s?.step || s;
+                  if (typeof sObj?.step_index === 'number') stepIndex = sObj.step_index;
+                  else if (typeof sObj?.stepIndex === 'number') stepIndex = sObj.stepIndex;
+                  else if (typeof sObj?.index === 'number') stepIndex = sObj.index;
+
+                  if (!messageTimestamp && sObj) {
+                    const ts = sObj.created_at || sObj.createdAt || sObj.timestamp;
+                    if (ts) messageTimestamp = typeof ts === 'number' ? ts : Date.parse(ts);
+                  }
+                  if (stepIndex !== null) break;
+                }
+              }
+
+              // 3. 检查 userMessage 或 timestamp
+              if (!messageTimestamp && p.timestamp) {
+                messageTimestamp = typeof p.timestamp === 'number' ? p.timestamp : Date.parse(p.timestamp);
+              }
+            }
+            if (stepIndex !== null && messageTimestamp) break;
+            f = f.return;
+          }
+        } catch (e) {}
+
+        return { stepIndex, messageTimestamp };
+      }
+
+      function getDomTurnIndex(el) {
+        if (!el) return -1;
+        const container = getChatScrollContainer();
+        if (!container) return -1;
+        const turns = container.querySelectorAll('.group\\/user-input-step, [class*="user-input-step"], [data-testid="cascade-system-message-toolbar"], .group.w-full, [class*="scroll-mt-4"], .flex.items-start');
+        for (let i = 0; i < turns.length; i++) {
+          const t = turns[i];
+          if (t === el || t.contains(el) || el.contains(t)) {
+            return i;
+          }
+        }
+        return -1;
+      }
+
       function getPinTurnElement(item) {
         if (!item) return null;
         const chatContainer = getChatScrollContainer();
         if (!chatContainer) return null;
 
+        // 1. 精确哈希匹配
         if (item.hash) {
           const el = chatContainer.querySelector(`[data-agy-summary-hash="${item.hash}"]`);
           if (el) return el;
         }
 
-        const snippet = item.text ? item.text.slice(0, 40).trim() : '';
-        if (!snippet) return null;
+        // 2. 锚点特征短句匹配 (针对选区钉选最精准)
+        const anchor = (item.anchorSnippet || '').trim();
+        const snippet = (item.text || '').slice(0, 40).trim();
+        const title = (item.title || '').trim();
+        const searchTerms = [anchor, snippet, title].filter(t => t && t.length >= 4);
+
+        if (searchTerms.length === 0) return null;
 
         if (item.type === 'prompt') {
           const userTurns = chatContainer.querySelectorAll('.group\\/user-input-step, [class*="user-input-step"]');
-          for (const turn of userTurns) {
-            if ((turn.innerText || '').includes(snippet)) {
-              if (item.hash) turn.setAttribute('data-agy-summary-hash', item.hash);
-              return turn;
+          for (const term of searchTerms) {
+            for (const turn of userTurns) {
+              if ((turn.innerText || '').includes(term)) {
+                if (item.hash) turn.setAttribute('data-agy-summary-hash', item.hash);
+                return turn;
+              }
             }
           }
         } else {
           const candidateTurns = chatContainer.querySelectorAll('.group.w-full, [class*="scroll-mt-4"], .flex.items-start');
-          for (const turn of candidateTurns) {
-            if (turn.closest('.group\\/user-input-step, [class*="user-input-step"]')) continue;
-            if ((turn.innerText || '').includes(snippet)) {
-              if (item.hash) turn.setAttribute('data-agy-summary-hash', item.hash);
-              return turn;
+          for (const term of searchTerms) {
+            for (const turn of candidateTurns) {
+              if (turn.closest('.group\\/user-input-step, [class*="user-input-step"]')) continue;
+              if ((turn.innerText || '').includes(term)) {
+                if (item.hash) turn.setAttribute('data-agy-summary-hash', item.hash);
+                return turn;
+              }
             }
           }
         }
@@ -8746,55 +8827,112 @@ window.__AGY_BRANCH_NAME__ = "sort_pinned_list";
 
       function sortPinsByConversationOrder(list, currentTurnEl = null, currentItem = null) {
         if (!Array.isArray(list) || list.length <= 1) return list;
+        const chatContainer = getChatScrollContainer();
 
-        // 建立元素缓存映射，批量快速定位，避免排序反复查询
         const elMap = new Map();
         if (currentItem && currentTurnEl) {
           elMap.set(currentItem.id || currentItem.hash, currentTurnEl);
         }
 
+        // 预查所有元素的 DOM 节点，并为老数据自愈补齐 stepIndex 和元数据
         for (const item of list) {
           const key = item.id || item.hash;
-          if (!elMap.has(key)) {
-            const el = getPinTurnElement(item);
+          let el = elMap.get(key);
+          if (!el) {
+            el = getPinTurnElement(item);
             if (el) elMap.set(key, el);
+          }
+          if (el) {
+            if (typeof item.stepIndex !== 'number' || !item.messageTimestamp) {
+              const meta = extractStepMeta(el);
+              if (typeof meta.stepIndex === 'number') item.stepIndex = meta.stepIndex;
+              if (meta.messageTimestamp) item.messageTimestamp = meta.messageTimestamp;
+            }
+            if (typeof item.domTurnIndex !== 'number') {
+              const dIdx = getDomTurnIndex(el);
+              if (dIdx !== -1) item.domTurnIndex = dIdx;
+            }
           }
         }
 
+        // 预计算容器内的文本流快照，作为无 Fiber 时的全局位置支撑
+        const containerText = chatContainer ? (chatContainer.innerText || '') : '';
+
         const sorted = list.slice().sort((a, b) => {
+          // 1. 第一优先级：stepIndex 步骤主键（单调递增）
+          if (typeof a.stepIndex === 'number' && typeof b.stepIndex === 'number') {
+            if (a.stepIndex !== b.stepIndex) {
+              return a.stepIndex - b.stepIndex;
+            }
+            // 同一个 step 内部，按文本起始偏移 textOffset 排序
+            const offA = typeof a.textOffset === 'number' ? a.textOffset : 0;
+            const offB = typeof b.textOffset === 'number' ? b.textOffset : 0;
+            if (offA !== offB) return offA - offB;
+          }
+
           const elA = elMap.get(a.id || a.hash);
           const elB = elMap.get(b.id || b.hash);
 
+          // 2. 第二优先级：当前文档流中同时可见的真实 DOM 节点比较
           if (elA && elB) {
             if (elA === elB) {
-              // 属于同一条消息内部（如同一消息内的多个选区钉选）
-              if (a.anchorSnippet && b.anchorSnippet && a.text && b.text) {
-                const posA = a.text.indexOf(a.anchorSnippet);
-                const posB = b.text.indexOf(b.anchorSnippet);
-                if (posA !== -1 && posB !== -1 && posA !== posB) {
-                  return posA - posB;
-                }
+              const offA = typeof a.textOffset === 'number' ? a.textOffset : 0;
+              const offB = typeof b.textOffset === 'number' ? b.textOffset : 0;
+              if (offA !== offB) return offA - offB;
+              const termA = a.anchorSnippet || (a.text || '').slice(0, 30);
+              const termB = b.anchorSnippet || (b.text || '').slice(0, 30);
+              const posA = (elA.innerText || '').indexOf(termA);
+              const posB = (elB.innerText || '').indexOf(termB);
+              if (posA !== -1 && posB !== -1 && posA !== posB) return posA - posB;
+            } else {
+              const comp = elA.compareDocumentPosition(elB);
+              if (comp & Node.DOCUMENT_POSITION_FOLLOWING) {
+                return -1; // elA 在 elB 上方（较前）
+              } else if (comp & Node.DOCUMENT_POSITION_PRECEDING) {
+                return 1;  // elA 在 elB 下方（较后）
               }
-              return (a.timestamp || 0) - (b.timestamp || 0);
-            }
-            // 利用原生 DOM 文档树位置比对
-            const comp = elA.compareDocumentPosition(elB);
-            if (comp & Node.DOCUMENT_POSITION_FOLLOWING) {
-              return -1; // elA 在 elB 上方（对话靠前）
-            } else if (comp & Node.DOCUMENT_POSITION_PRECEDING) {
-              return 1;  // elA 在 elB 下方（对话靠后）
             }
           }
 
-          // 若某一元素已被虚拟化列表卸载或无法定位 DOM：
-          // 优先使用历史记录中维护的 orderIndex，次选时间戳 fallback
-          if (typeof a.orderIndex === 'number' && typeof b.orderIndex === 'number') {
-            return a.orderIndex - b.orderIndex;
+          // 3. 第三优先级：在页面上的相对步骤序号 domTurnIndex
+          if (typeof a.domTurnIndex === 'number' && typeof b.domTurnIndex === 'number') {
+            if (a.domTurnIndex !== b.domTurnIndex) {
+              return a.domTurnIndex - b.domTurnIndex;
+            }
           }
+
+          // 4. 第四优先级：容器纯文本流位置检索（对齐未渲染但文本已在流中的情况）
+          if (containerText) {
+            const termA = a.anchorSnippet || a.title || (a.text || '').slice(0, 30);
+            const termB = b.anchorSnippet || b.title || (b.text || '').slice(0, 30);
+            const posA = termA ? containerText.indexOf(termA.slice(0, 20)) : -1;
+            const posB = termB ? containerText.indexOf(termB.slice(0, 20)) : -1;
+            if (posA !== -1 && posB !== -1 && posA !== posB) {
+              return posA - posB;
+            }
+          }
+
+          // 5. 第五优先级：消息生成的自然时间戳 messageTimestamp
+          if (a.messageTimestamp && b.messageTimestamp) {
+            const tA = typeof a.messageTimestamp === 'number' ? a.messageTimestamp : Date.parse(a.messageTimestamp);
+            const tB = typeof b.messageTimestamp === 'number' ? b.messageTimestamp : Date.parse(b.messageTimestamp);
+            if (!isNaN(tA) && !isNaN(tB) && tA !== tB) {
+              return tA - tB;
+            }
+          }
+
+          // 6. 第六优先级：历史分配的稳定 orderIndex
+          if (typeof a.orderIndex === 'number' && typeof b.orderIndex === 'number') {
+            if (a.orderIndex !== b.orderIndex) {
+              return a.orderIndex - b.orderIndex;
+            }
+          }
+
+          // 7. 终极保底：保持稳定，绝不倒错
           return (a.timestamp || 0) - (b.timestamp || 0);
         });
 
-        // 重新分配稳定的递增 orderIndex，以便节点滚出可视区被卸载时仍能保持严格顺序
+        // 重新分配连续递增的 orderIndex
         sorted.forEach((item, idx) => {
           item.orderIndex = idx;
         });
@@ -8850,18 +8988,34 @@ window.__AGY_BRANCH_NAME__ = "sort_pinned_list";
       // 7. 提取用户提示词数据 (User Prompt Data)
       function extractUserPromptData(uTurn) {
         let markdownText = '';
+        let stepIndex = null;
+        let messageTimestamp = null;
+
         try {
           const fiberKey = Object.keys(uTurn || {}).find(k => k.startsWith('__reactFiber$') || k.startsWith('__reactInternalInstance$'));
           let f = uTurn[fiberKey];
-          while (f) {
+          let depth = 0;
+          while (f && depth < 25) {
+            depth++;
             if (f.memoizedProps) {
               const p = f.memoizedProps;
               const msg = p.message || p.userMessage || p.step?.userMessage || p.step?.text || p.step?.content || p.step?.value?.userMessage;
-              if (typeof msg === 'string' && msg.trim()) {
+              if (typeof msg === 'string' && msg.trim() && !markdownText) {
                 markdownText = msg.trim();
-                break;
+              }
+              if (stepIndex === null) {
+                const sObj = p.step?.value || p.step;
+                if (typeof p.stepIndex === 'number') stepIndex = p.stepIndex;
+                else if (typeof sObj?.step_index === 'number') stepIndex = sObj.step_index;
+                else if (typeof sObj?.stepIndex === 'number') stepIndex = sObj.stepIndex;
+                else if (typeof sObj?.index === 'number') stepIndex = sObj.index;
+              }
+              if (!messageTimestamp) {
+                const ts = p.timestamp || p.step?.timestamp || p.step?.created_at || p.step?.createdAt;
+                if (ts) messageTimestamp = typeof ts === 'number' ? ts : Date.parse(ts);
               }
             }
+            if (markdownText && stepIndex !== null && messageTimestamp) break;
             f = f.return;
           }
         } catch (e) {}
@@ -8874,11 +9028,14 @@ window.__AGY_BRANCH_NAME__ = "sort_pinned_list";
 
         const hash = computeHash('prompt:' + markdownText);
         const title = extractSummaryTitle(markdownText, 'User Prompt');
-        return { markdownText, hash, title };
+        const domTurnIndex = getDomTurnIndex(uTurn);
+        return { markdownText, hash, title, stepIndex, messageTimestamp, domTurnIndex };
       }
 
       function extractAiTurnData(turnEl, toolbar = null) {
         let markdownText = '';
+        let stepIndex = null;
+        let messageTimestamp = null;
         const effectiveToolbar = toolbar || turnEl?.querySelector?.('[data-testid="cascade-system-message-toolbar"]');
 
         try {
@@ -8886,21 +9043,33 @@ window.__AGY_BRANCH_NAME__ = "sort_pinned_list";
           for (const root of searchRoots) {
             const fiberKey = Object.keys(root).find(k => k.startsWith('__reactFiber$') || k.startsWith('__reactInternalInstance$'));
             let f = root[fiberKey];
-            while (f) {
+            let depth = 0;
+            while (f && depth < 25) {
+              depth++;
               if (f.memoizedProps?.steps) {
                 const steps = f.memoizedProps.steps;
                 for (const s of steps) {
                   const stepObj = s.step?.value || s.step;
                   if (stepObj?.response || stepObj?.modifiedResponse) {
-                    markdownText = stepObj.modifiedResponse || stepObj.response || '';
-                    break;
+                    if (!markdownText) markdownText = stepObj.modifiedResponse || stepObj.response || '';
+                  }
+                  if (stepIndex === null) {
+                    if (typeof s.stepIndex === 'number') stepIndex = s.stepIndex;
+                    else if (typeof s.index === 'number') stepIndex = s.index;
+                    else if (typeof stepObj?.step_index === 'number') stepIndex = stepObj.step_index;
+                    else if (typeof stepObj?.stepIndex === 'number') stepIndex = stepObj.stepIndex;
+                    else if (typeof stepObj?.index === 'number') stepIndex = stepObj.index;
+                  }
+                  if (!messageTimestamp && stepObj) {
+                    const ts = stepObj.created_at || stepObj.createdAt || stepObj.timestamp;
+                    if (ts) messageTimestamp = typeof ts === 'number' ? ts : Date.parse(ts);
                   }
                 }
-                if (markdownText) break;
+                if (markdownText && stepIndex !== null) break;
               }
               f = f.return;
             }
-            if (markdownText) break;
+            if (markdownText && stepIndex !== null) break;
           }
         } catch (e) {}
 
@@ -8924,7 +9093,8 @@ window.__AGY_BRANCH_NAME__ = "sort_pinned_list";
 
         const hash = computeHash(markdownText);
         const title = extractSummaryTitle(markdownText, 'AI Summary');
-        return { markdownText, hash, title };
+        const domTurnIndex = getDomTurnIndex(turnEl || effectiveToolbar);
+        return { markdownText, hash, title, stepIndex, messageTimestamp, domTurnIndex };
       }
 
       // 8. 巡检并同步钉选按钮 (用户提问右下角 + AI 回复右下角复制前)
@@ -8966,6 +9136,9 @@ window.__AGY_BRANCH_NAME__ = "sort_pinned_list";
                   title,
                   text: markdownText,
                   type: 'prompt',
+                  stepIndex: typeof stepIndex === 'number' ? stepIndex : null,
+                  messageTimestamp: messageTimestamp || null,
+                  domTurnIndex: domTurnIndex !== -1 ? domTurnIndex : null,
                   timestamp: Date.now()
                 }, uTurn);
               }
@@ -9032,6 +9205,9 @@ window.__AGY_BRANCH_NAME__ = "sort_pinned_list";
                   title,
                   text: markdownText,
                   type: 'ai',
+                  stepIndex: typeof stepIndex === 'number' ? stepIndex : null,
+                  messageTimestamp: messageTimestamp || null,
+                  domTurnIndex: domTurnIndex !== -1 ? domTurnIndex : null,
                   timestamp: Date.now()
                 }, turnEl);
               }
@@ -9088,34 +9264,45 @@ window.__AGY_BRANCH_NAME__ = "sort_pinned_list";
         if (isPinned) {
           removePinItem(hash);
         } else {
+          const { stepIndex, messageTimestamp } = extractStepMeta(aiTurn.turnEl || aiTurn.toolbar);
+          const domTurnIndex = getDomTurnIndex(aiTurn.turnEl || aiTurn.toolbar);
           addPinItem({
             id: 'pin_' + Date.now(),
             hash,
             title,
             text,
             type: 'ai',
+            stepIndex: typeof stepIndex === 'number' ? stepIndex : null,
+            messageTimestamp: messageTimestamp || null,
+            domTurnIndex: domTurnIndex !== -1 ? domTurnIndex : null,
             timestamp: Date.now()
           }, aiTurn.turnEl);
         }
       };
 
-      // 10. 选中文本时：从当前选中位置向后截取提取并钉选
-      pinAiTurnFromSelection = function (aiTurn, selectedText) {
-        if (!aiTurn || !selectedText) return;
-        const fullMarkdown = aiTurn.markdownText || aiTurn.turnEl?.innerText || '';
-        if (!fullMarkdown) return;
+      // 10. 选中文本时：精确提取选中文本内容并钉选 (坚决不向后截断到末尾)
+      pinAiTurnFromSelection = function (aiTurn, selectedText, capturedMarkdown = null) {
+        if (!aiTurn || (!selectedText && !capturedMarkdown)) return;
 
-        let startIndex = fullMarkdown.indexOf(selectedText.trim());
-        if (startIndex === -1) {
-          // 容错模糊匹配：取选区前 15 个字
-          const snippet = selectedText.trim().slice(0, 15);
-          startIndex = fullMarkdown.indexOf(snippet);
+        // 精准提取选区文本：优先使用保留排版的 capturedMarkdown，其次选中的原始纯文本，绝不向后截断到末尾
+        const cleanContent = (capturedMarkdown || selectedText || '').trim();
+        if (!cleanContent) return;
+
+        const hash = computeHash(cleanContent);
+        const title = extractSummaryTitle(cleanContent, 'AI Snippet');
+        const anchorSnippet = (selectedText || cleanContent).trim().slice(0, 45).replace(/\s+/g, ' ');
+
+        // 提取该选区在完整文本中的字符起始偏移位置，用于同一消息内部多个选区的精确先后排序
+        const fullMarkdown = aiTurn.markdownText || aiTurn.turnEl?.innerText || '';
+        let textOffset = 0;
+        if (fullMarkdown && anchorSnippet) {
+          const rawIdx = fullMarkdown.indexOf(anchorSnippet.slice(0, 20));
+          if (rawIdx !== -1) textOffset = rawIdx;
         }
 
-        const extracted = startIndex !== -1 ? fullMarkdown.slice(startIndex).trim() : selectedText.trim();
-        const hash = computeHash(extracted);
-        const title = extractSummaryTitle(extracted, 'AI Snippet');
-        const anchorSnippet = selectedText.trim().slice(0, 45).replace(/\s+/g, ' ');
+        // 提取消息所属步骤的绝对元数据（stepIndex / messageTimestamp / domTurnIndex）
+        const { stepIndex, messageTimestamp } = extractStepMeta(aiTurn.turnEl || aiTurn.toolbar);
+        const domTurnIndex = getDomTurnIndex(aiTurn.turnEl || aiTurn.toolbar);
 
         if (aiTurn.turnEl) aiTurn.turnEl.setAttribute('data-agy-summary-hash', hash);
 
@@ -9123,22 +9310,32 @@ window.__AGY_BRANCH_NAME__ = "sort_pinned_list";
           id: 'pin_' + Date.now(),
           hash,
           title,
-          text: extracted,
+          text: cleanContent,
           type: 'ai',
           anchorSnippet,
+          stepIndex: typeof stepIndex === 'number' ? stepIndex : null,
+          messageTimestamp: messageTimestamp || null,
+          domTurnIndex: domTurnIndex !== -1 ? domTurnIndex : null,
+          textOffset,
           timestamp: Date.now()
         }, aiTurn.turnEl);
         showNotification?.('📌 Pinned from selection');
       };
 
       // 11. 心跳同步与会话切换
+      let lastCheckedPinOrderSignature = '';
       onHeartbeatPinnedSummary = function () {
         const currentConvoId = getCurrentUrlConvoId();
         if (currentConvoId !== lastConvoIdForPins) {
           lastConvoIdForPins = currentConvoId;
           currentActiveIndex = 0;
+          lastCheckedPinOrderSignature = '';
+          let list = getPinnedList();
+          if (list.length > 1) {
+            list = sortPinsByConversationOrder(list);
+            savePinnedList(list);
+          }
           renderPinnedIndicator();
-          const list = getPinnedList();
           if (list.length === 0) {
             document.getElementById('agy-pip-modal')?.remove();
             document.getElementById('agy-pip-dock')?.remove();
@@ -9146,6 +9343,16 @@ window.__AGY_BRANCH_NAME__ = "sort_pinned_list";
             renderPipModal(list[0]);
           }
         } else {
+          // 增量自愈：若存在未解析 stepIndex 的老数据，尝试在 DOM 就绪后静默校准一次
+          const list = getPinnedList();
+          if (list.length > 1 && !lastCheckedPinOrderSignature) {
+            const hasUnresolved = list.some(p => typeof p.stepIndex !== 'number');
+            if (hasUnresolved) {
+              const sorted = sortPinsByConversationOrder(list);
+              savePinnedList(sorted);
+              lastCheckedPinOrderSignature = 'checked';
+            }
+          }
           renderPinnedIndicator();
         }
 
@@ -9155,6 +9362,11 @@ window.__AGY_BRANCH_NAME__ = "sort_pinned_list";
       // 12. 初始化装载
       ensurePinnedSummaryStyles();
       lastConvoIdForPins = getCurrentUrlConvoId();
+      let initList = getPinnedList();
+      if (initList.length > 1) {
+        initList = sortPinsByConversationOrder(initList);
+        savePinnedList(initList);
+      }
       renderPinnedIndicator();
       syncAllPinButtons();
     }
