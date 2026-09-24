@@ -101,7 +101,11 @@ namespace AgyEnhancer
     {
         private NotifyIcon notifyIcon;
         private ContextMenuStrip contextMenu;
+        private ToolStripMenuItem itemSettings;
         private ToolStripMenuItem itemAutostart;
+        private ToolStripMenuItem itemHideTray;
+        private ToolStripMenuItem itemStartService;
+        private ToolStripMenuItem itemExit;
         private string rootDir;
         private string scriptsDir;
 
@@ -133,36 +137,38 @@ namespace AgyEnhancer
             contextMenu.Font = new Font("Microsoft YaHei UI", 9.5f, FontStyle.Regular);
             contextMenu.Padding = new Padding(2, 6, 4, 6);
 
-            // 1. Settings Center
-            ToolStripMenuItem itemSettings = new ToolStripMenuItem("Settings Center");
+            // 1. 设置中心
+            itemSettings = new ToolStripMenuItem("设置中心");
             itemSettings.Click += (s, e) => OpenSettings();
             contextMenu.Items.Add(itemSettings);
 
-            // 2. Start on Boot
-            itemAutostart = new ToolStripMenuItem("Start on Boot");
+            // 2. 开机自启
+            itemAutostart = new ToolStripMenuItem("开机自启");
             itemAutostart.CheckOnClick = true;
             itemAutostart.Checked = IsAutostartConfigured();
             itemAutostart.Click += (s, e) => ToggleAutostart();
             renderer.AutostartMenuItem = itemAutostart;
             contextMenu.Items.Add(itemAutostart);
 
-            // 3. Hide System Tray
-            ToolStripMenuItem itemHideTray = new ToolStripMenuItem("Hide System Tray");
+            // 3. 隐藏托盘
+            itemHideTray = new ToolStripMenuItem("隐藏托盘");
             itemHideTray.Click += (s, e) => DisableTrayAndExit();
             contextMenu.Items.Add(itemHideTray);
 
-            // 4. Start Service
-            ToolStripMenuItem itemStartService = new ToolStripMenuItem("Start Service");
+            // 4. 启动服务
+            itemStartService = new ToolStripMenuItem("启动服务");
             itemStartService.Click += (s, e) => StartService();
             contextMenu.Items.Add(itemStartService);
 
-            // Separator
+            // 分割线
             contextMenu.Items.Add(new ToolStripSeparator());
 
-            // 5. Exit
-            ToolStripMenuItem itemExit = new ToolStripMenuItem("Exit");
+            // 5. 退出
+            itemExit = new ToolStripMenuItem("退出");
             itemExit.Click += (s, e) => ExitAllServices();
             contextMenu.Items.Add(itemExit);
+
+            UpdateMenuLanguage();
 
             // 无锁加载图标 (使用 FileShare.ReadWrite 与 Clone 解除文件锁定并避免 stream 提前释放)
             Icon icon = null;
@@ -196,11 +202,72 @@ namespace AgyEnhancer
             // 仅双击打开设置，单击不再响应
             notifyIcon.DoubleClick += (s, e) => OpenSettings();
 
-            // 每次右键展开菜单时，实时查询真实自启状态
+            // 每次右键展开菜单时，实时查询真实自启状态并动态同步语言设置
             contextMenu.Opening += (s, e) =>
             {
                 itemAutostart.Checked = IsAutostartConfigured();
+                UpdateMenuLanguage();
             };
+        }
+
+        private string GetConfiguredLanguage()
+        {
+            try
+            {
+                string[] possibleConfigs = new string[]
+                {
+                    Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "antigravity", "agy-enhancer-config.json"),
+                    Path.Combine(scriptsDir, "agy-enhancer-config.json"),
+                    Path.Combine(rootDir, "agy-enhancer-config.json")
+                };
+
+                foreach (string cf in possibleConfigs)
+                {
+                    if (File.Exists(cf))
+                    {
+                        string content = File.ReadAllText(cf);
+                        System.Text.RegularExpressions.Match m = System.Text.RegularExpressions.Regex.Match(content, "\"UI_LANG\"\\s*:\\s*\"([^\"]+)\"");
+                        if (m.Success)
+                        {
+                            return m.Groups[1].Value.Trim();
+                        }
+                    }
+                }
+            }
+            catch {}
+            return "auto";
+        }
+
+        private bool IsEnglishLanguage()
+        {
+            string lang = GetConfiguredLanguage().ToLower();
+            if (lang == "en") return true;
+            if (lang.StartsWith("zh")) return false;
+            // auto 模式下跟随操作系统 UI 语言
+            try
+            {
+                string sysLang = System.Globalization.CultureInfo.CurrentUICulture.Name.ToLower();
+                if (sysLang.StartsWith("zh")) return false;
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private void UpdateMenuLanguage()
+        {
+            try
+            {
+                bool isEn = IsEnglishLanguage();
+                if (itemSettings != null) itemSettings.Text = isEn ? "Settings Center" : "设置中心";
+                if (itemAutostart != null) itemAutostart.Text = isEn ? "Start on Boot" : "开机自启";
+                if (itemHideTray != null) itemHideTray.Text = isEn ? "Hide System Tray" : "隐藏托盘";
+                if (itemStartService != null) itemStartService.Text = isEn ? "Start Service" : "启动服务";
+                if (itemExit != null) itemExit.Text = isEn ? "Exit" : "退出";
+            }
+            catch {}
         }
 
         private void OpenSettings()
