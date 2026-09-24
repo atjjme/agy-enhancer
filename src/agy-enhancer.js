@@ -7719,6 +7719,12 @@
             text-overflow: ellipsis;
             white-space: nowrap;
             color: #f8fafc;
+            cursor: pointer;
+            user-select: none;
+            transition: color 0.15s ease;
+          }
+          .agy-card-title:hover {
+            color: #60a5fa;
           }
           .agy-card-rename-input {
             background: rgba(15, 23, 42, 0.9);
@@ -8534,7 +8540,7 @@
                   <path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z" fill="currentColor"></path>
                 </svg>
               </span>
-              <span class="agy-card-title" title="${escapeHtml(item.title)}">${escapeHtml(item.title)}</span>
+              <span class="agy-card-title" title="${escapeHtml(item.title)} (双击打开预览)">${escapeHtml(item.title)}</span>
               <div class="agy-card-actions">
                 <button class="agy-card-btn agy-card-rename" data-idx="${idx}" title="Rename">
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
@@ -8617,7 +8623,7 @@
                 }
               }
               titleEl.textContent = targetItem.title;
-              titleEl.title = targetItem.title;
+              titleEl.title = `${targetItem.title} (双击打开预览)`;
               titleEl.style.display = '';
               input.remove();
               lastRenderedPinSignature = '';
@@ -8661,6 +8667,23 @@
           });
         });
 
+        // 绑定卡片交互：双击标题或卡片主体直接打开画中画预览 (Preview)
+        indicatorWrap.querySelectorAll('.agy-pinned-card').forEach(cardEl => {
+          cardEl.addEventListener('dblclick', (e) => {
+            if (e.target.closest('.agy-card-actions') || e.target.closest('input')) return;
+            e.stopPropagation();
+            e.preventDefault();
+            const pinId = cardEl.getAttribute('data-pin-id');
+            const curList = getPinnedList();
+            const targetIdx = curList.findIndex(p => p.id === pinId);
+            if (targetIdx !== -1) {
+              currentActiveIndex = targetIdx;
+              isPipMinimized = false;
+              renderPipModal(curList[targetIdx]);
+            }
+          });
+        });
+
         // 绑定卡片交互：Remove
         indicatorWrap.querySelectorAll('.agy-card-unpin').forEach(btn => {
           btn.addEventListener('click', (e) => {
@@ -8671,16 +8694,118 @@
         });
       }
 
-      // 6. 添加与移除操作
-      function addPinItem(item) {
-        const list = getPinnedList();
+      // 6. 辅助定位与对话位置排序
+      function getPinTurnElement(item) {
+        if (!item) return null;
+        const chatContainer = getChatScrollContainer();
+        if (!chatContainer) return null;
+
+        if (item.hash) {
+          const el = chatContainer.querySelector(`[data-agy-summary-hash="${item.hash}"]`);
+          if (el) return el;
+        }
+
+        const snippet = item.text ? item.text.slice(0, 40).trim() : '';
+        if (!snippet) return null;
+
+        if (item.type === 'prompt') {
+          const userTurns = chatContainer.querySelectorAll('.group\\/user-input-step, [class*="user-input-step"]');
+          for (const turn of userTurns) {
+            if ((turn.innerText || '').includes(snippet)) {
+              if (item.hash) turn.setAttribute('data-agy-summary-hash', item.hash);
+              return turn;
+            }
+          }
+        } else {
+          const candidateTurns = chatContainer.querySelectorAll('.group.w-full, [class*="scroll-mt-4"], .flex.items-start');
+          for (const turn of candidateTurns) {
+            if (turn.closest('.group\\/user-input-step, [class*="user-input-step"]')) continue;
+            if ((turn.innerText || '').includes(snippet)) {
+              if (item.hash) turn.setAttribute('data-agy-summary-hash', item.hash);
+              return turn;
+            }
+          }
+        }
+        return null;
+      }
+
+      function sortPinsByConversationOrder(list, currentTurnEl = null, currentItem = null) {
+        if (!Array.isArray(list) || list.length <= 1) return list;
+
+        // 建立元素缓存映射，批量快速定位，避免排序反复查询
+        const elMap = new Map();
+        if (currentItem && currentTurnEl) {
+          elMap.set(currentItem.id || currentItem.hash, currentTurnEl);
+        }
+
+        for (const item of list) {
+          const key = item.id || item.hash;
+          if (!elMap.has(key)) {
+            const el = getPinTurnElement(item);
+            if (el) elMap.set(key, el);
+          }
+        }
+
+        const sorted = list.slice().sort((a, b) => {
+          const elA = elMap.get(a.id || a.hash);
+          const elB = elMap.get(b.id || b.hash);
+
+          if (elA && elB) {
+            if (elA === elB) {
+              // 属于同一条消息内部（如同一消息内的多个选区钉选）
+              if (a.anchorSnippet && b.anchorSnippet && a.text && b.text) {
+                const posA = a.text.indexOf(a.anchorSnippet);
+                const posB = b.text.indexOf(b.anchorSnippet);
+                if (posA !== -1 && posB !== -1 && posA !== posB) {
+                  return posA - posB;
+                }
+              }
+              return (a.timestamp || 0) - (b.timestamp || 0);
+            }
+            // 利用原生 DOM 文档树位置比对
+            const comp = elA.compareDocumentPosition(elB);
+            if (comp & Node.DOCUMENT_POSITION_FOLLOWING) {
+              return -1; // elA 在 elB 上方（对话靠前）
+            } else if (comp & Node.DOCUMENT_POSITION_PRECEDING) {
+              return 1;  // elA 在 elB 下方（对话靠后）
+            }
+          }
+
+          // 若某一元素已被虚拟化列表卸载或无法定位 DOM：
+          // 优先使用历史记录中维护的 orderIndex，次选时间戳 fallback
+          if (typeof a.orderIndex === 'number' && typeof b.orderIndex === 'number') {
+            return a.orderIndex - b.orderIndex;
+          }
+          return (a.timestamp || 0) - (b.timestamp || 0);
+        });
+
+        // 重新分配稳定的递增 orderIndex，以便节点滚出可视区被卸载时仍能保持严格顺序
+        sorted.forEach((item, idx) => {
+          item.orderIndex = idx;
+        });
+
+        return sorted;
+      }
+
+      // 添加与移除操作（按对话中出现的位置从上到下排序）
+      function addPinItem(item, targetEl = null) {
+        let list = getPinnedList();
         const existingIdx = list.findIndex(p => p.hash === item.hash || p.id === item.id);
         if (existingIdx !== -1) {
           list.splice(existingIdx, 1);
         }
-        list.unshift(item);
+
+        if (targetEl && item.hash) {
+          try { targetEl.setAttribute('data-agy-summary-hash', item.hash); } catch (e) {}
+        }
+
+        list.push(item);
+        list = sortPinsByConversationOrder(list, targetEl, item);
         savePinnedList(list);
-        currentActiveIndex = 0;
+
+        const newIdx = list.findIndex(p => p.id === item.id || p.hash === item.hash);
+        currentActiveIndex = newIdx !== -1 ? newIdx : 0;
+
         showNotification?.(item.type === 'prompt' ? '📌 Prompt pinned' : '📌 AI response pinned');
         lastRenderedPinSignature = '';
         renderPinnedIndicator(true);
@@ -8690,6 +8815,9 @@
       function removePinItem(idOrHash) {
         let list = getPinnedList();
         list = list.filter(p => p.id !== idOrHash && p.hash !== idOrHash);
+        list.forEach((item, idx) => {
+          item.orderIndex = idx;
+        });
         savePinnedList(list);
         if (currentActiveIndex >= list.length) currentActiveIndex = Math.max(0, list.length - 1);
         showNotification?.('Unpinned');
@@ -8824,7 +8952,7 @@
                   text: markdownText,
                   type: 'prompt',
                   timestamp: Date.now()
-                });
+                }, uTurn);
               }
             });
 
@@ -8890,7 +9018,7 @@
                   text: markdownText,
                   type: 'ai',
                   timestamp: Date.now()
-                });
+                }, turnEl);
               }
             });
 
@@ -8952,7 +9080,7 @@
             text,
             type: 'ai',
             timestamp: Date.now()
-          });
+          }, aiTurn.turnEl);
         }
       };
 
@@ -8984,7 +9112,7 @@
           type: 'ai',
           anchorSnippet,
           timestamp: Date.now()
-        });
+        }, aiTurn.turnEl);
         showNotification?.('📌 Pinned from selection');
       };
 
