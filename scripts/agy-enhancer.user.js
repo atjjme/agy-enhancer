@@ -46,6 +46,9 @@
     // 【工作树管理】是否开启分支与工作树快捷管理、悬停删除与右键菜单（受全局右键与独立开关控制）
     ENABLE_WORKTREE_MANAGEMENT: true,
 
+    // 【环境与缓存同步】是否在开辟新工作树分支时自动同步 .env 与配置共享编译缓存
+    ENABLE_WORKTREE_AUTO_SYNC: true,
+
     // 【总结钉选】是否开启 AI 回复消息钉选与画中画悬浮速览面板
     ENABLE_PINNED_SUMMARY: true,
 
