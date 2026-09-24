@@ -5479,16 +5479,16 @@ window.__AGY_BRANCH_NAME__ = "sort_pinned_list";
           const capturedMarkdown = extractSelectedMarkdown(selection, target, selectedText);
           let items = [];
           if (inSidebar) {
-            // 右侧栏选中文本: Search, Comment, Copy, Quote, Export as Markdown, Explain
+            // 右侧栏选中文本: Comment, Copy, Quote, Search, Export as Markdown, Explain
             items = [
+              { label: 'Comment', icon: 'comment', action: () => triggerNativeComment(selectedText) },
+              { label: 'Copy', icon: 'copy', action: () => copyText(selectedText) },
+              { label: 'Quote', icon: 'quote', action: () => triggerNativeQuote(selectedText) },
               {
                 label: 'Search', icon: 'search', action: () => {
                   window.open('https://www.google.com/search?q=' + encodeURIComponent(selectedText), '_blank');
                 }
               },
-              { label: 'Comment', icon: 'comment', action: () => triggerNativeComment(selectedText) },
-              { label: 'Copy', icon: 'copy', action: () => copyText(selectedText) },
-              { label: 'Quote', icon: 'quote', action: () => triggerNativeQuote(selectedText) },
               { label: 'Export as Markdown', icon: 'save', action: () => saveMarkdownLocally(capturedMarkdown, 'selection') },
               { label: 'Explain', icon: 'explain', action: () => appendExplainToPrompt(selectedText) }
             ];
@@ -5512,13 +5512,13 @@ window.__AGY_BRANCH_NAME__ = "sort_pinned_list";
               }});
             }
             items.push(
+              { label: 'Copy', icon: 'copy', action: () => copyText(selectedText) },
+              { label: 'Quote', icon: 'quote', action: () => triggerNativeQuote(selectedText) },
               {
                 label: 'Search', icon: 'search', action: () => {
                   window.open('https://www.google.com/search?q=' + encodeURIComponent(selectedText), '_blank');
                 }
               },
-              { label: 'Copy', icon: 'copy', action: () => copyText(selectedText) },
-              { label: 'Quote', icon: 'quote', action: () => triggerNativeQuote(selectedText) },
               { label: 'Export as Markdown', icon: 'save', action: () => saveMarkdownLocally(capturedMarkdown, 'selection') }
             );
             if (USER_CONFIG.ENABLE_PINNED_SUMMARY !== false && typeof pinAiTurnFromSelection === 'function') {
