@@ -5529,7 +5529,19 @@ window.__AGY_BRANCH_NAME__ = "sort_pinned_list";
                   label: 'Pin from Selection',
                   icon: 'pin',
                   action: () => {
-                    pinAiTurnFromSelection(aiTurn, selectedText, capturedMarkdown);
+                    let tailMarkdown = '';
+                    try {
+                      if (selection && selection.rangeCount > 0 && aiTurn.turnEl) {
+                        const range = selection.getRangeAt(0);
+                        const cloned = range.cloneRange();
+                        cloned.setEndAfter(aiTurn.turnEl.lastChild || aiTurn.turnEl);
+                        const frag = cloned.cloneContents();
+                        if (frag) {
+                          tailMarkdown = htmlToMarkdown(frag).replace(/\n{3,}/g, '\n\n').trim();
+                        }
+                      }
+                    } catch (err) {}
+                    pinAiTurnFromSelection(aiTurn, selectedText, tailMarkdown);
                   }
                 });
               }
@@ -9280,17 +9292,77 @@ window.__AGY_BRANCH_NAME__ = "sort_pinned_list";
         }
       };
 
-      // 10. 选中文本时：精确提取选中文本内容并钉选 (坚决不向后截断到末尾)
-      pinAiTurnFromSelection = function (aiTurn, selectedText, capturedMarkdown = null) {
-        if (!aiTurn || (!selectedText && !capturedMarkdown)) return;
+      // 10. 选中文本时：从当前选中位置向后截取提取至消息末尾并钉选
+      function extractFromSelectionToEnd(aiTurn, selectedText, tailMarkdown = null) {
+        const fullMarkdown = aiTurn.markdownText || aiTurn.turnEl?.innerText || '';
+        const selTrim = (selectedText || '').trim();
 
-        // 精准提取选区文本：优先使用保留排版的 capturedMarkdown，其次选中的原始纯文本，绝不向后截断到末尾
-        const cleanContent = (capturedMarkdown || selectedText || '').trim();
-        if (!cleanContent) return;
+        // 1. 若外部已通过 DOM Range 向后克隆到末尾成功提取了 tailMarkdown，且内容完整充实，优先使用
+        if (tailMarkdown && tailMarkdown.length > selTrim.length + 10) {
+          return tailMarkdown.trim();
+        }
 
-        const hash = computeHash(cleanContent);
-        const title = extractSummaryTitle(cleanContent, 'AI Snippet');
-        const anchorSnippet = (selectedText || cleanContent).trim().slice(0, 45).replace(/\s+/g, ' ');
+        if (fullMarkdown && selTrim) {
+          // 2. 完全精确查找
+          let idx = fullMarkdown.indexOf(selTrim);
+          if (idx !== -1) {
+            return fullMarkdown.slice(idx).trim();
+          }
+
+          // 3. 忽略空白符差异模糊定位
+          const coreSnippet = selTrim.slice(0, Math.min(25, selTrim.length)).replace(/\s+/g, '');
+          if (coreSnippet.length >= 4) {
+            for (let i = 0; i < fullMarkdown.length - coreSnippet.length; i++) {
+              const windowSub = fullMarkdown.slice(i, i + coreSnippet.length + 12).replace(/\s+/g, '');
+              if (windowSub.startsWith(coreSnippet)) {
+                const lineStart = fullMarkdown.lastIndexOf('\n', i);
+                const cutIdx = lineStart !== -1 ? lineStart + 1 : i;
+                return fullMarkdown.slice(cutIdx).trim();
+              }
+            }
+          }
+
+          // 4. 纯汉字/字母前缀定位 (过滤掉所有标点符号)
+          const pureWords = selTrim.replace(/[\s\r\n`*#_~>|\-\[\]\(\):：。，、！？"']/g, '').slice(0, 10);
+          if (pureWords.length >= 3) {
+            for (let i = 0; i < fullMarkdown.length - pureWords.length; i++) {
+              const windowSub = fullMarkdown.slice(i, i + 30).replace(/[\s\r\n`*#_~>|\-\[\]\(\):：。，、！？"']/g, '');
+              if (windowSub.startsWith(pureWords)) {
+                const lineStart = fullMarkdown.lastIndexOf('\n', i);
+                const cutIdx = lineStart !== -1 ? lineStart + 1 : i;
+                return fullMarkdown.slice(cutIdx).trim();
+              }
+            }
+          }
+        }
+
+        // 5. 若有 tailMarkdown 则使用
+        if (tailMarkdown && tailMarkdown.trim()) {
+          return tailMarkdown.trim();
+        }
+
+        // 6. 从 DOM innerText 从选中位置截取到末尾，绝不只留下几个字
+        if (aiTurn.turnEl?.innerText && selTrim) {
+          const domText = aiTurn.turnEl.innerText;
+          const pos = domText.indexOf(selTrim.slice(0, 20));
+          if (pos !== -1) {
+            return domText.slice(pos).trim();
+          }
+        }
+
+        return fullMarkdown ? fullMarkdown.trim() : selTrim;
+      }
+
+      pinAiTurnFromSelection = function (aiTurn, selectedText, tailMarkdown = null) {
+        if (!aiTurn || (!selectedText && !tailMarkdown)) return;
+
+        // 从选中位置一直向后截取至整条回复末尾，彻底消除只截取选中几个字的 bug
+        const extracted = extractFromSelectionToEnd(aiTurn, selectedText, tailMarkdown);
+        if (!extracted) return;
+
+        const hash = computeHash(extracted);
+        const title = extractSummaryTitle(extracted, 'AI Snippet');
+        const anchorSnippet = (selectedText || extracted).trim().slice(0, 45).replace(/\s+/g, ' ');
 
         // 提取该选区在完整文本中的字符起始偏移位置，用于同一消息内部多个选区的精确先后排序
         const fullMarkdown = aiTurn.markdownText || aiTurn.turnEl?.innerText || '';
@@ -9310,7 +9382,7 @@ window.__AGY_BRANCH_NAME__ = "sort_pinned_list";
           id: 'pin_' + Date.now(),
           hash,
           title,
-          text: cleanContent,
+          text: extracted,
           type: 'ai',
           anchorSnippet,
           stepIndex: typeof stepIndex === 'number' ? stepIndex : null,
