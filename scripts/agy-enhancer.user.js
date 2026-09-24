@@ -11,6 +11,8 @@
 // @run-at       document-idle
 // ==/UserScript==
 
+window.__AGY_BRANCH_TAG__ = " (branch)";
+window.__AGY_BRANCH_NAME__ = "fix_pin_dot_cross_convo";
 /**
  * Antigravity 增强器 (agy-enhancer enhancer)
  * 
@@ -8073,8 +8075,31 @@
       }
 
       // 2. 存储与数据操作 (按会话独立分 Key + LRU 自动垃圾回收机制)
-      function getConvoStorageKey() {
-        const id = getCurrentUrlConvoId();
+      function getPinCurrentConvoId() {
+        const container = getChatScrollContainer();
+        if (container) {
+          try {
+            const k = Object.keys(container).find(key => key.startsWith('__reactFiber$'));
+            let cur = container[k];
+            while (cur) {
+              if (cur.memoizedProps?.cascadeId) return cur.memoizedProps.cascadeId;
+              if (cur.memoizedProps?.conversationId) return cur.memoizedProps.conversationId;
+              cur = cur.return;
+            }
+          } catch (e) {}
+        }
+        const selectedRow = document.querySelector('[data-testid="conversation-row-sidebar"][data-selected="true"]');
+        if (selectedRow) {
+          const rowId = selectedRow.getAttribute('data-cascade-id');
+          if (rowId) return rowId;
+        }
+        const match = window.location.pathname.match(/\/c\/([a-f0-9-]+)/i);
+        if (match) return match[1];
+        return null;
+      }
+
+      function getConvoStorageKey(convoId = null) {
+        const id = convoId || getPinCurrentConvoId();
         return PIN_KEY_PREFIX + (id ? `c_${id}` : 'c_global');
       }
 
@@ -8115,11 +8140,37 @@
         } catch (e) {}
       }
 
-      function getPinnedList() {
+      function getPinnedList(convoId = null) {
         migrateLegacyStorageIfPresent();
         try {
-          const key = getConvoStorageKey();
-          const raw = localStorage.getItem(key);
+          const targetId = convoId || getPinCurrentConvoId();
+          const key = getConvoStorageKey(targetId);
+          let raw = localStorage.getItem(key);
+
+          // 增量自愈平移：若当前有具体会话 ID 但自身为空，而历史 c_global 存在且包含属于本会话 DOM 的钉选数据，则安全平移
+          if (!raw && targetId) {
+            const globalKey = PIN_KEY_PREFIX + 'c_global';
+            const globalRaw = localStorage.getItem(globalKey);
+            if (globalRaw) {
+              try {
+                const gList = JSON.parse(globalRaw);
+                if (Array.isArray(gList) && gList.length > 0) {
+                  const chatContainer = getChatScrollContainer();
+                  const belongsHere = chatContainer && gList.some(item => {
+                    if (item.hash && chatContainer.querySelector(`[data-agy-summary-hash="${item.hash}"]`)) return true;
+                    const snip = (item.text || '').slice(0, 30).trim();
+                    return snip && (chatContainer.innerText || '').includes(snip);
+                  });
+                  if (belongsHere) {
+                    localStorage.setItem(key, globalRaw);
+                    localStorage.removeItem(globalKey);
+                    raw = globalRaw;
+                  }
+                }
+              } catch (err) {}
+            }
+          }
+
           if (!raw) return [];
           const list = JSON.parse(raw);
           return Array.isArray(list) ? list : [];
@@ -8128,9 +8179,9 @@
         }
       }
 
-      function savePinnedList(list) {
+      function savePinnedList(list, convoId = null) {
         try {
-          const key = getConvoStorageKey();
+          const key = getConvoStorageKey(convoId);
           if (!Array.isArray(list) || list.length === 0) {
             localStorage.removeItem(key);
             try {
@@ -9438,52 +9489,45 @@
         showNotification?.('📌 Pinned from selection');
       };
 
-      // 11. 心跳同步与会话切换
-      let lastCheckedPinOrderSignature = '';
-      onHeartbeatPinnedSummary = function () {
-        const currentConvoId = getCurrentUrlConvoId();
+      // 11. 会话切换感知与零冗余心跳
+      function handlePinConvoSwitch(forceConvoId = null) {
+        const currentConvoId = forceConvoId || getPinCurrentConvoId();
         if (currentConvoId !== lastConvoIdForPins) {
           lastConvoIdForPins = currentConvoId;
           currentActiveIndex = 0;
-          lastCheckedPinOrderSignature = '';
-          let list = getPinnedList();
-          if (list.length > 1) {
-            list = sortPinsByConversationOrder(list);
-            savePinnedList(list);
-          }
-          renderPinnedIndicator();
+          lastRenderedPinSignature = '';
+
+          const list = getPinnedList(currentConvoId);
+          renderPinnedIndicator(true);
           if (list.length === 0) {
             document.getElementById('agy-pip-modal')?.remove();
             document.getElementById('agy-pip-dock')?.remove();
           } else if (document.getElementById('agy-pip-modal')) {
             renderPipModal(list[0]);
           }
-        } else {
-          // 增量自愈：若存在未解析 stepIndex 的老数据，尝试在 DOM 就绪后静默校准一次
-          const list = getPinnedList();
-          if (list.length > 1 && !lastCheckedPinOrderSignature) {
-            const hasUnresolved = list.some(p => typeof p.stepIndex !== 'number');
-            if (hasUnresolved) {
-              const sorted = sortPinsByConversationOrder(list);
-              savePinnedList(sorted);
-              lastCheckedPinOrderSignature = 'checked';
-            }
-          }
-          renderPinnedIndicator();
         }
+      }
 
+      onHeartbeatPinnedSummary = function () {
+        const currentConvoId = getPinCurrentConvoId();
+        if (currentConvoId !== lastConvoIdForPins) {
+          handlePinConvoSwitch(currentConvoId);
+        }
+        // 平稳期绝不重复读写 localStorage 或轮询重绘，仅做轻量按钮同步
         syncAllPinButtons();
+      };
+
+      // 接入全局会话切换事件，实现 0ms 即时响应
+      const prevConvoSwitchForPins = window.__AGY_ON_CONVO_SWITCH__;
+      window.__AGY_ON_CONVO_SWITCH__ = function (switchedConvoId) {
+        try { prevConvoSwitchForPins?.(switchedConvoId); } catch (e) {}
+        try { handlePinConvoSwitch(switchedConvoId); } catch (e) {}
       };
 
       // 12. 初始化装载
       ensurePinnedSummaryStyles();
-      lastConvoIdForPins = getCurrentUrlConvoId();
-      let initList = getPinnedList();
-      if (initList.length > 1) {
-        initList = sortPinsByConversationOrder(initList);
-        savePinnedList(initList);
-      }
-      renderPinnedIndicator();
+      lastConvoIdForPins = getPinCurrentConvoId();
+      renderPinnedIndicator(true);
       syncAllPinButtons();
     }
 
