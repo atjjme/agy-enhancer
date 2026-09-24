@@ -722,6 +722,20 @@
         <div class="gallery-row">
           <div class="row-meta-content">
             <div class="row-index-wrap">
+              <span class="row-index">02.3a</span>
+              <span class="row-headline" data-i18n="sw_worktree_auto_sync_title">开分支自动同步配置与共享编译缓存</span>
+            </div>
+            <div class="row-annotation" data-i18n="sw_worktree_auto_sync_desc">开辟新工作树分支时，自动从主项目搬运未追踪的 .env* 和 local.properties，并自动配置 Rust target-dir 与 Gradle 共享编译缓存。</div>
+          </div>
+          <label class="titanium-switch">
+            <input type="checkbox" id="ENABLE_WORKTREE_AUTO_SYNC">
+            <span class="titanium-slider"></span>
+          </label>
+        </div>
+
+        <div class="gallery-row">
+          <div class="row-meta-content">
+            <div class="row-index-wrap">
               <span class="row-index">02.4</span>
               <span class="row-headline" data-i18n="sw_pinned_summary_title">AI 回复钉选与画中画速览 (Pinned Summary & PiP)</span>
             </div>
@@ -879,6 +893,7 @@
       'ENABLE_BLOCK_QUOTE_POPUP',
       'ENABLE_FORK_CONVERSATION',
       'ENABLE_WORKTREE_MANAGEMENT',
+      'ENABLE_WORKTREE_AUTO_SYNC',
       'ENABLE_PINNED_SUMMARY',
       'ENABLE_STATUS_INDICATOR',
       'ENABLE_NAV_BUTTONS',
@@ -896,6 +911,7 @@
       ENABLE_BLOCK_QUOTE_POPUP: true,
       ENABLE_FORK_CONVERSATION: true,
       ENABLE_WORKTREE_MANAGEMENT: true,
+      ENABLE_WORKTREE_AUTO_SYNC: true,
       ENABLE_PINNED_SUMMARY: true,
       ENABLE_STATUS_INDICATOR: true,
       ENABLE_NAV_BUTTONS: true,

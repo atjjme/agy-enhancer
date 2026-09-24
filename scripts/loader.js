@@ -60,6 +60,7 @@ const DEFAULT_CONFIG = {
   ENABLE_BLOCK_QUOTE_POPUP: true,
   ENABLE_FORK_CONVERSATION: true,
   ENABLE_WORKTREE_MANAGEMENT: true,
+  ENABLE_WORKTREE_AUTO_SYNC: true,
   ENABLE_PINNED_SUMMARY: true,
   ENABLE_NAV_BUTTONS: true,
   ENABLE_BLOCK_CHAT_BOTTOM_BUTTON: true,
@@ -1537,6 +1538,11 @@ let worktreeWatchDebounceTimer = null;
 
 function handleNewWorktreeSync(targetDir) {
   if (!targetDir || !fs.existsSync(targetDir)) return;
+  const cfg = getStoredConfig();
+  if (!cfg.ENABLE_MASTER || !cfg.ENABLE_WORKTREE_MANAGEMENT || !cfg.ENABLE_WORKTREE_AUTO_SYNC) {
+    log('[Worktree Automation] Skipped sync: ENABLE_WORKTREE_AUTO_SYNC is disabled in settings');
+    return;
+  }
   const normTarget = path.resolve(targetDir);
   if (processedWorktreeDirs.has(normTarget)) return;
 

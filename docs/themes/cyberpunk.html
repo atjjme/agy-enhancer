@@ -876,6 +876,21 @@
             </label>
           </div>
 
+          <!-- 独立功能：开分支自动同步配置与共享编译缓存 -->
+          <div class="hud-row">
+            <div class="hud-row-info">
+              <div class="hud-row-title">
+                <span data-i18n="sw_worktree_auto_sync_title">开分支自动同步配置与共享编译缓存</span>
+                <span class="hud-row-tag">WORKTREE_AUTO_SYNC</span>
+              </div>
+              <div class="hud-row-desc" data-i18n="sw_worktree_auto_sync_desc">开辟新工作树分支时，自动从主项目搬运未追踪的 .env* 和 local.properties，并自动配置 Rust target-dir 与 Gradle 共享编译缓存。</div>
+            </div>
+            <label class="cyber-switch">
+              <input type="checkbox" id="ENABLE_WORKTREE_AUTO_SYNC">
+              <span class="cyber-slider"></span>
+            </label>
+          </div>
+
           <!-- AI 总结钉选与画中画速览 -->
           <div class="hud-row">
             <div class="hud-row-info">
@@ -1031,6 +1046,7 @@
       'ENABLE_BLOCK_QUOTE_POPUP',
       'ENABLE_FORK_CONVERSATION',
       'ENABLE_WORKTREE_MANAGEMENT',
+      'ENABLE_WORKTREE_AUTO_SYNC',
       'ENABLE_PINNED_SUMMARY',
       'ENABLE_STATUS_INDICATOR',
       'ENABLE_NAV_BUTTONS',
@@ -1048,6 +1064,7 @@
       ENABLE_BLOCK_QUOTE_POPUP: true,
       ENABLE_FORK_CONVERSATION: true,
       ENABLE_WORKTREE_MANAGEMENT: true,
+      ENABLE_WORKTREE_AUTO_SYNC: true,
       ENABLE_PINNED_SUMMARY: true,
       ENABLE_STATUS_INDICATOR: true,
       ENABLE_NAV_BUTTONS: true,
