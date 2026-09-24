@@ -11,6 +11,8 @@
 // @run-at       document-idle
 // ==/UserScript==
 
+window.__AGY_BRANCH_TAG__ = " (branch)";
+window.__AGY_BRANCH_NAME__ = "save_selection_as_markdown";
 /**
  * Antigravity 增强器 (agy-enhancer enhancer)
  * 
@@ -5050,6 +5052,218 @@
         return items;
       }
 
+      // 6.1 HTML 转 Markdown 转换器（保留标题、粗体、斜体、代码、列表、引用、表格、公式）
+      function htmlToMarkdown(node) {
+        if (!node) return '';
+        if (node.nodeType === Node.TEXT_NODE) {
+          return node.nodeValue || '';
+        }
+        if (node.nodeType !== Node.ELEMENT_NODE && node.nodeType !== Node.DOCUMENT_FRAGMENT_NODE) {
+          return '';
+        }
+
+        // DocumentFragment 处理
+        if (node.nodeType === Node.DOCUMENT_FRAGMENT_NODE) {
+          let res = '';
+          for (let i = 0; i < node.childNodes.length; i++) {
+            res += htmlToMarkdown(node.childNodes[i]);
+          }
+          return res;
+        }
+
+        // KaTeX 数学公式支持
+        if (node.classList?.contains('katex') || node.classList?.contains('katex-display')) {
+          const texEl = node.querySelector?.('annotation[encoding*="tex"]');
+          if (texEl?.textContent) {
+            const isDisplay = node.classList.contains('katex-display') || !!node.closest?.('.katex-display');
+            return isDisplay ? `\n\n$$${texEl.textContent.trim()}$$\n\n` : `$${texEl.textContent.trim()}$`;
+          }
+        }
+
+        const tag = (node.tagName || '').toLowerCase();
+        if (['style', 'script', 'noscript', 'svg'].includes(tag)) {
+          return '';
+        }
+
+        let children = '';
+        for (let i = 0; i < node.childNodes.length; i++) {
+          children += htmlToMarkdown(node.childNodes[i]);
+        }
+
+        switch (tag) {
+          case 'h1': return `\n\n# ${children.trim()}\n\n`;
+          case 'h2': return `\n\n## ${children.trim()}\n\n`;
+          case 'h3': return `\n\n### ${children.trim()}\n\n`;
+          case 'h4': return `\n\n#### ${children.trim()}\n\n`;
+          case 'h5': return `\n\n##### ${children.trim()}\n\n`;
+          case 'h6': return `\n\n###### ${children.trim()}\n\n`;
+          case 'p': return `\n\n${children.trim()}\n\n`;
+          case 'br': return '\n';
+          case 'hr': return '\n\n---\n\n';
+          case 'strong':
+          case 'b':
+            return children.trim() ? `**${children.trim()}**` : '';
+          case 'em':
+          case 'i':
+            return children.trim() ? `*${children.trim()}*` : '';
+          case 'del':
+          case 's':
+          case 'strike':
+            return children.trim() ? `~~${children.trim()}~~` : '';
+          case 'code': {
+            if (node.parentElement && (node.parentElement.tagName || '').toLowerCase() === 'pre') {
+              return children;
+            }
+            return children.trim() ? `\`${children.trim()}\`` : '';
+          }
+          case 'pre': {
+            let lang = '';
+            const codeChild = node.querySelector?.('code');
+            const classStr = (codeChild?.className || '') + ' ' + (node.className || '');
+            const m = classStr.match(/(?:lang|language)-([a-zA-Z0-9_-]+)/);
+            if (m) lang = m[1];
+            const codeText = (codeChild ? codeChild.textContent : node.textContent) || '';
+            return `\n\n\`\`\`${lang}\n${codeText.replace(/\n+$/, '')}\n\`\`\`\n\n`;
+          }
+          case 'blockquote': {
+            const lines = children.trim().split('\n');
+            return '\n\n' + lines.map(l => `> ${l}`).join('\n') + '\n\n';
+          }
+          case 'ul': {
+            let res = '\n\n';
+            for (let i = 0; i < node.children.length; i++) {
+              const li = node.children[i];
+              if ((li.tagName || '').toLowerCase() === 'li') {
+                res += `- ${htmlToMarkdown(li).trim()}\n`;
+              }
+            }
+            return res + '\n';
+          }
+          case 'ol': {
+            let res = '\n\n';
+            let idx = 1;
+            for (let i = 0; i < node.children.length; i++) {
+              const li = node.children[i];
+              if ((li.tagName || '').toLowerCase() === 'li') {
+                res += `${idx++}. ${htmlToMarkdown(li).trim()}\n`;
+              }
+            }
+            return res + '\n';
+          }
+          case 'li':
+            return children;
+          case 'a': {
+            const href = node.getAttribute?.('href');
+            const text = children.trim();
+            if (href && text && href !== text) {
+              return `[${text}](${href})`;
+            }
+            return text || href || '';
+          }
+          case 'table': {
+            const rows = Array.from(node.querySelectorAll?.('tr') || []);
+            if (rows.length === 0) return children;
+            let mdTable = '\n\n';
+            let colCount = 0;
+            rows.forEach((tr, rowIdx) => {
+              const cells = Array.from(tr.querySelectorAll('th, td'));
+              if (rowIdx === 0) colCount = cells.length;
+              const rowStr = '| ' + cells.map(c => htmlToMarkdown(c).trim().replace(/\n/g, ' ')).join(' | ') + ' |\n';
+              mdTable += rowStr;
+              if (rowIdx === 0) {
+                mdTable += '| ' + Array(colCount || cells.length).fill('---').join(' | ') + ' |\n';
+              }
+            });
+            return mdTable + '\n\n';
+          }
+          case 'th':
+          case 'td':
+            return children;
+          default:
+            return children;
+        }
+      }
+
+      // 6.2 提取选中文本对应的 Markdown 格式内容
+      function extractSelectedMarkdown(selection, target, fallbackText) {
+        if (!fallbackText && selection) {
+          fallbackText = selection.toString().trim();
+        }
+        if (!fallbackText) return '';
+
+        // 1. 如果选区位于代码块内部
+        const codeBlockEl = target?.closest?.('pre, code, .monaco-editor, .code-block');
+        if (codeBlockEl) {
+          const classStr = (codeBlockEl.className || '') + ' ' + (codeBlockEl.parentElement?.className || '');
+          const m = classStr.match(/(?:lang|language)-([a-zA-Z0-9_-]+)/);
+          const lang = m ? m[1].toLowerCase() : '';
+          const isMd = lang === 'md' || lang === 'markdown';
+          if (isMd) {
+            return fallbackText;
+          }
+          if (lang) {
+            return `\`\`\`${lang}\n${fallbackText}\n\`\`\``;
+          }
+          return `\`\`\`\n${fallbackText}\n\`\`\``;
+        }
+
+        // 2. 如果选区位于 AI 回复中，优先尝试对齐提取底层原始 Markdown 切片（保留公式、完整 Markdown 格式）
+        try {
+          const aiTurn = resolveAiResponseTurn(target);
+          const rawMd = aiTurn?.markdownText;
+          if (rawMd) {
+            if (rawMd.includes(fallbackText)) {
+              return fallbackText;
+            }
+            const trimmed = fallbackText.trim();
+            if (trimmed.length >= 10) {
+              const headLen = Math.min(25, Math.floor(trimmed.length / 2));
+              const tailLen = Math.min(25, Math.floor(trimmed.length / 2));
+              const head = trimmed.slice(0, headLen);
+              const tail = trimmed.slice(-tailLen);
+              const startIdx = rawMd.indexOf(head);
+              if (startIdx !== -1) {
+                const endIdx = rawMd.indexOf(tail, startIdx);
+                if (endIdx !== -1) {
+                  const slice = rawMd.slice(startIdx, endIdx + tail.length).trim();
+                  if (slice) return slice;
+                }
+              }
+            }
+          }
+        } catch (e) {}
+
+        // 3. 尝试从 DOM Selection Range 精确转为 Markdown
+        try {
+          if (selection && selection.rangeCount > 0) {
+            const range = selection.getRangeAt(0);
+            const frag = range.cloneContents();
+            if (frag && frag.childNodes.length > 0) {
+              const converted = htmlToMarkdown(frag).replace(/\n{3,}/g, '\n\n').trim();
+              if (converted) return converted;
+            }
+          }
+        } catch (e) {}
+
+        // 4. 兜底返回普通选中文本
+        return fallbackText;
+      }
+
+      // 6.3 统一 Markdown 文件保存方法
+      function saveMarkdownLocally(content, defaultPrefix = 'selection') {
+        if (!content || !content.trim()) {
+          showNotification?.('No content to export');
+          return;
+        }
+        const safeTitle = getCurrentConversationTitle().replace(/[\\/:*?"<>|]/g, '_').slice(0, 30).trim();
+        const d = new Date();
+        const pad = (n) => String(n).padStart(2, '0');
+        const timeStr = `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`;
+        const filename = `${safeTitle || defaultPrefix}_${timeStr}.md`;
+        saveFileLocally(content.trim(), filename);
+        showNotification?.('Exported selected Markdown');
+      }
+
       // 7. 全局点击与失焦自动关闭监听
       contextMenuDocClickHandler = (e) => {
         if (!e.target.closest('#agy-universal-context-menu')) {
@@ -5262,13 +5476,15 @@
         if (selectedText) {
           e.preventDefault();
           e.stopPropagation();
+          const capturedMarkdown = extractSelectedMarkdown(selection, target, selectedText);
           let items = [];
           if (inSidebar) {
-            // 右侧栏选中文本: Comment, Copy, Quote, Explain
+            // 右侧栏选中文本: Comment, Copy, Quote, Export as Markdown, Explain
             items = [
               { label: 'Comment', icon: 'comment', action: () => triggerNativeComment(selectedText) },
               { label: 'Copy', icon: 'copy', action: () => copyText(selectedText) },
               { label: 'Quote', icon: 'quote', action: () => triggerNativeQuote(selectedText) },
+              { label: 'Export as Markdown', icon: 'save', action: () => saveMarkdownLocally(capturedMarkdown, 'selection') },
               { label: 'Explain', icon: 'explain', action: () => appendExplainToPrompt(selectedText) }
             ];
           } else {
@@ -5293,6 +5509,7 @@
             items.push(
               { label: 'Copy', icon: 'copy', action: () => copyText(selectedText) },
               { label: 'Quote', icon: 'quote', action: () => triggerNativeQuote(selectedText) },
+              { label: 'Export as Markdown', icon: 'save', action: () => saveMarkdownLocally(capturedMarkdown, 'selection') },
               {
                 label: 'Search', icon: 'search', action: () => {
                   window.open('https://www.google.com/search?q=' + encodeURIComponent(selectedText), '_blank');
