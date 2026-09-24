@@ -3335,6 +3335,77 @@
               menu.appendChild(itemToggleUnread);
             }
 
+            // 识别当前会话是否关联特定分支或工作区路径
+            let convoBranchName = '';
+            if (paths?.isBranch && paths.branchUri) {
+              convoBranchName = paths.branchUri.split(/[\\/]/).filter(Boolean).pop() || '';
+            }
+            if (!convoBranchName && workspaceName) {
+              convoBranchName = workspaceName;
+            }
+            if (!convoBranchName && convoId) {
+              const rowEl = document.querySelector(`[data-testid="conversation-row-sidebar"][data-cascade-id="${convoId}"]`);
+              const sub = rowEl?.getAttribute('data-subtext')?.trim();
+              if (sub && !/^(\d+[smhdwy]|\w{3}\s+\d+|now)$/i.test(sub)) {
+                convoBranchName = sub;
+              }
+            }
+
+            // 严禁将主分支判定为可删除分支
+            const isMainBranch = ['main', 'master', 'trunk', 'default'].includes((convoBranchName || '').toLowerCase());
+            if (convoBranchName && !isMainBranch) {
+              const divBranchActions = document.createElement('div');
+              divBranchActions.setAttribute('role', 'separator');
+              divBranchActions.className = 'h-px bg-border my-1 -mx-1 agy-native-enhanced';
+              menu.appendChild(divBranchActions);
+
+              // 1. 删除当前分支
+              const itemDelCurrent = document.createElement('div');
+              itemDelCurrent.setAttribute('role', 'menuitem');
+              itemDelCurrent.className = 'w-full px-2 py-1 text-left text-[13px] cursor-pointer outline-none transition-colors select-none flex items-center gap-1.5 rounded-md hover:bg-destructive/15 text-destructive font-medium agy-native-enhanced';
+              itemDelCurrent.innerHTML = `
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="shrink-0"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+                <span>删除当前分支</span>
+              `;
+              itemDelCurrent.addEventListener('click', (ev) => {
+                ev.stopPropagation();
+                ev.preventDefault();
+                document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+                handleWorktreeDeleteAction?.({
+                  actionType: 'current',
+                  branchName: convoBranchName,
+                  projectId: pId,
+                  projectName,
+                  folderUri: paths?.targetProjectUri || paths?.branchUri,
+                  projectRootPath: paths?.projectRootUri
+                });
+              });
+              menu.appendChild(itemDelCurrent);
+
+              // 2. 删除其他分支 (除当前分支)
+              const itemDelOthers = document.createElement('div');
+              itemDelOthers.setAttribute('role', 'menuitem');
+              itemDelOthers.className = 'w-full px-2 py-1 text-left text-[13px] cursor-pointer outline-none transition-colors select-none flex items-center gap-1.5 rounded-md hover:bg-destructive/15 text-destructive font-medium agy-native-enhanced';
+              itemDelOthers.innerHTML = `
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="shrink-0"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+                <span>删除其他分支</span>
+              `;
+              itemDelOthers.addEventListener('click', (ev) => {
+                ev.stopPropagation();
+                ev.preventDefault();
+                document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+                handleWorktreeDeleteAction?.({
+                  actionType: 'others',
+                  branchName: convoBranchName,
+                  projectId: pId,
+                  projectName,
+                  folderUri: paths?.targetProjectUri || paths?.branchUri,
+                  projectRootPath: paths?.projectRootUri
+                });
+              });
+              menu.appendChild(itemDelOthers);
+            }
+
             lastNativeConvoId = convoId;
             lastNativeConvoTitle = convoTitle;
             activeNativeConvoId = null;
@@ -3389,6 +3460,32 @@
 
             menu.appendChild(divider);
             menu.appendChild(itemProjectFolder);
+
+            // 分隔线与删除所有分支 (保留主分支)
+            const divProjDelete = document.createElement('div');
+            divProjDelete.setAttribute('role', 'separator');
+            divProjDelete.className = 'h-px bg-border my-1 -mx-1 agy-native-enhanced';
+            menu.appendChild(divProjDelete);
+
+            const itemDelAll = document.createElement('div');
+            itemDelAll.setAttribute('role', 'menuitem');
+            itemDelAll.className = 'w-full px-2 py-1 text-left text-[13px] cursor-pointer outline-none transition-colors select-none flex items-center gap-1.5 rounded-md hover:bg-destructive/15 text-destructive font-medium agy-native-enhanced';
+            itemDelAll.innerHTML = `
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="shrink-0"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+              <span>删除所有分支</span>
+            `;
+            itemDelAll.addEventListener('click', (ev) => {
+              ev.stopPropagation();
+              ev.preventDefault();
+              document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+              handleWorktreeDeleteAction?.({
+                actionType: 'all',
+                projectId: targetProject?.id,
+                projectName: targetProject?.name,
+                projectRootPath: targetUri
+              });
+            });
+            menu.appendChild(itemDelAll);
           }
         }
 
@@ -3649,6 +3746,7 @@
     let executePurge = null;
     let renderWorktreeContextMenu = null;
     let resolveWorktreeOrBranchTarget = null;
+    let handleWorktreeDeleteAction = null;
 
     function initContextMenuSupport() {
       if (USER_CONFIG.ENABLE_CONTEXT_MENU === false) return;
@@ -6501,19 +6599,19 @@
 
       // 1. 二次确认模态框
       showWorktreeConfirmModal = function (options) {
-        const { title, message, danger = true, confirmText = 'Delete', cancelText = 'Cancel', onConfirm } = options || {};
+        const { title, message, htmlContent, danger = true, confirmText = 'Delete', cancelText = 'Cancel', onConfirm } = options || {};
         document.getElementById('agy-confirm-modal-overlay')?.remove();
 
         const overlay = document.createElement('div');
         overlay.id = 'agy-confirm-modal-overlay';
         overlay.className = 'agy-confirm-overlay';
         overlay.innerHTML = `
-          <div class="agy-confirm-card">
+          <div class="agy-confirm-card" style="max-width: 520px; width: 92%;">
             <div class="agy-confirm-header">
               <div class="agy-confirm-title ${danger ? 'danger' : ''}">${title}</div>
             </div>
-            <div class="agy-confirm-body">
-              <p class="agy-confirm-message">${message.replace(/\n/g, '<br/>')}</p>
+            <div class="agy-confirm-body" style="max-height: 70vh; overflow-y: auto;">
+              ${htmlContent ? htmlContent : `<p class="agy-confirm-message">${(message || '').replace(/\n/g, '<br/>')}</p>`}
             </div>
             <div class="agy-confirm-footer">
               <button type="button" class="agy-confirm-btn agy-confirm-cancel">${cancelText}</button>
@@ -6566,6 +6664,159 @@
           }
         };
         window.addEventListener('keydown', onKeydown, true);
+      };
+
+      // 暴露通知方法供后台守护服务通过 CDP 随时触发
+      window.__AGY_SHOW_NOTIFICATION__ = showNotification;
+
+      // 1.1 统一工作树分支删除与未提交/未合并状态感知处理
+      handleWorktreeDeleteAction = async function (options) {
+        const { actionType, branchName, projectId, projectName, folderUri, projectRootPath } = options || {};
+
+        if (actionType === 'current' && !branchName) {
+          showNotification?.('无法识别该对话的分支名称');
+          return;
+        }
+
+        showNotification?.('正在检查分支状态与 Git 变更...');
+
+        try {
+          const checkRes = await fetch('http://127.0.0.1:37210/api/worktree/check-status', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              scope: actionType,
+              branchName,
+              projectId,
+              projectName,
+              folderUri,
+              projectRootPath
+            })
+          }).then(r => r.json()).catch(err => ({ success: false, error: err?.message || err }));
+
+          if (!checkRes?.success) {
+            showNotification?.(`检查分支失败: ${checkRes?.error || '无法连接后台守护服务'}`);
+            return;
+          }
+
+          const branches = checkRes.branches || [];
+          if (branches.length === 0) {
+            if (actionType === 'current') {
+              showNotification?.(`分支 "${branchName}" 为受保护的主干分支或已不存在`);
+            } else if (actionType === 'others') {
+              showNotification?.('该项目没有其他可删除的分支（主干分支受保护）');
+            } else {
+              showNotification?.('该项目没有可删除的分支（主干分支受保护）');
+            }
+            return;
+          }
+
+          const activeBranch = window.__AGY_BRANCH_NAME__ || '';
+          if (actionType === 'current' && activeBranch && branchName.toLowerCase() === activeBranch.toLowerCase()) {
+            showNotification?.(`无法删除当前活跃的分支 "${branchName}"，请先切换到其他分支`);
+            return;
+          }
+
+          let modalTitle = '删除分支与工作区';
+          let baseMsg = '';
+          const mainBranch = checkRes.mainBranch || 'main';
+
+          if (actionType === 'current') {
+            modalTitle = `彻底删除分支: ${branchName}`;
+            baseMsg = `确定要彻底删除工作树分支 "${branchName}" 吗？\n将彻底清除物理目录、Git 本地分支及环境配置。`;
+          } else if (actionType === 'others') {
+            modalTitle = `删除其他分支 (${branches.length} 个)`;
+            baseMsg = `确定要删除除当前分支之外的其他 ${branches.length} 个工作树分支吗？\n主分支（${mainBranch}）与当前分支（${branchName || '当前'}）将保留。`;
+          } else if (actionType === 'all') {
+            modalTitle = `删除所有分支 (${branches.length} 个)`;
+            baseMsg = `确定要删除项目【${projectName || '当前项目'}】的所有 ${branches.length} 个工作树分支吗？\n主分支（${mainBranch}）将严格受保护并保留。`;
+          }
+
+          let htmlContent = '';
+          const dirtyOrUnmerged = branches.filter(b => b.hasUncommitted || b.hasUnmerged);
+
+          if (dirtyOrUnmerged.length > 0) {
+            htmlContent = `
+              <div style="margin-bottom: 12px; font-size: 13px; line-height: 1.5; color: var(--foreground, #e5e7eb);">
+                ${baseMsg.replace(/\n/g, '<br/>')}
+              </div>
+              <div style="margin: 10px 0; padding: 12px; background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.35); border-left: 4px solid #ef4444; border-radius: 6px; font-size: 12px; line-height: 1.5;">
+                <div style="font-weight: 600; color: #ef4444; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
+                  <span>⚠️ 严重警告：检测到未提交修改或未合并代码！</span>
+                </div>
+                <div style="max-height: 180px; overflow-y: auto; padding-right: 4px;">
+                  ${dirtyOrUnmerged.map(b => {
+                    const details = [];
+                    if (b.hasUncommitted) details.push(`<span style="color: #f59e0b; font-weight: 500;">${b.uncommittedCount} 处未提交修改</span>`);
+                    if (b.hasUnmerged) details.push(`<span style="color: #ef4444; font-weight: 500;">${b.unmergedCount} 个未合并到主干的提交</span>`);
+                    let fileList = '';
+                    if (b.uncommittedFiles?.length > 0) {
+                      fileList = `<div style="margin-top: 2px; padding-left: 10px; font-family: monospace; font-size: 11px; opacity: 0.85; color: var(--muted-foreground, #9ca3af);">${b.uncommittedFiles.slice(0, 4).join('<br/>')}</div>`;
+                    }
+                    let commitList = '';
+                    if (b.unmergedCommits?.length > 0) {
+                      commitList = `<div style="margin-top: 2px; padding-left: 10px; font-family: monospace; font-size: 11px; opacity: 0.85; color: #f87171;">${b.unmergedCommits.slice(0, 3).join('<br/>')}</div>`;
+                    }
+                    return `<div style="margin-bottom: 8px; border-bottom: 1px dashed rgba(255,255,255,0.08); padding-bottom: 6px;">
+                      <div style="font-weight: 600; color: var(--foreground, #fff); margin-bottom: 2px;">• 分支: <span style="color:#60a5fa;">${b.branchName}</span> (${details.join('，')})</div>
+                      ${fileList}
+                      ${commitList}
+                    </div>`;
+                  }).join('')}
+                </div>
+                <div style="margin-top: 8px; color: #ef4444; font-weight: 600;">
+                  一旦确认删除，上述未保存的工作将永久丢失且无法恢复！
+                </div>
+              </div>
+            `;
+          } else {
+            htmlContent = `
+              <div style="margin-bottom: 12px; font-size: 13px; line-height: 1.5; color: var(--foreground, #e5e7eb);">
+                ${baseMsg.replace(/\n/g, '<br/>')}
+              </div>
+              <div style="padding: 8px 12px; background: rgba(34, 197, 94, 0.1); border: 1px solid rgba(34, 197, 94, 0.3); border-radius: 6px; font-size: 12px; color: #22c55e;">
+                ✓ 所有目标分支代码均已合并至主干且工作区干净。
+              </div>
+            `;
+          }
+
+          showWorktreeConfirmModal({
+            title: modalTitle,
+            message: baseMsg,
+            htmlContent,
+            danger: true,
+            confirmText: dirtyOrUnmerged.length > 0 ? '强制彻底删除' : '彻底删除',
+            cancelText: '取消',
+            onConfirm: async () => {
+              const branchNamesToDelete = branches.map(b => b.branchName);
+              try {
+                const res = await fetch('http://127.0.0.1:37210/api/worktree/purge', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    branchNames: branchNamesToDelete,
+                    branchName: branchNamesToDelete.length === 1 ? branchNamesToDelete[0] : undefined,
+                    projectId,
+                    projectName,
+                    folderUri,
+                    projectRootPath
+                  })
+                }).then(r => r.json());
+
+                if (res.success) {
+                  showNotification?.(res.message || `已成功清理 ${branchNamesToDelete.length} 个分支工作树`);
+                } else {
+                  showNotification?.(`清理失败: ${res.error || '未知错误'}`);
+                }
+              } catch (err) {
+                showNotification?.(`请求服务失败: ${err?.message || err}`);
+              }
+            }
+          });
+
+        } catch (err) {
+          showNotification?.(`检查分支失败: ${err?.message || err}`);
+        }
       };
 
       // 2. 当前活跃项目信息解析
@@ -6645,18 +6896,16 @@
           while (f && depth < 20) {
             const props = f.memoizedProps;
             if (props) {
-              if (!branchName && typeof props.title === 'string' && props.title) {
-                branchName = props.title.trim();
-              }
-              if (!branchName && typeof props.value === 'string' && props.value) {
-                branchName = props.value.trim();
-              }
-              if (!folderUri && typeof props.worktreeUri === 'string' && props.worktreeUri) {
-                folderUri = props.worktreeUri;
-              }
-              if (!folderUri && typeof f.key === 'string' && f.key.startsWith('file:')) {
-                folderUri = f.key;
-              }
+              if (!branchName && typeof props.title === 'string' && props.title) branchName = props.title.trim();
+              if (!branchName && typeof props.value === 'string' && props.value) branchName = props.value.trim();
+              if (!branchName && typeof props.branchName === 'string' && props.branchName) branchName = props.branchName.trim();
+              if (!branchName && typeof props.branch === 'string' && props.branch) branchName = props.branch.trim();
+              if (!branchName && typeof props.name === 'string' && props.name) branchName = props.name.trim();
+              if (!branchName && typeof props.item?.name === 'string') branchName = props.item.name.trim();
+              if (!branchName && typeof props.item?.branchName === 'string') branchName = props.item.branchName.trim();
+              if (!folderUri && typeof props.worktreeUri === 'string' && props.worktreeUri) folderUri = props.worktreeUri;
+              if (!folderUri && typeof props.folderUri === 'string' && props.folderUri) folderUri = props.folderUri;
+              if (!folderUri && typeof f.key === 'string' && f.key.startsWith('file:')) folderUri = f.key;
             }
             f = f.return;
             depth++;
@@ -6669,12 +6918,18 @@
           if (val) {
             branchName = val.trim();
           } else {
-            const textSpans = Array.from(itemEl.querySelectorAll('span, div, p')).filter(s => !s.closest('.agy-wt-hover-trash') && s.children.length === 0 && s.innerText?.trim());
+            const textSpans = Array.from(itemEl.querySelectorAll('span, div, p')).filter(s => {
+              if (s.closest('.agy-wt-hover-trash')) return false;
+              if (s.children.length > 0) return false;
+              const t = (s.innerText || '').trim();
+              if (!t || /^\d+[smhdwy]$/i.test(t) || /active|current/i.test(t)) return false;
+              return true;
+            });
             if (textSpans.length > 0) {
               branchName = textSpans[0].innerText.trim();
             } else {
               const clone = itemEl.cloneNode(true);
-              clone.querySelectorAll('.agy-wt-hover-trash').forEach(el => el.remove());
+              clone.querySelectorAll('.agy-wt-hover-trash, svg').forEach(el => el.remove());
               branchName = (clone.innerText || '').split('\n')[0].trim();
             }
           }
@@ -6891,32 +7146,41 @@
         const marked = target.closest('[data-agy-worktree-item="true"], [data-agy-branch-item="true"], [data-testid="branch-option"]');
         if (marked) return marked;
 
-        // 6.2 检查是否在 Previous Worktrees / Workspaces 下拉列表中
-        const popover = target.closest('[data-radix-popper-content-wrapper], [role="menu"], [data-radix-menu-content], [role="listbox"], [role="dialog"], div.w-80');
+        // 6.2 检查是否在 Previous Worktrees / Search past worktrees / Workspaces 等弹窗列表中
+        const popover = target.closest('[data-radix-popper-content-wrapper], [role="menu"], [data-radix-menu-content], [role="listbox"], [role="dialog"], [cmdk-root], div.w-80');
         if (popover) {
-          const item = target.closest('button, [role="option"], [role="menuitem"], div.cursor-pointer, .flex.flex-col');
+          const item = target.closest('[cmdk-item], button, [role="option"], [role="menuitem"], div.cursor-pointer, .flex.flex-col');
           if (item && popover.contains(item)) {
-            const isWorktreePopover = !!popover.querySelector('[data-agy-worktree-item], [data-agy-branch-item]') ||
-              /Previous Worktrees|Workspaces|Select branch|Branches/i.test(popover.innerText || '');
+            const isWorktreePopover = !!popover.querySelector('[data-agy-worktree-item], [data-agy-branch-item], input[placeholder*="worktree"], input[placeholder*="Search past"]') ||
+              /Previous Worktrees|Past Worktrees|Workspaces|Select branch|Branches|Search past worktrees/i.test(popover.innerText || '');
             if (isWorktreePopover && !item.classList.contains('border-t') && !/No previous worktrees|Loading|No environments|Create new branch/i.test(item.innerText || '')) {
               return item;
             }
           }
         }
 
+        // 6.3 页面顶部或输入框上方的新版分支栏按钮
+        const topBranchBtn = target.closest('button[data-testid*="branch"], button[data-testid*="worktree"], [data-testid="current-branch-badge"]');
+        if (topBranchBtn) return topBranchBtn;
+
         return null;
       };
 
       // 7. DOM 扫描与悬停垃圾桶图标注入
       function scanAndEnhanceWorktreeDropdowns() {
-        // 7.1 位置 1：Previous Worktrees 列表项
-        const popovers = Array.from(document.querySelectorAll('[data-radix-popper-content-wrapper], [role="menu"], [data-radix-menu-content], [role="listbox"], [role="dialog"], div.w-80'));
+        const popovers = Array.from(document.querySelectorAll('[data-radix-popper-content-wrapper], [role="menu"], [data-radix-menu-content], [role="listbox"], [role="dialog"], [cmdk-root], div.w-80'));
         
         for (const popover of popovers) {
-          // 查找 "Previous Worktrees" 标题
+          const popoverText = popover.innerText || '';
+          const hasSearchInput = !!popover.querySelector('input[placeholder*="Search past worktrees"], input[placeholder*="worktree"], [cmdk-input]');
+          const isWorktreeContainer = hasSearchInput || /Previous Worktrees|Past Worktrees|Workspaces|Select branch|Branches|Search past worktrees/i.test(popoverText);
+
+          if (!isWorktreeContainer) continue;
+
+          // 7.1 位置 1：经典 Previous Worktrees / Workspaces 列表项
           const headers = Array.from(popover.querySelectorAll('*')).filter(el => {
             const t = (el.innerText || '').trim();
-            return (t === 'Previous Worktrees' || t === 'Workspaces') && el.children.length === 0;
+            return (t === 'Previous Worktrees' || t === 'Past Worktrees' || t === 'Workspaces') && el.children.length === 0;
           });
 
           for (const header of headers) {
@@ -6970,9 +7234,58 @@
               }
             }
           }
+
+          // 7.2 位置 2：新版带 "Search past worktrees..." 的搜索弹窗/命令面板列表项 ([cmdk-item], [role="option"])
+          if (hasSearchInput || popover.querySelector('[cmdk-item], [cmdk-list]')) {
+            const cmdkItems = Array.from(popover.querySelectorAll('[cmdk-item], [role="option"], [data-radix-collection-item], button.w-full, div.cursor-pointer'));
+            for (const item of cmdkItems) {
+              if (item.classList.contains('agy-wt-hover-trash') || item.closest('.agy-wt-hover-trash')) continue;
+              if (item.tagName === 'INPUT' || item.querySelector('input')) continue;
+
+              const itemText = (item.innerText || '').trim();
+              if (/Create new branch|No previous worktrees|Loading|No environments|Search past worktrees/i.test(itemText)) {
+                continue;
+              }
+
+              const info = extractWorktreeInfo(item);
+              if (!info || !info.branchName) continue;
+
+              item.setAttribute('data-agy-worktree-item', 'true');
+              item.setAttribute('data-agy-branch-name', info.branchName);
+              if (info.folderUri) item.setAttribute('data-agy-folder-uri', info.folderUri);
+
+              item.style.setProperty('position', 'relative', 'important');
+              item.style.setProperty('padding-right', '34px', 'important');
+
+              if (!item.querySelector('.agy-wt-hover-trash')) {
+                const trashBtn = document.createElement('button');
+                trashBtn.className = 'agy-wt-hover-trash';
+                trashBtn.type = 'button';
+                trashBtn.title = `彻底删除工作树与分支: ${info.branchName}`;
+                trashBtn.innerHTML = `
+                  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="3 6 5 6 21 6"></polyline>
+                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                    <line x1="10" y1="11" x2="10" y2="17"></line>
+                    <line x1="14" y1="11" x2="14" y2="17"></line>
+                  </svg>
+                `;
+
+                trashBtn.addEventListener('click', (e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  e.stopImmediatePropagation?.();
+                  const latestInfo = extractWorktreeInfo(item);
+                  executePurge(latestInfo, item);
+                });
+
+                item.appendChild(trashBtn);
+              }
+            }
+          }
         }
 
-        // 7.2 位置 2：Select branch 分支下拉框列表项
+        // 7.3 位置 3：Select branch 分支下拉框列表项
         const branchOptions = Array.from(document.querySelectorAll('[data-testid="branch-option"], [role="option"][data-radix-collection-item]'));
         for (const opt of branchOptions) {
           opt.setAttribute('data-agy-branch-item', 'true');

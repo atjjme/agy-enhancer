@@ -882,8 +882,293 @@ function findProjectConfigFiles(projectId, projectName, branchName, folderUri) {
   return matched;
 }
 
+function sendToastNotification(message) {
+  const wsOpen = (typeof WebSocket !== 'undefined' && WebSocket.OPEN) ? WebSocket.OPEN : 1;
+  if (!currentWs || currentWs.readyState !== wsOpen) return;
+  const safeMsg = JSON.stringify(String(message || ''));
+  try {
+    currentWs.send(JSON.stringify({
+      id: 88888,
+      method: 'Runtime.evaluate',
+      params: {
+        expression: `(() => {
+          if (typeof window.__AGY_SHOW_NOTIFICATION__ === 'function') {
+            window.__AGY_SHOW_NOTIFICATION__(${safeMsg});
+          } else if (typeof showNotification === 'function') {
+            showNotification(${safeMsg});
+          }
+        })()`,
+        returnByValue: true
+      }
+    }));
+  } catch (e) {
+    log('[Toast Error] Failed to send toast notification via CDP:', e.message);
+  }
+}
+
+function checkWorktreeStatus(options) {
+  const { projectId, projectName, branchName, branchNames, scope = 'current', folderUri, projectRootPath } = options || {};
+  log(`[Worktree Status] Checking status: scope="${scope}", branch="${branchName}", project="${projectName || projectId}"`);
+
+  // 1. 寻找主仓库根目录
+  const projectRoots = new Set();
+  if (projectRootPath) {
+    const p = uriToLocalPath(projectRootPath);
+    if (p && fs.existsSync(p)) projectRoots.add(p);
+  }
+
+  const projectConfigs = findProjectConfigFiles(projectId, projectName, branchName, folderUri);
+  for (const { data } of projectConfigs) {
+    if (data.projectResources?.resources) {
+      for (const res of data.projectResources.resources) {
+        if (res.gitFolder?.folderUri) {
+          const p = uriToLocalPath(res.gitFolder.folderUri);
+          if (p && fs.existsSync(p)) projectRoots.add(p);
+        }
+      }
+    }
+    if (Array.isArray(data.workspaces)) {
+      for (const ws of data.workspaces) {
+        const p = uriToLocalPath(ws);
+        if (p && fs.existsSync(p)) projectRoots.add(p);
+      }
+    }
+  }
+
+  if (folderUri) {
+    const p = uriToLocalPath(folderUri);
+    if (p && fs.existsSync(p)) {
+      const gf = path.join(p, '.git');
+      if (fs.existsSync(gf)) {
+        try {
+          const content = fs.readFileSync(gf, 'utf8');
+          const m = content.match(/gitdir:\s*(.*)/i);
+          if (m) {
+            let gd = m[1].trim();
+            const idx = gd.toLowerCase().indexOf('/.git/worktrees') !== -1 ? gd.toLowerCase().indexOf('/.git/worktrees') : gd.toLowerCase().indexOf('\\.git\\worktrees');
+            if (idx !== -1) {
+              const root = uriToLocalPath(gd.slice(0, idx));
+              if (root && fs.existsSync(root)) projectRoots.add(root);
+            }
+          }
+        } catch (e) {}
+      }
+    }
+  }
+
+  const globalWtDir = path.join(os.homedir(), '.gemini', 'antigravity', 'worktrees');
+  if (projectName && fs.existsSync(path.join(globalWtDir, projectName))) {
+    try {
+      const subDirs = fs.readdirSync(path.join(globalWtDir, projectName));
+      for (const sd of subDirs) {
+        const gf = path.join(globalWtDir, projectName, sd, '.git');
+        if (fs.existsSync(gf)) {
+          const content = fs.readFileSync(gf, 'utf8');
+          const m = content.match(/gitdir:\s*(.*)/i);
+          if (m) {
+            let gd = m[1].trim();
+            const idx = gd.toLowerCase().indexOf('/.git/worktrees') !== -1 ? gd.toLowerCase().indexOf('/.git/worktrees') : gd.toLowerCase().indexOf('\\.git\\worktrees');
+            if (idx !== -1) {
+              const root = uriToLocalPath(gd.slice(0, idx));
+              if (root && fs.existsSync(root)) projectRoots.add(root);
+            }
+          }
+        }
+      }
+    } catch (e) {}
+  }
+
+  const mainRoot = projectRoots.size > 0 ? Array.from(projectRoots)[0] : '';
+
+  // 2. 确定主干分支名称
+  let mainBranch = 'main';
+  if (mainRoot) {
+    try {
+      const remHead = execSync('git symbolic-ref --short refs/remotes/origin/HEAD', {
+        cwd: mainRoot,
+        stdio: ['pipe', 'pipe', 'ignore'],
+        timeout: 2000
+      }).toString().trim();
+      if (remHead) {
+        mainBranch = remHead.replace(/^origin\//, '');
+      }
+    } catch (e) {
+      try {
+        const branches = execSync('git branch --list', { cwd: mainRoot, stdio: ['pipe', 'pipe', 'ignore'], timeout: 2000 }).toString();
+        if (branches.includes('main')) mainBranch = 'main';
+        else if (branches.includes('master')) mainBranch = 'master';
+      } catch (e2) {}
+    }
+  }
+
+  const isProtectedBranch = (name) => {
+    const lower = String(name || '').trim().toLowerCase();
+    return ['main', 'master', 'trunk', 'default'].includes(lower) || lower === mainBranch.toLowerCase();
+  };
+
+  // 3. 收集所有分支及其工作树路径
+  const branchMap = new Map();
+
+  if (mainRoot) {
+    try {
+      const wtOutput = execSync('git worktree list --porcelain', { cwd: mainRoot, stdio: ['pipe', 'pipe', 'ignore'], timeout: 3000 }).toString();
+      const entries = wtOutput.split('\n\n');
+      for (const entry of entries) {
+        const lines = entry.split('\n');
+        let wtPath = '';
+        let wtBranch = '';
+        for (const line of lines) {
+          if (line.startsWith('worktree ')) wtPath = line.replace('worktree ', '').trim();
+          if (line.startsWith('branch refs/heads/')) wtBranch = line.replace('branch refs/heads/', '').trim();
+        }
+        if (wtBranch && wtPath) {
+          branchMap.set(wtBranch, { branchName: wtBranch, folderPath: wtPath });
+        }
+      }
+    } catch (e) {}
+  }
+
+  if (projectName && fs.existsSync(path.join(globalWtDir, projectName))) {
+    try {
+      const dirs = fs.readdirSync(path.join(globalWtDir, projectName));
+      for (const d of dirs) {
+        if (!branchMap.has(d)) {
+          branchMap.set(d, { branchName: d, folderPath: path.join(globalWtDir, projectName, d) });
+        }
+      }
+    } catch (e) {}
+  }
+
+  if (mainRoot) {
+    try {
+      const bOutput = execSync('git branch --list --format="%(refname:short)"', { cwd: mainRoot, stdio: ['pipe', 'pipe', 'ignore'], timeout: 2000 }).toString();
+      const bList = bOutput.split('\n').map(b => b.trim()).filter(Boolean);
+      for (const b of bList) {
+        if (!branchMap.has(b)) {
+          branchMap.set(b, { branchName: b, folderPath: '' });
+        }
+      }
+    } catch (e) {}
+  }
+
+  // 4. 根据范围计算目标待查分支列表
+  let targetBranchList = [];
+  if (Array.isArray(branchNames) && branchNames.length > 0) {
+    targetBranchList = branchNames.filter(b => !isProtectedBranch(b));
+  } else if (scope === 'current') {
+    if (branchName && !isProtectedBranch(branchName)) {
+      targetBranchList = [branchName];
+    }
+  } else if (scope === 'others') {
+    const cur = String(branchName || '').trim().toLowerCase();
+    for (const [b] of branchMap.entries()) {
+      if (!isProtectedBranch(b) && b.toLowerCase() !== cur) {
+        targetBranchList.push(b);
+      }
+    }
+  } else if (scope === 'all') {
+    for (const [b] of branchMap.entries()) {
+      if (!isProtectedBranch(b)) {
+        targetBranchList.push(b);
+      }
+    }
+  }
+
+  // 5. 对每个分支检测未提交修改和未合并提交
+  const branchesResult = [];
+  for (const b of targetBranchList) {
+    const item = branchMap.get(b) || { branchName: b, folderPath: '' };
+    let folderPath = item.folderPath;
+    if (!folderPath && projectName) {
+      const cand = path.join(globalWtDir, projectName, b);
+      if (fs.existsSync(cand)) folderPath = cand;
+    }
+
+    let hasUncommitted = false;
+    let uncommittedCount = 0;
+    let uncommittedFiles = [];
+
+    if (folderPath && fs.existsSync(folderPath)) {
+      try {
+        const st = execSync('git status --porcelain', {
+          cwd: folderPath,
+          stdio: ['pipe', 'pipe', 'ignore'],
+          timeout: 3000
+        }).toString();
+        const lines = st.split('\n').map(l => l.trim()).filter(Boolean);
+        if (lines.length > 0) {
+          hasUncommitted = true;
+          uncommittedCount = lines.length;
+          uncommittedFiles = lines.slice(0, 8);
+        }
+      } catch (e) {}
+    }
+
+    let hasUnmerged = false;
+    let unmergedCount = 0;
+    let unmergedCommits = [];
+    if (mainRoot) {
+      try {
+        const logOut = execSync(`git log "${mainBranch}..${b}" --oneline -n 10`, {
+          cwd: mainRoot,
+          stdio: ['pipe', 'pipe', 'ignore'],
+          timeout: 3000
+        }).toString();
+        const commits = logOut.split('\n').map(l => l.trim()).filter(Boolean);
+        if (commits.length > 0) {
+          hasUnmerged = true;
+          unmergedCount = commits.length;
+          unmergedCommits = commits.slice(0, 5);
+        }
+      } catch (e) {}
+    }
+
+    branchesResult.push({
+      branchName: b,
+      folderPath,
+      hasUncommitted,
+      uncommittedCount,
+      uncommittedFiles,
+      hasUnmerged,
+      unmergedCount,
+      unmergedCommits
+    });
+  }
+
+  return {
+    success: true,
+    projectRoot: mainRoot,
+    mainBranch,
+    branches: branchesResult,
+    hasAnyUncommitted: branchesResult.some(b => b.hasUncommitted),
+    hasAnyUnmerged: branchesResult.some(b => b.hasUnmerged)
+  };
+}
+
 function executePurgeWorktree(options) {
-  const { projectId, projectName, branchName, folderUri, projectRootPath, force } = options || {};
+  const { projectId, projectName, branchName, branchNames, folderUri, projectRootPath, force } = options || {};
+
+  // 支持批量删除多个分支
+  if (Array.isArray(branchNames) && branchNames.length > 0) {
+    log(`[Worktree Purge] Initiating batch purge for ${branchNames.length} branches: ${JSON.stringify(branchNames)}`);
+    const results = [];
+    for (const b of branchNames) {
+      const res = executePurgeWorktree({
+        ...options,
+        branchName: b,
+        branchNames: undefined,
+        folderUri: undefined
+      });
+      results.push({ branch: b, result: res });
+    }
+    const successCount = results.filter(r => r.result?.success).length;
+    return {
+      success: true,
+      message: `Batch purge completed: ${successCount}/${branchNames.length} branches removed`,
+      results
+    };
+  }
+
   log(`[Worktree Purge] Initiating purge: branch="${branchName}", folder="${folderUri}", project="${projectName || projectId}"`);
 
   // 1. 安全防呆校验：严禁删除 main / master / default 等主干分支
@@ -1230,6 +1515,198 @@ function executePruneInvalidWorktrees(options) {
   };
 }
 
+// ==================== 工作树自动管家 (Worktree Automation: Config Sync & Shared Build Cache) ====================
+const processedWorktreeDirs = new Set();
+let worktreeWatchDebounceTimer = null;
+
+function handleNewWorktreeSync(targetDir) {
+  if (!targetDir || !fs.existsSync(targetDir)) return;
+  const normTarget = path.resolve(targetDir);
+  if (processedWorktreeDirs.has(normTarget)) return;
+
+  const gitFile = path.join(normTarget, '.git');
+  if (!fs.existsSync(gitFile)) return;
+
+  processedWorktreeDirs.add(normTarget);
+
+  try {
+    log(`[Worktree Automation] New worktree detected: ${normTarget}`);
+    // 1. 从 .git 文件提取主仓库根目录
+    let mainRoot = '';
+    try {
+      const gitContent = fs.readFileSync(gitFile, 'utf8');
+      const m = gitContent.match(/gitdir:\s*(.*)/i);
+      if (m) {
+        let gd = m[1].trim();
+        const idx = gd.toLowerCase().indexOf('/.git/worktrees') !== -1 ? gd.toLowerCase().indexOf('/.git/worktrees') : gd.toLowerCase().indexOf('\\.git\\worktrees');
+        if (idx !== -1) {
+          mainRoot = uriToLocalPath(gd.slice(0, idx));
+        }
+      }
+    } catch (e) {}
+
+    const parts = normTarget.split(/[\\/]/).filter(Boolean);
+    const branchName = parts.pop();
+    const projectName = parts.pop();
+
+    if (!mainRoot && projectName) {
+      const configs = findProjectConfigFiles(null, projectName);
+      if (configs.length > 0 && configs[0].data?.projectResources?.resources) {
+        for (const res of configs[0].data.projectResources.resources) {
+          if (res.gitFolder?.folderUri) {
+            mainRoot = uriToLocalPath(res.gitFolder.folderUri);
+            break;
+          }
+        }
+      }
+    }
+
+    if (!mainRoot || !fs.existsSync(mainRoot)) {
+      log(`[Worktree Automation] Could not locate main project root for worktree: ${normTarget}`);
+      return;
+    }
+
+    log(`[Worktree Automation] Main project root identified: ${mainRoot}`);
+    let syncedFiles = [];
+    let sharedCacheEnabled = false;
+
+    // 2. 自动同步主工程中未被 git 追踪的关键配置文件 (.env*, local.properties 等)
+    try {
+      const filesInMain = fs.readdirSync(mainRoot);
+      const candidates = filesInMain.filter(fn => {
+        const lower = fn.toLowerCase();
+        if (lower.startsWith('.env') && !lower.endsWith('.example') && !lower.endsWith('.sample')) return true;
+        if (lower === 'local.properties') return true;
+        return false;
+      });
+
+      for (const fn of candidates) {
+        const srcFile = path.join(mainRoot, fn);
+        const dstFile = path.join(normTarget, fn);
+        if (fs.existsSync(srcFile) && !fs.existsSync(dstFile)) {
+          try {
+            fs.copyFileSync(srcFile, dstFile);
+            syncedFiles.push(fn);
+            log(`[Worktree Automation] Copied config file: ${fn} -> ${dstFile}`);
+          } catch (copyErr) {
+            log(`[Worktree Automation] Failed to copy config ${fn}:`, copyErr.message);
+          }
+        }
+      }
+    } catch (syncErr) {
+      log(`[Worktree Automation] Config sync error:`, syncErr.message);
+    }
+
+    // 3. 共享编译缓存配置
+    // 3.1 Rust 项目共享 target-dir (避免每个分支膨胀数 GB)
+    const cargoToml = path.join(normTarget, 'Cargo.toml');
+    const mainCargoToml = path.join(mainRoot, 'Cargo.toml');
+    if (fs.existsSync(cargoToml) || fs.existsSync(mainCargoToml)) {
+      try {
+        const sharedTargetDir = path.join(os.homedir(), '.cargo', 'shared-target', projectName || 'shared');
+        fs.mkdirSync(sharedTargetDir, { recursive: true });
+        const cargoConfigDir = path.join(normTarget, '.cargo');
+        fs.mkdirSync(cargoConfigDir, { recursive: true });
+        const cargoConfigFile = path.join(cargoConfigDir, 'config.toml');
+
+        const normalizedTarget = sharedTargetDir.replace(/\\/g, '/');
+        let configContent = '';
+        if (fs.existsSync(cargoConfigFile)) {
+          configContent = fs.readFileSync(cargoConfigFile, 'utf8');
+        }
+
+        if (!configContent.includes('target-dir')) {
+          const appendContent = `\n[build]\ntarget-dir = "${normalizedTarget}"\n`;
+          fs.appendFileSync(cargoConfigFile, appendContent, 'utf8');
+          sharedCacheEnabled = true;
+          log(`[Worktree Automation] Injected shared Rust cargo target-dir: ${normalizedTarget}`);
+        } else {
+          sharedCacheEnabled = true;
+        }
+      } catch (rustErr) {
+        log(`[Worktree Automation] Failed to configure Cargo cache:`, rustErr.message);
+      }
+    }
+
+    // 3.2 Android / Gradle 项目共享 build cache 与 SDK 路径
+    const isGradle = fs.existsSync(path.join(normTarget, 'build.gradle')) ||
+                     fs.existsSync(path.join(normTarget, 'build.gradle.kts')) ||
+                     fs.existsSync(path.join(normTarget, 'settings.gradle')) ||
+                     fs.existsSync(path.join(mainRoot, 'build.gradle'));
+    if (isGradle) {
+      try {
+        const gradleProps = path.join(normTarget, 'gradle.properties');
+        let propsContent = fs.existsSync(gradleProps) ? fs.readFileSync(gradleProps, 'utf8') : '';
+        let modifiedProps = false;
+        if (!propsContent.includes('org.gradle.caching')) {
+          propsContent += '\norg.gradle.caching=true\norg.gradle.parallel=true\n';
+          modifiedProps = true;
+        }
+        if (modifiedProps) {
+          fs.writeFileSync(gradleProps, propsContent, 'utf8');
+          sharedCacheEnabled = true;
+          log(`[Worktree Automation] Injected Gradle build cache configuration into: ${gradleProps}`);
+        }
+      } catch (gradleErr) {
+        log(`[Worktree Automation] Failed to configure Gradle cache:`, gradleErr.message);
+      }
+    }
+
+    // 4. 前端感知：向客户端弹出 Toast 提示
+    const noticeDetails = [];
+    if (syncedFiles.length > 0) noticeDetails.push(`同步配置 (${syncedFiles.join(', ')})`);
+    if (sharedCacheEnabled) noticeDetails.push('开启编译缓存共享');
+    const msg = noticeDetails.length > 0
+      ? `[AGY Enhancer] 已自动${noticeDetails.join('并')}`
+      : `[AGY Enhancer] 已自动同步环境配置并开启编译缓存共享`;
+
+    sendToastNotification(msg);
+    log(`[Worktree Automation] Automation finished: ${msg}`);
+  } catch (err) {
+    log(`[Worktree Automation] Error handling new worktree:`, err.message);
+  }
+}
+
+function initWorktreeWatcher() {
+  const globalWtRoot = path.join(os.homedir(), '.gemini', 'antigravity', 'worktrees');
+  try {
+    if (!fs.existsSync(globalWtRoot)) {
+      fs.mkdirSync(globalWtRoot, { recursive: true });
+    }
+  } catch (e) {}
+
+  try {
+    fs.watch(globalWtRoot, { recursive: true }, (eventType, filename) => {
+      if (!filename) return;
+      const parts = filename.split(/[\\/]/).filter(Boolean);
+      if (parts.length >= 2) {
+        const proj = parts[0];
+        const branch = parts[1];
+        const lowerBranch = branch.toLowerCase();
+        if (['main', 'master', 'trunk', 'default'].includes(lowerBranch)) return;
+
+        const wtDir = path.join(globalWtRoot, proj, branch);
+        if (worktreeWatchDebounceTimer) clearTimeout(worktreeWatchDebounceTimer);
+        worktreeWatchDebounceTimer = setTimeout(() => {
+          let attempts = 0;
+          const checkReady = () => {
+            if (fs.existsSync(path.join(wtDir, '.git'))) {
+              handleNewWorktreeSync(wtDir);
+            } else if (attempts < 6 && fs.existsSync(wtDir)) {
+              attempts++;
+              setTimeout(checkReady, 500);
+            }
+          };
+          checkReady();
+        }, 600);
+      }
+    });
+    log(`[Worktree Automation] File watcher active on: ${globalWtRoot}`);
+  } catch (e) {
+    log(`[Worktree Automation] Failed to initialize file watcher on ${globalWtRoot}:`, e.message);
+  }
+}
+
 // ==================== 内置轻量设置微服务 (Embedded Settings Server) ====================
 function startEmbeddedSettingsServer() {
   const server = http.createServer((req, res) => {
@@ -1329,6 +1806,52 @@ function startEmbeddedSettingsServer() {
     }
 
     // ==================== 工作树管理 API 接口 ====================
+    if (req.method === 'POST' && urlPath === '/api/worktree/check-status') {
+      let body = '';
+      req.on('data', chunk => {
+        body += chunk;
+        if (body.length > 1e6) req.destroy();
+      });
+      req.on('end', () => {
+        try {
+          const payload = JSON.parse(body || '{}');
+          const result = checkWorktreeStatus(payload);
+          res.writeHead(result.success ? 200 : 400, { 'Content-Type': 'application/json; charset=utf-8' });
+          res.end(JSON.stringify(result));
+        } catch (err) {
+          res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
+          res.end(JSON.stringify({ success: false, error: err?.message || 'Internal error' }));
+        }
+      });
+      return;
+    }
+
+    if (req.method === 'POST' && urlPath === '/api/worktree/sync-env') {
+      let body = '';
+      req.on('data', chunk => {
+        body += chunk;
+        if (body.length > 1e6) req.destroy();
+      });
+      req.on('end', () => {
+        try {
+          const payload = JSON.parse(body || '{}');
+          const targetDir = uriToLocalPath(payload.targetDir || payload.folderUri);
+          if (targetDir && fs.existsSync(targetDir)) {
+            handleNewWorktreeSync(targetDir);
+            res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+            res.end(JSON.stringify({ success: true, message: 'Sync triggered' }));
+          } else {
+            res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
+            res.end(JSON.stringify({ success: false, error: 'Target directory not found' }));
+          }
+        } catch (err) {
+          res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
+          res.end(JSON.stringify({ success: false, error: err?.message || 'Internal error' }));
+        }
+      });
+      return;
+    }
+
     if (req.method === 'POST' && urlPath === '/api/worktree/purge') {
       let body = '';
       req.on('data', chunk => {
@@ -1589,6 +2112,7 @@ function startEmbeddedSettingsServer() {
   });
 }
 startEmbeddedSettingsServer();
+initWorktreeWatcher();
 
 // ==================== 核心服务启动后的自启与托盘初始化 ====================
 try {
