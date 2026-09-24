@@ -228,9 +228,9 @@ function manageSystemTray(enable) {
 
       if (!isSystemTrayRunning() && fs.existsSync(trayExe)) {
         const workingDir = path.dirname(trayExe);
-        const psCmd = `Start-Process -FilePath '${trayExe.replace(/'/g, "''")}' -WorkingDirectory '${workingDir.replace(/'/g, "''")}'`;
-        execSync(`powershell -NoProfile -ExecutionPolicy Bypass -Command "${psCmd}"`, { timeout: 4000 });
-        log('[SystemTray] Launched agy-tray.exe successfully via Start-Process');
+        const psCmd = `Invoke-CimMethod -ClassName Win32_Process -MethodName Create -Arguments @{ CommandLine = '${trayExe.replace(/'/g, "''")}'; CurrentDirectory = '${workingDir.replace(/'/g, "''")}' }`;
+        execSync(`powershell -NoProfile -ExecutionPolicy Bypass -Command "${psCmd}"`, { timeout: 6000 });
+        log('[SystemTray] Launched agy-tray.exe successfully via WMI');
       }
     } else {
       try {
@@ -1652,13 +1652,13 @@ function handleNewWorktreeSync(targetDir) {
       }
     }
 
-    // 4. 前端感知：向客户端弹出 Toast 提示
+    // 4. Client Notification: Send Toast to Antigravity UI
     const noticeDetails = [];
-    if (syncedFiles.length > 0) noticeDetails.push(`同步配置 (${syncedFiles.join(', ')})`);
-    if (sharedCacheEnabled) noticeDetails.push('开启编译缓存共享');
+    if (syncedFiles.length > 0) noticeDetails.push(`synced configs (${syncedFiles.join(', ')})`);
+    if (sharedCacheEnabled) noticeDetails.push('enabled shared build cache');
     const msg = noticeDetails.length > 0
-      ? `[AGY Enhancer] 已自动${noticeDetails.join('并')}`
-      : `[AGY Enhancer] 已自动同步环境配置并开启编译缓存共享`;
+      ? `[AGY Enhancer] Automatically ${noticeDetails.join(' and ')}`
+      : `[AGY Enhancer] Automatically synced environment configs and enabled build cache`;
 
     sendToastNotification(msg);
     log(`[Worktree Automation] Automation finished: ${msg}`);

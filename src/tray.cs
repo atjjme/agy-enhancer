@@ -133,34 +133,34 @@ namespace AgyEnhancer
             contextMenu.Font = new Font("Microsoft YaHei UI", 9.5f, FontStyle.Regular);
             contextMenu.Padding = new Padding(2, 6, 4, 6);
 
-            // 1. 设置中心
-            ToolStripMenuItem itemSettings = new ToolStripMenuItem("设置中心");
+            // 1. Settings Center
+            ToolStripMenuItem itemSettings = new ToolStripMenuItem("Settings Center");
             itemSettings.Click += (s, e) => OpenSettings();
             contextMenu.Items.Add(itemSettings);
 
-            // 2. 开机自启
-            itemAutostart = new ToolStripMenuItem("开机自启");
+            // 2. Start on Boot
+            itemAutostart = new ToolStripMenuItem("Start on Boot");
             itemAutostart.CheckOnClick = true;
             itemAutostart.Checked = IsAutostartConfigured();
             itemAutostart.Click += (s, e) => ToggleAutostart();
             renderer.AutostartMenuItem = itemAutostart;
             contextMenu.Items.Add(itemAutostart);
 
-            // 3. 隐藏托盘
-            ToolStripMenuItem itemHideTray = new ToolStripMenuItem("隐藏托盘");
+            // 3. Hide System Tray
+            ToolStripMenuItem itemHideTray = new ToolStripMenuItem("Hide System Tray");
             itemHideTray.Click += (s, e) => DisableTrayAndExit();
             contextMenu.Items.Add(itemHideTray);
 
-            // 4. 启动服务
-            ToolStripMenuItem itemStartService = new ToolStripMenuItem("启动服务");
+            // 4. Start Service
+            ToolStripMenuItem itemStartService = new ToolStripMenuItem("Start Service");
             itemStartService.Click += (s, e) => StartService();
             contextMenu.Items.Add(itemStartService);
 
-            // 分割线
+            // Separator
             contextMenu.Items.Add(new ToolStripSeparator());
 
-            // 5. 退出
-            ToolStripMenuItem itemExit = new ToolStripMenuItem("退出");
+            // 5. Exit
+            ToolStripMenuItem itemExit = new ToolStripMenuItem("Exit");
             itemExit.Click += (s, e) => ExitAllServices();
             contextMenu.Items.Add(itemExit);
 

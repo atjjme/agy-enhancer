@@ -3359,13 +3359,13 @@
               divBranchActions.className = 'h-px bg-border my-1 -mx-1 agy-native-enhanced';
               menu.appendChild(divBranchActions);
 
-              // 1. 删除当前分支
+              // 1. Delete Current Branch
               const itemDelCurrent = document.createElement('div');
               itemDelCurrent.setAttribute('role', 'menuitem');
               itemDelCurrent.className = 'w-full px-2 py-1 text-left text-[13px] cursor-pointer outline-none transition-colors select-none flex items-center gap-1.5 rounded-md hover:bg-destructive/15 text-destructive font-medium agy-native-enhanced';
               itemDelCurrent.innerHTML = `
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="shrink-0"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
-                <span>删除当前分支</span>
+                <span>Delete Current Branch</span>
               `;
               itemDelCurrent.addEventListener('click', (ev) => {
                 ev.stopPropagation();
@@ -3382,13 +3382,13 @@
               });
               menu.appendChild(itemDelCurrent);
 
-              // 2. 删除其他分支 (除当前分支)
+              // 2. Delete Other Branches (Except Current Branch)
               const itemDelOthers = document.createElement('div');
               itemDelOthers.setAttribute('role', 'menuitem');
               itemDelOthers.className = 'w-full px-2 py-1 text-left text-[13px] cursor-pointer outline-none transition-colors select-none flex items-center gap-1.5 rounded-md hover:bg-destructive/15 text-destructive font-medium agy-native-enhanced';
               itemDelOthers.innerHTML = `
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="shrink-0"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
-                <span>删除其他分支</span>
+                <span>Delete Other Branches</span>
               `;
               itemDelOthers.addEventListener('click', (ev) => {
                 ev.stopPropagation();
@@ -3461,7 +3461,7 @@
             menu.appendChild(divider);
             menu.appendChild(itemProjectFolder);
 
-            // 分隔线与删除所有分支 (保留主分支)
+            // Separator and Delete All Branches (protect main branch)
             const divProjDelete = document.createElement('div');
             divProjDelete.setAttribute('role', 'separator');
             divProjDelete.className = 'h-px bg-border my-1 -mx-1 agy-native-enhanced';
@@ -3472,7 +3472,7 @@
             itemDelAll.className = 'w-full px-2 py-1 text-left text-[13px] cursor-pointer outline-none transition-colors select-none flex items-center gap-1.5 rounded-md hover:bg-destructive/15 text-destructive font-medium agy-native-enhanced';
             itemDelAll.innerHTML = `
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="shrink-0"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
-              <span>删除所有分支</span>
+              <span>Delete All Branches</span>
             `;
             itemDelAll.addEventListener('click', (ev) => {
               ev.stopPropagation();
@@ -6669,16 +6669,16 @@
       // 暴露通知方法供后台守护服务通过 CDP 随时触发
       window.__AGY_SHOW_NOTIFICATION__ = showNotification;
 
-      // 1.1 统一工作树分支删除与未提交/未合并状态感知处理
+      // 1.1 Worktree & branch deletion with uncommitted / unmerged state awareness
       handleWorktreeDeleteAction = async function (options) {
         const { actionType, branchName, projectId, projectName, folderUri, projectRootPath } = options || {};
 
         if (actionType === 'current' && !branchName) {
-          showNotification?.('无法识别该对话的分支名称');
+          showNotification?.('Unable to identify the branch name for this conversation');
           return;
         }
 
-        showNotification?.('正在检查分支状态与 Git 变更...');
+        showNotification?.('Checking branch status and Git changes...');
 
         try {
           const checkRes = await fetch('http://127.0.0.1:37210/api/worktree/check-status', {
@@ -6695,41 +6695,41 @@
           }).then(r => r.json()).catch(err => ({ success: false, error: err?.message || err }));
 
           if (!checkRes?.success) {
-            showNotification?.(`检查分支失败: ${checkRes?.error || '无法连接后台守护服务'}`);
+            showNotification?.(`Failed to check branch: ${checkRes?.error || 'Unable to connect to daemon service'}`);
             return;
           }
 
           const branches = checkRes.branches || [];
           if (branches.length === 0) {
             if (actionType === 'current') {
-              showNotification?.(`分支 "${branchName}" 为受保护的主干分支或已不存在`);
+              showNotification?.(`Branch "${branchName}" is protected or does not exist`);
             } else if (actionType === 'others') {
-              showNotification?.('该项目没有其他可删除的分支（主干分支受保护）');
+              showNotification?.('No other deletable branches found (main branch is protected)');
             } else {
-              showNotification?.('该项目没有可删除的分支（主干分支受保护）');
+              showNotification?.('No deletable branches found (main branch is protected)');
             }
             return;
           }
 
           const activeBranch = window.__AGY_BRANCH_NAME__ || '';
           if (actionType === 'current' && activeBranch && branchName.toLowerCase() === activeBranch.toLowerCase()) {
-            showNotification?.(`无法删除当前活跃的分支 "${branchName}"，请先切换到其他分支`);
+            showNotification?.(`Cannot delete currently active branch "${branchName}". Please switch branches first.`);
             return;
           }
 
-          let modalTitle = '删除分支与工作区';
+          let modalTitle = 'Delete Worktrees & Branches';
           let baseMsg = '';
           const mainBranch = checkRes.mainBranch || 'main';
 
           if (actionType === 'current') {
-            modalTitle = `彻底删除分支: ${branchName}`;
-            baseMsg = `确定要彻底删除工作树分支 "${branchName}" 吗？\n将彻底清除物理目录、Git 本地分支及环境配置。`;
+            modalTitle = `Delete Branch: ${branchName}`;
+            baseMsg = `Are you sure you want to permanently delete worktree branch "${branchName}"?\nThis will remove the physical directory, Git branch, and environment configs.`;
           } else if (actionType === 'others') {
-            modalTitle = `删除其他分支 (${branches.length} 个)`;
-            baseMsg = `确定要删除除当前分支之外的其他 ${branches.length} 个工作树分支吗？\n主分支（${mainBranch}）与当前分支（${branchName || '当前'}）将保留。`;
+            modalTitle = `Delete Other Branches (${branches.length})`;
+            baseMsg = `Are you sure you want to delete ${branches.length} other branches?\nMain branch (${mainBranch}) and current branch (${branchName || 'current'}) will be kept.`;
           } else if (actionType === 'all') {
-            modalTitle = `删除所有分支 (${branches.length} 个)`;
-            baseMsg = `确定要删除项目【${projectName || '当前项目'}】的所有 ${branches.length} 个工作树分支吗？\n主分支（${mainBranch}）将严格受保护并保留。`;
+            modalTitle = `Delete All Branches (${branches.length})`;
+            baseMsg = `Are you sure you want to delete all ${branches.length} worktree branches in project [${projectName || 'current'}]?\nMain branch (${mainBranch}) is strictly protected.`;
           }
 
           let htmlContent = '';
@@ -6742,13 +6742,13 @@
               </div>
               <div style="margin: 10px 0; padding: 12px; background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.35); border-left: 4px solid #ef4444; border-radius: 6px; font-size: 12px; line-height: 1.5;">
                 <div style="font-weight: 600; color: #ef4444; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
-                  <span>⚠️ 严重警告：检测到未提交修改或未合并代码！</span>
+                  <span>⚠️ Warning: Uncommitted changes or unmerged commits detected!</span>
                 </div>
                 <div style="max-height: 180px; overflow-y: auto; padding-right: 4px;">
                   ${dirtyOrUnmerged.map(b => {
                     const details = [];
-                    if (b.hasUncommitted) details.push(`<span style="color: #f59e0b; font-weight: 500;">${b.uncommittedCount} 处未提交修改</span>`);
-                    if (b.hasUnmerged) details.push(`<span style="color: #ef4444; font-weight: 500;">${b.unmergedCount} 个未合并到主干的提交</span>`);
+                    if (b.hasUncommitted) details.push(`<span style="color: #f59e0b; font-weight: 500;">${b.uncommittedCount} uncommitted change(s)</span>`);
+                    if (b.hasUnmerged) details.push(`<span style="color: #ef4444; font-weight: 500;">${b.unmergedCount} unmerged commit(s)</span>`);
                     let fileList = '';
                     if (b.uncommittedFiles?.length > 0) {
                       fileList = `<div style="margin-top: 2px; padding-left: 10px; font-family: monospace; font-size: 11px; opacity: 0.85; color: var(--muted-foreground, #9ca3af);">${b.uncommittedFiles.slice(0, 4).join('<br/>')}</div>`;
@@ -6758,14 +6758,14 @@
                       commitList = `<div style="margin-top: 2px; padding-left: 10px; font-family: monospace; font-size: 11px; opacity: 0.85; color: #f87171;">${b.unmergedCommits.slice(0, 3).join('<br/>')}</div>`;
                     }
                     return `<div style="margin-bottom: 8px; border-bottom: 1px dashed rgba(255,255,255,0.08); padding-bottom: 6px;">
-                      <div style="font-weight: 600; color: var(--foreground, #fff); margin-bottom: 2px;">• 分支: <span style="color:#60a5fa;">${b.branchName}</span> (${details.join('，')})</div>
+                      <div style="font-weight: 600; color: var(--foreground, #fff); margin-bottom: 2px;">• Branch: <span style="color:#60a5fa;">${b.branchName}</span> (${details.join(', ')})</div>
                       ${fileList}
                       ${commitList}
                     </div>`;
                   }).join('')}
                 </div>
                 <div style="margin-top: 8px; color: #ef4444; font-weight: 600;">
-                  一旦确认删除，上述未保存的工作将永久丢失且无法恢复！
+                  Once deleted, the uncommitted or unmerged work above will be permanently lost!
                 </div>
               </div>
             `;
@@ -6775,7 +6775,7 @@
                 ${baseMsg.replace(/\n/g, '<br/>')}
               </div>
               <div style="padding: 8px 12px; background: rgba(34, 197, 94, 0.1); border: 1px solid rgba(34, 197, 94, 0.3); border-radius: 6px; font-size: 12px; color: #22c55e;">
-                ✓ 所有目标分支代码均已合并至主干且工作区干净。
+                ✓ All target branch commits are merged and the working tree is clean.
               </div>
             `;
           }
@@ -6785,8 +6785,8 @@
             message: baseMsg,
             htmlContent,
             danger: true,
-            confirmText: dirtyOrUnmerged.length > 0 ? '强制彻底删除' : '彻底删除',
-            cancelText: '取消',
+            confirmText: dirtyOrUnmerged.length > 0 ? 'Force Delete Permanently' : 'Delete Permanently',
+            cancelText: 'Cancel',
             onConfirm: async () => {
               const branchNamesToDelete = branches.map(b => b.branchName);
               try {
@@ -6804,18 +6804,18 @@
                 }).then(r => r.json());
 
                 if (res.success) {
-                  showNotification?.(res.message || `已成功清理 ${branchNamesToDelete.length} 个分支工作树`);
+                  showNotification?.(res.message || `Successfully purged ${branchNamesToDelete.length} branch worktrees`);
                 } else {
-                  showNotification?.(`清理失败: ${res.error || '未知错误'}`);
+                  showNotification?.(`Purge failed: ${res.error || 'Unknown error'}`);
                 }
               } catch (err) {
-                showNotification?.(`请求服务失败: ${err?.message || err}`);
+                showNotification?.(`Failed to communicate with service: ${err?.message || err}`);
               }
             }
           });
 
         } catch (err) {
-          showNotification?.(`检查分支失败: ${err?.message || err}`);
+          showNotification?.(`Failed to check branch: ${err?.message || err}`);
         }
       };
 
@@ -7261,7 +7261,7 @@
                 const trashBtn = document.createElement('button');
                 trashBtn.className = 'agy-wt-hover-trash';
                 trashBtn.type = 'button';
-                trashBtn.title = `彻底删除工作树与分支: ${info.branchName}`;
+                trashBtn.title = `Delete worktree and branch: ${info.branchName}`;
                 trashBtn.innerHTML = `
                   <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <polyline points="3 6 5 6 21 6"></polyline>
