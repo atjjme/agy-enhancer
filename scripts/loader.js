@@ -100,6 +100,22 @@ process.on('unhandledRejection', (reason) => {
   log('[UnhandledRejection]', reason?.stack || reason?.message || reason);
 });
 
+function gracefulDaemonExit() {
+  log('[Daemon Exit] Received termination signal, performing graceful cleanup...');
+  try { cleanupEnhancer(); } catch (_) {}
+  try { manageSystemTray(false); } catch (_) {}
+}
+
+process.on('SIGINT', () => {
+  gracefulDaemonExit();
+  process.exit(0);
+});
+
+process.on('SIGTERM', () => {
+  gracefulDaemonExit();
+  process.exit(0);
+});
+
 log('=== Antigravity Enhancer daemon started ===');
 
 const enhancerFile = path.resolve(__dirname, '../src/agy-enhancer.js');
@@ -2061,6 +2077,7 @@ function startEmbeddedSettingsServer() {
     if (urlPath === '/api/shutdown') {
       log('[Shutdown API] Received graceful shutdown request.');
       cleanupEnhancer();
+      manageSystemTray(false);
       res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
       res.end(JSON.stringify({ success: true, message: 'Shutting down gracefully...' }));
       setTimeout(() => {
