@@ -160,6 +160,8 @@
   let isAiTurnPinned = null;
   let toggleAiTurnPin = null;
   let pinAiTurnFromSelection = null;
+  let pinClickSwitchHandler = null;
+  let pinPopstateHandler = null;
 
   // 精准全局用户按键打字感知：仅在用户真实按键输入的 350ms 内抑制后台轮询，光标常驻聚焦不影响功能
   let lastTypingTime = 0;
@@ -212,6 +214,14 @@
     if (convoSwitchPopstateHandler) {
       window.removeEventListener('popstate', convoSwitchPopstateHandler);
       convoSwitchPopstateHandler = null;
+    }
+    if (pinClickSwitchHandler) {
+      document.removeEventListener('click', pinClickSwitchHandler, true);
+      pinClickSwitchHandler = null;
+    }
+    if (pinPopstateHandler) {
+      window.removeEventListener('popstate', pinPopstateHandler, true);
+      pinPopstateHandler = null;
     }
     if (docClickHandler) {
       document.removeEventListener('click', docClickHandler);
@@ -6032,8 +6042,7 @@
         const containerConvoId = getContainerConvoId(container);
         const urlConvoId = getCurrentUrlConvoId();
 
-        const effectiveConvoId = containerConvoId || urlConvoId;
-        if (!effectiveConvoId) return;
+        const effectiveConvoId = containerConvoId || urlConvoId || null;
 
         if (effectiveConvoId !== currentActiveConvoId) {
           // 仅在当前确实是用户在查看该对话时才保存
@@ -6042,15 +6051,19 @@
           }
           currentActiveConvoId = effectiveConvoId;
 
-          const saved = convoPositionsMap.get(effectiveConvoId);
-          if (saved && !saved.isBottom && saved.scrollTop > 5) {
-            console.log(`[agy-enhancer] Switched to convo [${effectiveConvoId}], restoring position (scrollTop: ${saved.scrollTop}px)`);
-            startRestoration(effectiveConvoId, saved);
+          if (effectiveConvoId) {
+            const saved = convoPositionsMap.get(effectiveConvoId);
+            if (saved && !saved.isBottom && saved.scrollTop > 5) {
+              console.log(`[agy-enhancer] Switched to convo [${effectiveConvoId}], restoring position (scrollTop: ${saved.scrollTop}px)`);
+              startRestoration(effectiveConvoId, saved);
+            } else {
+              endRestoration('new convo or at bottom');
+            }
           } else {
-            endRestoration('new convo or at bottom');
+            endRestoration('new chat or no convo');
           }
           try { window.__AGY_ON_CONVO_SWITCH__?.(effectiveConvoId); } catch (e) {}
-          try { window.__AGY_APPLY_FORK_RENAME__?.(effectiveConvoId); } catch (e) {}
+          try { if (effectiveConvoId) window.__AGY_APPLY_FORK_RENAME__?.(effectiveConvoId); } catch (e) {}
         }
       }
 
@@ -8085,7 +8098,7 @@
 
       function getConvoStorageKey(convoId = null) {
         const id = convoId || getPinCurrentConvoId();
-        return PIN_KEY_PREFIX + (id ? `c_${id}` : 'c_global');
+        return id ? PIN_KEY_PREFIX + `c_${id}` : null;
       }
 
       function migrateLegacyStorageIfPresent() {
@@ -8127,35 +8140,17 @@
 
       function getPinnedList(convoId = null) {
         migrateLegacyStorageIfPresent();
+        // 彻底清除历史误存的 c_global 脏数据，绝不影响新建会话或跨会话污染
+        try { localStorage.removeItem(PIN_KEY_PREFIX + 'c_global'); } catch (e) {}
+
         try {
           const targetId = convoId || getPinCurrentConvoId();
+          // 无具体会话 ID（如新建对话页面、启动过渡期），坚决返回空列表，0 像素占用，绝对不显示绿点
+          if (!targetId) return [];
+
           const key = getConvoStorageKey(targetId);
-          let raw = localStorage.getItem(key);
-
-          // 增量自愈平移：若当前有具体会话 ID 但自身为空，而历史 c_global 存在且包含属于本会话 DOM 的钉选数据，则安全平移
-          if (!raw && targetId) {
-            const globalKey = PIN_KEY_PREFIX + 'c_global';
-            const globalRaw = localStorage.getItem(globalKey);
-            if (globalRaw) {
-              try {
-                const gList = JSON.parse(globalRaw);
-                if (Array.isArray(gList) && gList.length > 0) {
-                  const chatContainer = getChatScrollContainer();
-                  const belongsHere = chatContainer && gList.some(item => {
-                    if (item.hash && chatContainer.querySelector(`[data-agy-summary-hash="${item.hash}"]`)) return true;
-                    const snip = (item.text || '').slice(0, 30).trim();
-                    return snip && (chatContainer.innerText || '').includes(snip);
-                  });
-                  if (belongsHere) {
-                    localStorage.setItem(key, globalRaw);
-                    localStorage.removeItem(globalKey);
-                    raw = globalRaw;
-                  }
-                }
-              } catch (err) {}
-            }
-          }
-
+          if (!key) return [];
+          const raw = localStorage.getItem(key);
           if (!raw) return [];
           const list = JSON.parse(raw);
           return Array.isArray(list) ? list : [];
@@ -8167,6 +8162,7 @@
       function savePinnedList(list, convoId = null) {
         try {
           const key = getConvoStorageKey(convoId);
+          if (!key) return;
           if (!Array.isArray(list) || list.length === 0) {
             localStorage.removeItem(key);
             try {
@@ -8636,7 +8632,7 @@
                   <path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z" fill="currentColor"></path>
                 </svg>
               </span>
-              <span class="agy-card-title" title="${escapeHtml(item.title)} (双击打开预览)">${escapeHtml(item.title)}</span>
+              <span class="agy-card-title" title="${escapeHtml(item.title)} (Double-click to preview)">${escapeHtml(item.title)}</span>
               <div class="agy-card-actions">
                 <button class="agy-card-btn agy-card-rename" data-idx="${idx}" title="Rename">
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
@@ -8719,7 +8715,7 @@
                 }
               }
               titleEl.textContent = targetItem.title;
-              titleEl.title = `${targetItem.title} (双击打开预览)`;
+              titleEl.title = `${targetItem.title} (Double-click to preview)`;
               titleEl.style.display = '';
               input.remove();
               lastRenderedPinSignature = '';
@@ -9474,15 +9470,15 @@
         showNotification?.('📌 Pinned from selection');
       };
 
-      // 11. 会话切换感知与零冗余心跳
-      function handlePinConvoSwitch(forceConvoId = null) {
-        const currentConvoId = forceConvoId || getPinCurrentConvoId();
+      // 11. 会话切换感知与零冗余心跳（0 毫秒即时响应）
+      function handlePinConvoSwitch(forceConvoId = undefined) {
+        const currentConvoId = forceConvoId !== undefined ? forceConvoId : getPinCurrentConvoId();
         if (currentConvoId !== lastConvoIdForPins) {
           lastConvoIdForPins = currentConvoId;
           currentActiveIndex = 0;
           lastRenderedPinSignature = '';
 
-          const list = getPinnedList(currentConvoId);
+          const list = currentConvoId ? getPinnedList(currentConvoId) : [];
           renderPinnedIndicator(true);
           if (list.length === 0) {
             document.getElementById('agy-pip-modal')?.remove();
@@ -9508,6 +9504,22 @@
         try { prevConvoSwitchForPins?.(switchedConvoId); } catch (e) {}
         try { handlePinConvoSwitch(switchedConvoId); } catch (e) {}
       };
+
+      // 极速拦截侧边栏会话切换与新建对话点击（0ms 瞬间清空隐藏，消除 1-2 秒延迟）
+      pinClickSwitchHandler = (e) => {
+        const convoRow = e.target.closest('[data-testid="conversation-row-sidebar"]');
+        const newChatBtn = e.target.closest('[data-testid="create-new-chat-button"], button[aria-label*="New chat" i], button[aria-label*="New" i], a[href="/"], a[href="/c/new"]');
+        if (convoRow || newChatBtn) {
+          const nextId = convoRow ? convoRow.getAttribute('data-cascade-id') : null;
+          handlePinConvoSwitch(nextId);
+          setTimeout(() => handlePinConvoSwitch(), 50);
+          setTimeout(() => handlePinConvoSwitch(), 150);
+        }
+      };
+      document.addEventListener('click', pinClickSwitchHandler, true);
+
+      pinPopstateHandler = () => handlePinConvoSwitch();
+      window.addEventListener('popstate', pinPopstateHandler, true);
 
       // 12. 初始化装载
       ensurePinnedSummaryStyles();
