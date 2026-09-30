@@ -190,7 +190,7 @@ namespace AgyEnhancer
 
             // 2. 开机自启
             itemAutostart = new ToolStripMenuItem("开机自启");
-            itemAutostart.CheckOnClick = true;
+            itemAutostart.CheckOnClick = false;
             itemAutostart.Checked = IsAutostartConfigured();
             itemAutostart.Click += (s, e) => ToggleAutostart();
             renderer.AutostartMenuItem = itemAutostart;
@@ -350,7 +350,7 @@ namespace AgyEnhancer
             return defaultValue;
         }
 
-        private void SaveConfigValue(string keyName, string val)
+        private void SaveConfigValue(string keyName, string val, bool isLiteral = false)
         {
             try
             {
@@ -361,7 +361,10 @@ namespace AgyEnhancer
                     req.Method = "POST";
                     req.ContentType = "application/json";
                     req.Timeout = 800;
-                    byte[] bytes = Encoding.UTF8.GetBytes(string.Format("{{\"{0}\":\"{1}\"}}", keyName, val));
+                    string jsonBody = isLiteral 
+                        ? string.Format("{{\"{0}\":{1}}}", keyName, val)
+                        : string.Format("{{\"{0}\":\"{1}\"}}", keyName, val);
+                    byte[] bytes = Encoding.UTF8.GetBytes(jsonBody);
                     req.ContentLength = bytes.Length;
                     using (Stream st = req.GetRequestStream())
                     {
@@ -384,17 +387,23 @@ namespace AgyEnhancer
                     if (File.Exists(cf))
                     {
                         string content = File.ReadAllText(cf);
-                        string pattern = "\"" + keyName + "\"\\s*:\\s*\"[^\"]*\"";
+                        string pattern = isLiteral 
+                            ? "\"" + keyName + "\"\\s*:\\s*(true|false|\\d+)"
+                            : "\"" + keyName + "\"\\s*:\\s*\"[^\"]*\"";
+                        string replacement = isLiteral
+                            ? string.Format("\"{0}\": {1}", keyName, val)
+                            : string.Format("\"{0}\": \"{1}\"", keyName, val);
+
                         if (Regex.IsMatch(content, pattern))
                         {
-                            content = Regex.Replace(content, pattern, string.Format("\"{0}\": \"{1}\"", keyName, val));
+                            content = Regex.Replace(content, pattern, replacement);
                         }
                         else
                         {
                             int lastBrace = content.LastIndexOf('}');
                             if (lastBrace > 0)
                             {
-                                content = content.Substring(0, lastBrace).TrimEnd() + ",\n  \"" + keyName + "\": \"" + val + "\"\n}";
+                                content = content.Substring(0, lastBrace).TrimEnd() + ",\n  " + replacement + "\n}";
                             }
                         }
                         File.WriteAllText(cf, content);
@@ -538,8 +547,10 @@ namespace AgyEnhancer
             try
             {
                 string startupFolder = Environment.GetFolderPath(Environment.SpecialFolder.Startup);
-                string lnkPath = Path.Combine(startupFolder, "agy-enhancer-silent.lnk");
-                return File.Exists(lnkPath);
+                string lnk1 = Path.Combine(startupFolder, "AntigravityEnhancer.lnk");
+                string lnk2 = Path.Combine(startupFolder, "AntigravityReaderEnhancer.lnk");
+                string lnk3 = Path.Combine(startupFolder, "agy-enhancer-silent.lnk");
+                return File.Exists(lnk1) || File.Exists(lnk2) || File.Exists(lnk3);
             }
             catch
             {
@@ -551,16 +562,43 @@ namespace AgyEnhancer
         {
             try
             {
-                bool targetState = !IsAutostartConfigured();
-                string batFile = targetState ? "setup-autostart.bat" : "remove-autostart.bat";
-                string fullBat = Path.Combine(scriptsDir, batFile);
-
-                if (File.Exists(fullBat))
+                bool currentState = IsAutostartConfigured();
+                bool targetState = !currentState;
+                if (currentState)
                 {
-                    RunBatHidden(fullBat);
+                    // 移除开机自启：优先直接删除快捷方式以获得即时响应，并补充调用批处理
+                    string startupFolder = Environment.GetFolderPath(Environment.SpecialFolder.Startup);
+                    foreach (string name in new string[] { "AntigravityEnhancer.lnk", "AntigravityReaderEnhancer.lnk", "agy-enhancer-silent.lnk" })
+                    {
+                        string p = Path.Combine(startupFolder, name);
+                        if (File.Exists(p)) { try { File.Delete(p); } catch {} }
+                    }
+                    string removeBat = Path.Combine(scriptsDir, "remove-autostart.bat");
+                    if (File.Exists(removeBat)) RunBatHidden(removeBat, "--nopause");
+                }
+                else
+                {
+                    // 启用开机自启：以 --nopause 模式静默执行并等待快捷方式落地
+                    string setupBat = Path.Combine(scriptsDir, "setup-autostart.bat");
+                    if (File.Exists(setupBat))
+                    {
+                        ProcessStartInfo psi = new ProcessStartInfo();
+                        psi.FileName = "cmd.exe";
+                        psi.Arguments = "/c \"" + setupBat + "\" --nopause";
+                        psi.WindowStyle = ProcessWindowStyle.Hidden;
+                        psi.CreateNoWindow = true;
+                        psi.UseShellExecute = false;
+                        using (Process p = Process.Start(psi))
+                        {
+                            if (p != null) p.WaitForExit(3000);
+                        }
+                    }
                 }
 
-                Thread.Sleep(300);
+                // 核心同步：通知守护服务 API 与本地配置文件，实现托盘与设置中心完美双向联动
+                SaveConfigValue("ENABLE_AUTOSTART", targetState ? "true" : "false", true);
+
+                Thread.Sleep(100);
                 itemAutostart.Checked = IsAutostartConfigured();
             }
             catch {}
@@ -595,7 +633,7 @@ namespace AgyEnhancer
         {
             try
             {
-                SaveConfigValue("ENABLE_SYSTEM_TRAY", "false");
+                SaveConfigValue("ENABLE_SYSTEM_TRAY", "false", true);
             }
             catch {}
 
@@ -636,7 +674,7 @@ namespace AgyEnhancer
             ExitTrayOnly();
         }
 
-        private void RunBatHidden(string batPath, string args = "")
+        private void RunBatHidden(string batPath, string args = "--nopause")
         {
             try
             {

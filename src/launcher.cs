@@ -114,20 +114,6 @@ namespace AgyEnhancer
                     return;
                 }
 
-                string settingsV2Exe = Path.Combine(rootDir, "settings-v2.exe");
-                if (File.Exists(settingsV2Exe))
-                {
-                    Process.Start(new ProcessStartInfo(settingsV2Exe) { UseShellExecute = true });
-                    return;
-                }
-
-                string settingsV2Html = Path.Combine(rootDir, "settings-v2.html");
-                if (File.Exists(settingsV2Html))
-                {
-                    Process.Start(new ProcessStartInfo(settingsV2Html) { UseShellExecute = true });
-                    return;
-                }
-
                 string settingsHtml = Path.Combine(rootDir, "settings.html");
                 if (File.Exists(settingsHtml))
                 {

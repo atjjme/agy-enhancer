@@ -17,3 +17,4 @@ node_modules/
 *.tmp
 *.zip
 agy-enhancer-config.json
+_to_delete/

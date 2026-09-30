@@ -7,13 +7,7 @@ if exist "settings.exe" (
     exit /b 0
 )
 
-if exist "settings-v2.exe" (
-    start "" "settings-v2.exe"
-    exit /b 0
-)
-
-set "TARGET_HTML=settings-v2.html"
-if not exist "%TARGET_HTML%" set "TARGET_HTML=settings.html"
+set "TARGET_HTML=settings.html"
 set "TARGET_URL=file:///%CD:\=/%/%TARGET_HTML%"
 set "USER_DIR=%TEMP%\agy_enhancer_app_profile"
 

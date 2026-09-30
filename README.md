@@ -22,51 +22,46 @@ As Antigravity updates and evolves, may this project gradually fade into the bac
 #### 1. System Requirements
 - **Operating System**: Windows 10 / Windows 11
 - **Software Dependencies**:
-  - **Antigravity Desktop Client** (compatible with all recent builds);
-  - **[Node.js](https://nodejs.org/)** runtime (LTS version recommended, v16+; used for running the lightweight background daemon. Run `node -v` in terminal to verify installation).
+  - **Antigravity Desktop Client** (compatible with all builds);
+  - **[Node.js](https://nodejs.org/)** runtime (LTS version recommended, v16+; used for running the lightweight background daemon. Run `node -v` in terminal to verify).
 
 #### 2. Download Package
-👉 **[Click here to download the latest Release ZIP](https://github.com/atjjme/agy-enhancer/releases/latest)** and extract it to any local directory.
+👉 **[Click here to download the latest Release ZIP](https://github.com/atjjme/agy-enhancer/releases/latest)** and extract it to any directory.
 
-#### 3. One-Click Initialization & Autostart
-After extraction, the root directory is kept clean and minimal. Simply double-click:
-👉 **`agy-enhancer.exe`**
-- **Automated Environment Check**: Detects Node.js runtime environment;
-- **Windows Autostart Setup**: Configures silent auto-launch upon Windows logon (enabled by default on first launch, respects user preferences);
-- **Silent Daemon Launch**: Injects the client 100% silently in the background (no console popups; upon successful injection, a green indicator dot appears in the top-right corner of Antigravity).
+#### 3. Quick Start (Dual Root Executables)
+
+| Executable | How to Run | Core Description |
+| :--- | :--- | :--- |
+| **`agy-enhancer.exe`** | **Double-click to start / initialize** | • Automatically detects Node.js runtime environment;<br>• Silently launches daemon in background with zero console popups;<br>• Automatically configures Windows silent autostart by default (can be toggled in Settings);<br>• Upon successful injection, a **green status dot** appears in the top-right corner of Antigravity. |
+| **`settings.exe`** | **Open Settings anytime** | • Opens standalone dedicated settings app window (or simply double-click root `settings.html`);<br>• While running, you can also launch Settings by **double-clicking `agy-enhancer.exe` again**, **clicking the green status dot**, or via the **system tray icon**;<br>• Top-right shows green indicator (● Connected); changes take effect instantly upon saving without restarting the client. |
 
 ---
 
 <a id="files-guide"></a>
-#### Internal Maintenance Scripts Reference:
+#### 4. Maintenance & Debug Scripts (`scripts/` Directory)
 
-| Script File | Path | Core Purpose & Usage |
-| :--- | :--- | :--- |
-| **`agy-enhancer.exe`** | `scripts/` (and root) | **Native Silent Launcher**: Windows native executable that launches `loader.js` completely hidden with zero console popup. |
-| **`stop-service.bat`** | `scripts/` | **Stop Service**: Immediately terminates active Node.js injector daemons and frees all local resources. |
-| **`settings.bat`** | `scripts/` | **Launch Settings**: Ensures the daemon is running and opens `settings.html` in default browser (simply double-clicking `settings.html` works identically). |
-| **`start-enhancer.bat`** | `scripts/` | **Debug Console**: Shows a terminal window with real-time CDP port detection, injection status, and interaction logs. |
-| **`setup-autostart.bat`** | `scripts/` | **Configure Autostart**: Adds or updates the silent startup shortcut in the Windows Startup folder independently. |
-| **`remove-autostart.bat`** | `scripts/` | **Remove Autostart**: Cleans up the startup shortcut without affecting currently running processes. |
-| **`uninstall.bat`** | `scripts/` | **Complete Uninstall**: Cleans up startup shortcuts and terminates active background daemons cleanly. |
+For daily usage, simply interact with the root executables. For troubleshooting, stopping, or uninstalling, choose the corresponding script from `scripts/`:
+
+| Script File | Core Purpose & Usage |
+| :--- | :--- |
+| **`start-enhancer.bat`** | **Debug Console**: Launches service with a visible terminal window, showing real-time CDP port detection, injection, and interaction logs. |
+| **`stop-service.bat`** | **Stop Service**: Safely terminates background Node.js daemon and tray processes, freeing port `37210`. |
+| **`uninstall.bat`** | **Complete Uninstall**: Removes startup shortcut and cleanly stops all active enhancer background services. |
+| **`setup-autostart.bat`** | **Enable Autostart**: Manually adds silent startup shortcut to Windows Startup folder without opening Settings. |
+| **`remove-autostart.bat`** | **Disable Autostart**: Removes startup shortcut from Windows Startup folder without stopping running services. |
+| **`agy-enhancer.user.js`** | **Web Userscript**: For users accessing Antigravity Web via standard browsers. |
 
 ---
 
 <a id="settings-guide"></a>
-### 🎛️ Settings Dashboard (`settings.html`)
+### 🎛️ Settings Dashboard
 
-#### 1. Why `settings.html`?
-No cluttered or cumbersome configuration modal inside the Antigravity UI.
-- **Unified Lightweight Architecture**: The settings server is natively integrated into the background daemon (`loader.js`). Only 1 single lightweight Node.js process runs in the background. When idle, the listening thread is suspended by Windows kernel IOCP (**0.00% CPU overhead**), bound strictly to `127.0.0.1` (zero network exposure).
-- **Instant Access Anytime**:
-  - Run **`agy-enhancer.exe`** once upon initial extraction to set up autostart and daemon;
-  - Afterwards, simply double-click **`settings.html`** in the root directory anytime to open settings in a fraction of a second, without running the launcher again;
-  - If the daemon has not yet been started, the page politely guides you to double-click `agy-enhancer.exe`, and automatically connects once running.
-- **Layered Hierarchical Control**:
-  - **Master Switch**: When toggled off, the entire feature set is disabled and de-energized, leaving Antigravity in 100% clean official state;
-  - **Context Menu & Quote Float Linkage**: Context menu features are controlled by a single master switch. The Quote floating prompt blocker is subordinate to the context menu switch (disabling the context menu automatically turns off Quote blocker; enabling it allows toggling Quote blocker freely);
-  - Independent switches for **Status Indicator, Quick Navigation, Project Archive, Reading Memory, Smart Unread, and Windows Autostart**.
-- **Instant Hot Reload**: Clicking "Save Settings" pushes updates to memory and reinjects Antigravity in real-time (~0ms latency) without restarting the client! Close the page when done.
+- **Lightweight Standalone Architecture**: Settings server is natively integrated into the background daemon (`loader.js`). Only 1 single lightweight Node.js process runs in background; suspended when idle (**0.00% CPU overhead**), bound strictly to `127.0.0.1`.
+- **On-Demand Access**: Simply double-click `settings.exe` when needed, make adjustments, save, and close the window.
+- **Granular Control & Hot Reload**:
+  - **Master Switch**: Turns off all enhancer hooks when disabled, returning Antigravity 100% to official stock behavior;
+  - **Independent Toggles**: Dedicated controls for status indicator, navigation buttons, project archiver, context menu, Quote float blocker, reading memory, smart unread detection, Windows autostart, and system tray;
+  - **Instant Hot Reload**: Changes are pushed directly into client memory via CDP with 0ms latency upon saving—no restart required.
 
 ---
 
@@ -80,6 +75,9 @@ No cluttered or cumbersome configuration modal inside the Antigravity UI.
 5. [Conversation Reading Memory: Automatically remembers scroll position per chat](#feature-5)
 6. [Smart Unread Detection: Marks as read only after genuine viewing](#feature-6)
 7. [Local Web Settings: Configure and toggle features via local dashboard](#feature-7)
+8. AI Response Context Menu Enhancements & Conversation Branch Forking
+9. Bidirectional Prompt & Response Pinning with Picture-in-Picture (PiP) Preview
+10. Worktree Quick Dropdown Management & Hover Cleanup
 
 ---
 

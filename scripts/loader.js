@@ -281,6 +281,9 @@ function getStoredConfig() {
     }
   }
 
+  // 核心：开机自启状态动态与系统实际快捷方式存在性严格对齐
+  config.ENABLE_AUTOSTART = isAutostartEnabled();
+
   return config;
 }
 
@@ -643,16 +646,9 @@ async function connectAndAttach() {
             if (shouldOpen) {
               const rootDir = path.resolve(__dirname, '..');
               const settingsExe = path.join(rootDir, 'settings.exe');
-              const settingsV2Exe = path.join(rootDir, 'settings-v2.exe');
               if (fs.existsSync(settingsExe)) {
                 log(`[Open Settings] Launching settings application: ${settingsExe}`);
                 exec(`start "" "${settingsExe}"`);
-              } else if (fs.existsSync(settingsV2Exe)) {
-                log(`[Open Settings] Launching settings application: ${settingsV2Exe}`);
-                exec(`start "" "${settingsV2Exe}"`);
-              } else if (fs.existsSync(path.join(rootDir, 'settings-v2.html'))) {
-                log(`[Open Settings] Launching settings v2: ${path.join(rootDir, 'settings-v2.html')}`);
-                exec(`start "" "${path.join(rootDir, 'settings-v2.html')}"`);
               } else {
                 log(`[Open Settings] Launching settings dashboard: ${settingsHtmlFile}`);
                 exec(`start "" "${settingsHtmlFile}"`);
@@ -1856,9 +1852,17 @@ function startEmbeddedSettingsServer() {
           const newConfig = JSON.parse(body);
           if (typeof newConfig.ENABLE_AUTOSTART === 'boolean') {
             setAutostart(newConfig.ENABLE_AUTOSTART);
+          } else if (newConfig.ENABLE_AUTOSTART === 'true' || newConfig.ENABLE_AUTOSTART === 'false') {
+            const bVal = (newConfig.ENABLE_AUTOSTART === 'true');
+            setAutostart(bVal);
+            newConfig.ENABLE_AUTOSTART = bVal;
           }
           if (typeof newConfig.ENABLE_SYSTEM_TRAY === 'boolean') {
             manageSystemTray(newConfig.ENABLE_SYSTEM_TRAY);
+          } else if (newConfig.ENABLE_SYSTEM_TRAY === 'true' || newConfig.ENABLE_SYSTEM_TRAY === 'false') {
+            const bVal = (newConfig.ENABLE_SYSTEM_TRAY === 'true');
+            manageSystemTray(bVal);
+            newConfig.ENABLE_SYSTEM_TRAY = bVal;
           }
           const saved = saveStoredConfig(newConfig);
 
