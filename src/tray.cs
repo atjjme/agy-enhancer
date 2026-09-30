@@ -1,9 +1,12 @@
 using System;
 using System.Diagnostics;
 using System.Drawing;
+using System.Drawing.Drawing2D;
 using System.IO;
 using System.Net;
+using System.Runtime.InteropServices;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Windows.Forms;
 
@@ -11,20 +14,21 @@ namespace AgyEnhancer
 {
     public class ModernDarkColorTable : ProfessionalColorTable
     {
-        public override Color MenuBorder { get { return Color.FromArgb(61, 35, 17); } }
-        public override Color ToolStripDropDownBackground { get { return Color.FromArgb(20, 12, 6); } }
-        public override Color ImageMarginGradientBegin { get { return Color.FromArgb(20, 12, 6); } }
-        public override Color ImageMarginGradientMiddle { get { return Color.FromArgb(20, 12, 6); } }
-        public override Color ImageMarginGradientEnd { get { return Color.FromArgb(20, 12, 6); } }
-        public override Color MenuItemSelected { get { return Color.FromArgb(45, 26, 13); } }
-        public override Color MenuItemSelectedGradientBegin { get { return Color.FromArgb(45, 26, 13); } }
-        public override Color MenuItemSelectedGradientEnd { get { return Color.FromArgb(45, 26, 13); } }
-        public override Color MenuItemBorder { get { return Color.FromArgb(84, 49, 24); } }
-        public override Color CheckBackground { get { return Color.FromArgb(32, 20, 10); } }
-        public override Color CheckSelectedBackground { get { return Color.FromArgb(50, 30, 15); } }
-        public override Color CheckPressedBackground { get { return Color.FromArgb(50, 30, 15); } }
-        public override Color SeparatorDark { get { return Color.FromArgb(61, 35, 17); } }
-        public override Color SeparatorLight { get { return Color.FromArgb(20, 12, 6); } }
+        // 匹配设置中心：深色底座 #0f172a, 日冕橙 #ea580c, 琥珀金 #f59e0b
+        public override Color MenuBorder { get { return Color.FromArgb(234, 88, 12); } }
+        public override Color ToolStripDropDownBackground { get { return Color.FromArgb(15, 23, 42); } }
+        public override Color ImageMarginGradientBegin { get { return Color.FromArgb(15, 23, 42); } }
+        public override Color ImageMarginGradientMiddle { get { return Color.FromArgb(15, 23, 42); } }
+        public override Color ImageMarginGradientEnd { get { return Color.FromArgb(15, 23, 42); } }
+        public override Color MenuItemSelected { get { return Color.FromArgb(40, 25, 18); } }
+        public override Color MenuItemSelectedGradientBegin { get { return Color.FromArgb(40, 25, 18); } }
+        public override Color MenuItemSelectedGradientEnd { get { return Color.FromArgb(40, 25, 18); } }
+        public override Color MenuItemBorder { get { return Color.FromArgb(245, 158, 11); } }
+        public override Color CheckBackground { get { return Color.FromArgb(30, 20, 15); } }
+        public override Color CheckSelectedBackground { get { return Color.FromArgb(50, 28, 16); } }
+        public override Color CheckPressedBackground { get { return Color.FromArgb(50, 28, 16); } }
+        public override Color SeparatorDark { get { return Color.FromArgb(45, 55, 72); } }
+        public override Color SeparatorLight { get { return Color.FromArgb(15, 23, 42); } }
     }
 
     public class ModernDarkMenuRenderer : ToolStripProfessionalRenderer
@@ -45,12 +49,11 @@ namespace AgyEnhancer
         {
             base.OnRenderMenuItemBackground(e);
 
-            // 当开机自启未勾选时，在左侧复选区域渲染半透明空方框，让状态一目了然
             ToolStripMenuItem item = e.Item as ToolStripMenuItem;
             if (item != null && item == AutostartMenuItem && !item.Checked)
             {
                 Graphics g = e.Graphics;
-                g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+                g.SmoothingMode = SmoothingMode.AntiAlias;
                 int size = 14;
                 int x = 6;
                 int y = (item.Height - size) / 2;
@@ -64,7 +67,7 @@ namespace AgyEnhancer
         protected override void OnRenderItemCheck(ToolStripItemImageRenderEventArgs e)
         {
             Graphics g = e.Graphics;
-            g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+            g.SmoothingMode = SmoothingMode.AntiAlias;
             Rectangle rect = e.ImageRectangle;
 
             int size = 14;
@@ -72,20 +75,18 @@ namespace AgyEnhancer
             int y = rect.Top + (rect.Height - size) / 2;
             Rectangle box = new Rectangle(x, y, size, size);
 
-            // 绘制日冕暖橙微光背景方框
-            using (SolidBrush bgBrush = new SolidBrush(Color.FromArgb(55, 249, 115, 22)))
-            using (Pen borderPen = new Pen(Color.FromArgb(249, 115, 22), 1.2f))
+            using (SolidBrush bgBrush = new SolidBrush(Color.FromArgb(55, 234, 88, 12)))
+            using (Pen borderPen = new Pen(Color.FromArgb(234, 88, 12), 1.2f))
             {
                 g.FillRectangle(bgBrush, box);
                 g.DrawRectangle(borderPen, box);
             }
 
-            // 绘制日冕金黄对号
             using (Pen pen = new Pen(Color.FromArgb(251, 191, 36), 2.0f))
             {
-                pen.StartCap = System.Drawing.Drawing2D.LineCap.Round;
-                pen.EndCap = System.Drawing.Drawing2D.LineCap.Round;
-                pen.LineJoin = System.Drawing.Drawing2D.LineJoin.Round;
+                pen.StartCap = LineCap.Round;
+                pen.EndCap = LineCap.Round;
+                pen.LineJoin = LineJoin.Round;
                 Point[] checkPoints = new Point[]
                 {
                     new Point(box.Left + 3, box.Top + 7),
@@ -95,17 +96,62 @@ namespace AgyEnhancer
                 g.DrawLines(pen, checkPoints);
             }
         }
+
+        protected override void OnRenderToolStripBorder(ToolStripRenderEventArgs e)
+        {
+            Graphics g = e.Graphics;
+            g.SmoothingMode = SmoothingMode.AntiAlias;
+            Rectangle rect = new Rectangle(0, 0, e.ToolStrip.Width - 1, e.ToolStrip.Height - 1);
+            using (Pen pen = new Pen(Color.FromArgb(234, 88, 12), 1.2f))
+            {
+                using (GraphicsPath path = CreateRoundedRectanglePath(rect, 8))
+                {
+                    g.DrawPath(pen, path);
+                }
+            }
+        }
+
+        public static GraphicsPath CreateRoundedRectanglePath(Rectangle rect, int radius)
+        {
+            GraphicsPath path = new GraphicsPath();
+            int diameter = radius * 2;
+            if (diameter > rect.Width) diameter = rect.Width;
+            if (diameter > rect.Height) diameter = rect.Height;
+
+            path.AddArc(rect.X, rect.Y, diameter, diameter, 180, 90);
+            path.AddArc(rect.Right - diameter, rect.Y, diameter, diameter, 270, 90);
+            path.AddArc(rect.Right - diameter, rect.Bottom - diameter, diameter, diameter, 0, 90);
+            path.AddArc(rect.X, rect.Bottom - diameter, diameter, diameter, 90, 90);
+            path.CloseFigure();
+            return path;
+        }
     }
 
     public class TrayAppContext : ApplicationContext
     {
+        [DllImport("dwmapi.dll")]
+        private static extern int DwmSetWindowAttribute(IntPtr hwnd, int attr, ref int attrValue, int attrSize);
+
+        private const int DWMWA_WINDOW_CORNER_PREFERENCE = 33;
+        private const int DWMWCP_ROUND = 2; // 圆角
+
         private NotifyIcon notifyIcon;
         private ContextMenuStrip contextMenu;
         private ToolStripMenuItem itemSettings;
         private ToolStripMenuItem itemAutostart;
+        private ToolStripMenuItem itemTheme;
+        private ToolStripMenuItem itemThemeSystem;
+        private ToolStripMenuItem itemThemeLight;
+        private ToolStripMenuItem itemThemeDark;
+        private ToolStripMenuItem itemLang;
+        private ToolStripMenuItem itemLangAuto;
+        private ToolStripMenuItem itemLangZhCn;
+        private ToolStripMenuItem itemLangZhTw;
+        private ToolStripMenuItem itemLangEn;
         private ToolStripMenuItem itemHideTray;
         private ToolStripMenuItem itemStartService;
         private ToolStripMenuItem itemExit;
+
         private string rootDir;
         private string scriptsDir;
 
@@ -150,42 +196,96 @@ namespace AgyEnhancer
             renderer.AutostartMenuItem = itemAutostart;
             contextMenu.Items.Add(itemAutostart);
 
-            // 3. 隐藏托盘
-            itemHideTray = new ToolStripMenuItem("隐藏托盘");
-            itemHideTray.Click += (s, e) => DisableTrayAndExit();
-            contextMenu.Items.Add(itemHideTray);
+            // 3. 界面主题子菜单
+            itemTheme = new ToolStripMenuItem("界面主题");
+            itemTheme.DropDown.Renderer = renderer;
+            ToolStripDropDownMenu themeMenu = itemTheme.DropDown as ToolStripDropDownMenu;
+            if (themeMenu != null)
+            {
+                themeMenu.ShowImageMargin = false;
+                themeMenu.ShowCheckMargin = true;
+            }
+            itemTheme.DropDown.Font = contextMenu.Font;
 
-            // 4. 启动服务
-            itemStartService = new ToolStripMenuItem("启动服务");
-            itemStartService.Click += (s, e) => StartService();
-            contextMenu.Items.Add(itemStartService);
+            itemThemeSystem = new ToolStripMenuItem("跟随系统", null, (s, e) => SetTheme("system"));
+            itemThemeLight = new ToolStripMenuItem("浅色模式", null, (s, e) => SetTheme("light"));
+            itemThemeDark = new ToolStripMenuItem("深色模式", null, (s, e) => SetTheme("dark"));
+
+            itemTheme.DropDownItems.AddRange(new ToolStripItem[] { itemThemeSystem, itemThemeLight, itemThemeDark });
+            contextMenu.Items.Add(itemTheme);
+
+            // 4. 界面语言子菜单
+            itemLang = new ToolStripMenuItem("界面语言");
+            itemLang.DropDown.Renderer = renderer;
+            ToolStripDropDownMenu langMenu = itemLang.DropDown as ToolStripDropDownMenu;
+            if (langMenu != null)
+            {
+                langMenu.ShowImageMargin = false;
+                langMenu.ShowCheckMargin = true;
+            }
+            itemLang.DropDown.Font = contextMenu.Font;
+
+            itemLangAuto = new ToolStripMenuItem("跟随系统", null, (s, e) => SetLang("auto"));
+            itemLangZhCn = new ToolStripMenuItem("简体中文", null, (s, e) => SetLang("zh-CN"));
+            itemLangZhTw = new ToolStripMenuItem("繁體中文", null, (s, e) => SetLang("zh-TW"));
+            itemLangEn = new ToolStripMenuItem("English", null, (s, e) => SetLang("en"));
+
+            itemLang.DropDownItems.AddRange(new ToolStripItem[] { itemLangAuto, itemLangZhCn, itemLangZhTw, itemLangEn });
+            contextMenu.Items.Add(itemLang);
 
             // 分割线
             contextMenu.Items.Add(new ToolStripSeparator());
 
-            // 5. 退出
+            // 5. 启动服务
+            itemStartService = new ToolStripMenuItem("启动服务");
+            itemStartService.Click += (s, e) => StartService();
+            contextMenu.Items.Add(itemStartService);
+
+            // 6. 隐藏托盘
+            itemHideTray = new ToolStripMenuItem("隐藏托盘");
+            itemHideTray.Click += (s, e) => DisableTrayAndExit();
+            contextMenu.Items.Add(itemHideTray);
+
+            // 分割线
+            contextMenu.Items.Add(new ToolStripSeparator());
+
+            // 7. 退出
             itemExit = new ToolStripMenuItem("退出");
             itemExit.Click += (s, e) => ExitAllServices();
             contextMenu.Items.Add(itemExit);
 
-            UpdateMenuLanguage();
+            // 菜单圆角支持 (Windows 11 原生圆角 + 双重保障)
+            ApplyRoundCorners(contextMenu);
+            ApplyRoundCorners(itemTheme.DropDown);
+            ApplyRoundCorners(itemLang.DropDown);
 
-            // 无锁加载图标 (使用 FileShare.ReadWrite 与 Clone 解除文件锁定并避免 stream 提前释放)
+            UpdateMenuLanguage();
+            UpdateThemeMenuCheck();
+
+            // 加载图标 (精准匹配系统托盘当前 DPI 小图标尺寸，杜绝 Windows 强制缩放导致的模糊发虚)
             Icon icon = null;
             string icoPath = Path.Combine(rootDir, "assets", "icon.ico");
             if (File.Exists(icoPath))
             {
                 try
                 {
-                    using (FileStream fs = new FileStream(icoPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+                    Size traySize = SystemInformation.SmallIconSize;
+                    icon = new Icon(icoPath, traySize);
+                }
+                catch
+                {
+                    try
                     {
-                        using (Icon tempIcon = new Icon(fs))
+                        using (FileStream fs = new FileStream(icoPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
                         {
-                            icon = (Icon)tempIcon.Clone();
+                            using (Icon tempIcon = new Icon(fs))
+                            {
+                                icon = (Icon)tempIcon.Clone();
+                            }
                         }
                     }
+                    catch {}
                 }
-                catch {}
             }
             if (icon == null)
             {
@@ -197,20 +297,32 @@ namespace AgyEnhancer
             notifyIcon.Text = "agy-enhancer";
             notifyIcon.ContextMenuStrip = contextMenu;
             notifyIcon.Visible = true;
-            Log("NotifyIcon created with text 'agy-enhancer' and set to Visible=true");
 
-            // 仅双击打开设置，单击不再响应
             notifyIcon.DoubleClick += (s, e) => OpenSettings();
 
-            // 每次右键展开菜单时，实时查询真实自启状态并动态同步语言设置
             contextMenu.Opening += (s, e) =>
             {
                 itemAutostart.Checked = IsAutostartConfigured();
                 UpdateMenuLanguage();
+                UpdateThemeMenuCheck();
             };
         }
 
-        private string GetConfiguredLanguage()
+        private void ApplyRoundCorners(ToolStripDropDown menu)
+        {
+            if (menu == null) return;
+            menu.Opened += (s, e) =>
+            {
+                try
+                {
+                    int preference = DWMWCP_ROUND;
+                    DwmSetWindowAttribute(menu.Handle, DWMWA_WINDOW_CORNER_PREFERENCE, ref preference, sizeof(int));
+                }
+                catch {}
+            };
+        }
+
+        private string GetConfigValue(string keyName, string defaultValue)
         {
             try
             {
@@ -226,7 +338,7 @@ namespace AgyEnhancer
                     if (File.Exists(cf))
                     {
                         string content = File.ReadAllText(cf);
-                        System.Text.RegularExpressions.Match m = System.Text.RegularExpressions.Regex.Match(content, "\"UI_LANG\"\\s*:\\s*\"([^\"]+)\"");
+                        Match m = Regex.Match(content, "\"" + keyName + "\"\\s*:\\s*\"([^\"]+)\"");
                         if (m.Success)
                         {
                             return m.Groups[1].Value.Trim();
@@ -235,24 +347,100 @@ namespace AgyEnhancer
                 }
             }
             catch {}
-            return "auto";
+            return defaultValue;
         }
 
-        private bool IsEnglishLanguage()
+        private void SaveConfigValue(string keyName, string val)
         {
-            string lang = GetConfiguredLanguage().ToLower();
-            if (lang == "en") return true;
-            if (lang.StartsWith("zh")) return false;
-            // auto 模式下跟随操作系统 UI 语言
+            try
+            {
+                // 1. 同步向本地 API 发送 POST
+                try
+                {
+                    HttpWebRequest req = (HttpWebRequest)WebRequest.Create("http://127.0.0.1:37210/api/config");
+                    req.Method = "POST";
+                    req.ContentType = "application/json";
+                    req.Timeout = 800;
+                    byte[] bytes = Encoding.UTF8.GetBytes(string.Format("{{\"{0}\":\"{1}\"}}", keyName, val));
+                    req.ContentLength = bytes.Length;
+                    using (Stream st = req.GetRequestStream())
+                    {
+                        st.Write(bytes, 0, bytes.Length);
+                    }
+                    using (WebResponse resp = req.GetResponse()) {}
+                }
+                catch {}
+
+                // 2. 本地配置文件写入
+                string[] possibleConfigs = new string[]
+                {
+                    Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "antigravity", "agy-enhancer-config.json"),
+                    Path.Combine(scriptsDir, "agy-enhancer-config.json"),
+                    Path.Combine(rootDir, "agy-enhancer-config.json")
+                };
+
+                foreach (string cf in possibleConfigs)
+                {
+                    if (File.Exists(cf))
+                    {
+                        string content = File.ReadAllText(cf);
+                        string pattern = "\"" + keyName + "\"\\s*:\\s*\"[^\"]*\"";
+                        if (Regex.IsMatch(content, pattern))
+                        {
+                            content = Regex.Replace(content, pattern, string.Format("\"{0}\": \"{1}\"", keyName, val));
+                        }
+                        else
+                        {
+                            int lastBrace = content.LastIndexOf('}');
+                            if (lastBrace > 0)
+                            {
+                                content = content.Substring(0, lastBrace).TrimEnd() + ",\n  \"" + keyName + "\": \"" + val + "\"\n}";
+                            }
+                        }
+                        File.WriteAllText(cf, content);
+                    }
+                }
+            }
+            catch {}
+        }
+
+        private void SetTheme(string theme)
+        {
+            SaveConfigValue("UI_THEME_MODE", theme);
+            UpdateThemeMenuCheck();
+        }
+
+        private void UpdateThemeMenuCheck()
+        {
+            string theme = GetConfigValue("UI_THEME_MODE", "system").ToLower();
+            if (itemThemeSystem != null) itemThemeSystem.Checked = (theme == "system");
+            if (itemThemeLight != null) itemThemeLight.Checked = (theme == "light");
+            if (itemThemeDark != null) itemThemeDark.Checked = (theme == "dark");
+        }
+
+        private void SetLang(string lang)
+        {
+            SaveConfigValue("UI_LANG", lang);
+            UpdateMenuLanguage();
+        }
+
+        private string GetEffectiveLanguage()
+        {
+            string lang = GetConfigValue("UI_LANG", "auto").ToLower();
+            if (lang == "en") return "en";
+            if (lang == "zh-tw") return "zh-tw";
+            if (lang.StartsWith("zh")) return "zh-cn";
+
             try
             {
                 string sysLang = System.Globalization.CultureInfo.CurrentUICulture.Name.ToLower();
-                if (sysLang.StartsWith("zh")) return false;
-                return true;
+                if (sysLang.Contains("tw") || sysLang.Contains("hk")) return "zh-tw";
+                if (sysLang.StartsWith("zh")) return "zh-cn";
+                return "en";
             }
             catch
             {
-                return false;
+                return "zh-cn";
             }
         }
 
@@ -260,12 +448,56 @@ namespace AgyEnhancer
         {
             try
             {
-                bool isEn = IsEnglishLanguage();
-                if (itemSettings != null) itemSettings.Text = isEn ? "Settings Center" : "设置中心";
-                if (itemAutostart != null) itemAutostart.Text = isEn ? "Start on Boot" : "开机自启";
-                if (itemHideTray != null) itemHideTray.Text = isEn ? "Hide System Tray" : "隐藏托盘";
-                if (itemStartService != null) itemStartService.Text = isEn ? "Start Service" : "启动服务";
-                if (itemExit != null) itemExit.Text = isEn ? "Exit" : "退出";
+                string effLang = GetEffectiveLanguage();
+                string cfgLang = GetConfigValue("UI_LANG", "auto").ToLower();
+
+                if (itemLangAuto != null) itemLangAuto.Checked = (cfgLang == "auto");
+                if (itemLangZhCn != null) itemLangZhCn.Checked = (cfgLang == "zh-cn");
+                if (itemLangZhTw != null) itemLangZhTw.Checked = (cfgLang == "zh-tw");
+                if (itemLangEn != null) itemLangEn.Checked = (cfgLang == "en");
+
+                if (effLang == "en")
+                {
+                    if (itemSettings != null) itemSettings.Text = "Settings Center";
+                    if (itemAutostart != null) itemAutostart.Text = "Start on Boot";
+                    if (itemTheme != null) itemTheme.Text = "Theme";
+                    if (itemThemeSystem != null) itemThemeSystem.Text = "Follow System";
+                    if (itemThemeLight != null) itemThemeLight.Text = "Light Mode";
+                    if (itemThemeDark != null) itemThemeDark.Text = "Dark Mode";
+                    if (itemLang != null) itemLang.Text = "Language";
+                    if (itemLangAuto != null) itemLangAuto.Text = "Follow System";
+                    if (itemHideTray != null) itemHideTray.Text = "Hide System Tray";
+                    if (itemStartService != null) itemStartService.Text = "Start Service";
+                    if (itemExit != null) itemExit.Text = "Exit";
+                }
+                else if (effLang == "zh-tw")
+                {
+                    if (itemSettings != null) itemSettings.Text = "設定中心";
+                    if (itemAutostart != null) itemAutostart.Text = "開機自啟";
+                    if (itemTheme != null) itemTheme.Text = "介面主題";
+                    if (itemThemeSystem != null) itemThemeSystem.Text = "跟隨系統";
+                    if (itemThemeLight != null) itemThemeLight.Text = "淺色模式";
+                    if (itemThemeDark != null) itemThemeDark.Text = "深色模式";
+                    if (itemLang != null) itemLang.Text = "介面語言";
+                    if (itemLangAuto != null) itemLangAuto.Text = "跟隨系統";
+                    if (itemHideTray != null) itemHideTray.Text = "隱藏托盤";
+                    if (itemStartService != null) itemStartService.Text = "啟動服務";
+                    if (itemExit != null) itemExit.Text = "退出";
+                }
+                else
+                {
+                    if (itemSettings != null) itemSettings.Text = "设置中心";
+                    if (itemAutostart != null) itemAutostart.Text = "开机自启";
+                    if (itemTheme != null) itemTheme.Text = "界面主题";
+                    if (itemThemeSystem != null) itemThemeSystem.Text = "跟随系统";
+                    if (itemThemeLight != null) itemThemeLight.Text = "浅色模式";
+                    if (itemThemeDark != null) itemThemeDark.Text = "深色模式";
+                    if (itemLang != null) itemLang.Text = "界面语言";
+                    if (itemLangAuto != null) itemLangAuto.Text = "跟随系统";
+                    if (itemHideTray != null) itemHideTray.Text = "隐藏托盘";
+                    if (itemStartService != null) itemStartService.Text = "启动服务";
+                    if (itemExit != null) itemExit.Text = "退出";
+                }
             }
             catch {}
         }
@@ -274,34 +506,29 @@ namespace AgyEnhancer
         {
             try
             {
-                // 优先访问本地守护进程设置微服务，以保证同源与多主题联动
-                bool serverOnline = false;
-                try
+                string settingsExe = Path.Combine(rootDir, "settings.exe");
+                if (File.Exists(settingsExe))
                 {
-                    HttpWebRequest req = (HttpWebRequest)WebRequest.Create("http://127.0.0.1:37210/api/config");
-                    req.Timeout = 600;
-                    req.Method = "GET";
-                    using (HttpWebResponse resp = (HttpWebResponse)req.GetResponse())
-                    {
-                        if (resp.StatusCode == HttpStatusCode.OK)
-                        {
-                            serverOnline = true;
-                        }
-                    }
-                }
-                catch {}
-
-                if (serverOnline)
-                {
-                    Process.Start(new ProcessStartInfo("http://127.0.0.1:37210/") { UseShellExecute = true });
+                    Process.Start(new ProcessStartInfo(settingsExe) { UseShellExecute = true });
                     return;
                 }
 
-                string settingsHtml = Path.Combine(rootDir, "settings.html");
+                string settingsV2Exe = Path.Combine(rootDir, "settings-v2.exe");
+                if (File.Exists(settingsV2Exe))
+                {
+                    Process.Start(new ProcessStartInfo(settingsV2Exe) { UseShellExecute = true });
+                    return;
+                }
+
+                string settingsHtml = Path.Combine(rootDir, "settings-v2.html");
                 if (File.Exists(settingsHtml))
                 {
                     Process.Start(new ProcessStartInfo(settingsHtml) { UseShellExecute = true });
+                    return;
                 }
+
+                // 兜底原版
+                Process.Start(new ProcessStartInfo(Path.Combine(rootDir, "settings.html")) { UseShellExecute = true });
             }
             catch {}
         }
@@ -310,9 +537,9 @@ namespace AgyEnhancer
         {
             try
             {
-                string startupDir = Environment.GetFolderPath(Environment.SpecialFolder.Startup);
-                string lnk = Path.Combine(startupDir, "AntigravityEnhancer.lnk");
-                return File.Exists(lnk);
+                string startupFolder = Environment.GetFolderPath(Environment.SpecialFolder.Startup);
+                string lnkPath = Path.Combine(startupFolder, "agy-enhancer-silent.lnk");
+                return File.Exists(lnkPath);
             }
             catch
             {
@@ -324,18 +551,17 @@ namespace AgyEnhancer
         {
             try
             {
-                bool currentState = IsAutostartConfigured();
-                if (currentState)
+                bool targetState = !IsAutostartConfigured();
+                string batFile = targetState ? "setup-autostart.bat" : "remove-autostart.bat";
+                string fullBat = Path.Combine(scriptsDir, batFile);
+
+                if (File.Exists(fullBat))
                 {
-                    string bat = Path.Combine(scriptsDir, "remove-autostart.bat");
-                    RunBatHidden(bat, "--nopause");
+                    RunBatHidden(fullBat);
                 }
-                else
-                {
-                    string bat = Path.Combine(scriptsDir, "setup-autostart.bat");
-                    RunBatHidden(bat, "--nopause");
-                }
-                itemAutostart.Checked = !currentState;
+
+                Thread.Sleep(300);
+                itemAutostart.Checked = IsAutostartConfigured();
             }
             catch {}
         }
@@ -344,80 +570,32 @@ namespace AgyEnhancer
         {
             try
             {
-                string exe1 = Path.Combine(rootDir, "agy-enhancer.exe");
-                string exe2 = Path.Combine(scriptsDir, "agy-enhancer.exe");
-                string vbs = Path.Combine(scriptsDir, "agy-enhancer.vbs");
-
-                if (File.Exists(exe1))
+                string launcherExe = Path.Combine(rootDir, "agy-enhancer.exe");
+                if (File.Exists(launcherExe))
                 {
-                    ProcessStartInfo psi = new ProcessStartInfo(exe1);
-                    psi.WorkingDirectory = rootDir;
-                    psi.UseShellExecute = true;
-                    Process.Start(psi);
-                    Log("[StartService] Started agy-enhancer.exe from rootDir");
-                }
-                else if (File.Exists(exe2))
-                {
-                    ProcessStartInfo psi = new ProcessStartInfo(exe2);
-                    psi.WorkingDirectory = rootDir;
-                    psi.UseShellExecute = true;
-                    Process.Start(psi);
-                    Log("[StartService] Started agy-enhancer.exe from scriptsDir");
-                }
-                else if (File.Exists(vbs))
-                {
-                    ProcessStartInfo psi = new ProcessStartInfo("wscript.exe", "\"" + vbs + "\"");
+                    ProcessStartInfo psi = new ProcessStartInfo();
+                    psi.FileName = launcherExe;
                     psi.WorkingDirectory = rootDir;
                     psi.UseShellExecute = false;
+                    psi.CreateNoWindow = true;
                     Process.Start(psi);
-                    Log("[StartService] Started agy-enhancer.vbs");
+                    return;
+                }
+
+                string vbs = Path.Combine(scriptsDir, "agy-enhancer.vbs");
+                if (File.Exists(vbs))
+                {
+                    Process.Start(new ProcessStartInfo("wscript.exe", "\"" + vbs + "\"") { UseShellExecute = false, CreateNoWindow = true });
                 }
             }
-            catch (Exception ex)
-            {
-                Log("[StartService Error] " + ex.Message);
-            }
+            catch {}
         }
 
         private void DisableTrayAndExit()
         {
             try
             {
-                // 1. 同步向守护服务提交禁用系统托盘 API
-                try
-                {
-                    HttpWebRequest req = (HttpWebRequest)WebRequest.Create("http://127.0.0.1:37210/api/config");
-                    req.Method = "POST";
-                    req.ContentType = "application/json";
-                    req.Timeout = 800;
-                    byte[] postBytes = Encoding.UTF8.GetBytes("{\"ENABLE_SYSTEM_TRAY\":false}");
-                    req.ContentLength = postBytes.Length;
-                    using (Stream stream = req.GetRequestStream())
-                    {
-                        stream.Write(postBytes, 0, postBytes.Length);
-                    }
-                    using (WebResponse resp = req.GetResponse()) {}
-                }
-                catch {}
-
-                // 2. 修改真实持久化配置文件的 ENABLE_SYSTEM_TRAY 为 false
-                string[] possibleConfigs = new string[]
-                {
-                    Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "antigravity", "agy-enhancer-config.json"),
-                    Path.Combine(scriptsDir, "agy-enhancer-config.json"),
-                    Path.Combine(rootDir, "agy-enhancer-config.json")
-                };
-
-                foreach (string cf in possibleConfigs)
-                {
-                    if (File.Exists(cf))
-                    {
-                        string content = File.ReadAllText(cf);
-                        content = content.Replace("\"ENABLE_SYSTEM_TRAY\": true", "\"ENABLE_SYSTEM_TRAY\": false")
-                                         .Replace("\"ENABLE_SYSTEM_TRAY\":true", "\"ENABLE_SYSTEM_TRAY\": false");
-                        File.WriteAllText(cf, content);
-                    }
-                }
+                SaveConfigValue("ENABLE_SYSTEM_TRAY", "false");
             }
             catch {}
 
@@ -472,17 +650,6 @@ namespace AgyEnhancer
             }
             catch {}
         }
-
-        public static void Log(string msg)
-        {
-            try
-            {
-                string baseDir = AppDomain.CurrentDomain.BaseDirectory.TrimEnd('\\', '/');
-                string logFile = Path.Combine(baseDir, "agy-tray.log");
-                File.AppendAllText(logFile, string.Format("[{0:yyyy-MM-dd HH:mm:ss.fff}] {1}\r\n", DateTime.Now, msg));
-            }
-            catch {}
-        }
     }
 
     static class Program
@@ -490,31 +657,16 @@ namespace AgyEnhancer
         [STAThread]
         static void Main()
         {
-            TrayAppContext.Log("Main started. ProcessId=" + Process.GetCurrentProcess().Id);
-
-            Application.ThreadException += (s, e) =>
-            {
-                TrayAppContext.Log("Application.ThreadException: " + e.Exception.ToString());
-            };
-            AppDomain.CurrentDomain.UnhandledException += (s, e) =>
-            {
-                TrayAppContext.Log("UnhandledException: " + (e.ExceptionObject != null ? e.ExceptionObject.ToString() : "null"));
-            };
-
             bool createdNew = false;
             Mutex mutex = null;
             try
             {
                 mutex = new Mutex(true, @"Local\AntigravityEnhancer_SystemTray_Singleton", out createdNew);
             }
-            catch (Exception ex)
-            {
-                TrayAppContext.Log("Mutex creation warning: " + ex.Message);
-            }
+            catch {}
 
             if (!createdNew)
             {
-                // 二次核实是否真有其它运行中的 agy-tray 进程
                 int currentPid = Process.GetCurrentProcess().Id;
                 Process[] procs = Process.GetProcessesByName("agy-tray");
                 bool anotherRunning = false;
@@ -529,24 +681,17 @@ namespace AgyEnhancer
 
                 if (anotherRunning)
                 {
-                    TrayAppContext.Log("Another instance of agy-tray is already running. Exiting cleanly.");
                     return;
                 }
-                TrayAppContext.Log("Mutex was already held but no other active agy-tray process found. Continuing startup.");
             }
 
             try
             {
                 Application.EnableVisualStyles();
                 Application.SetCompatibleTextRenderingDefault(false);
-                TrayAppContext.Log("Starting Application.Run...");
                 Application.Run(new TrayAppContext());
-                TrayAppContext.Log("Application.Run ended.");
             }
-            catch (Exception ex)
-            {
-                TrayAppContext.Log("Fatal error in Application.Run: " + ex.ToString());
-            }
+            catch {}
             finally
             {
                 if (mutex != null)

@@ -641,8 +641,22 @@ async function connectAndAttach() {
               shouldOpen = true;
             }
             if (shouldOpen) {
-              log(`[Open Settings] Launching settings dashboard: ${settingsHtmlFile}`);
-              exec(`start "" "${settingsHtmlFile}"`);
+              const rootDir = path.resolve(__dirname, '..');
+              const settingsExe = path.join(rootDir, 'settings.exe');
+              const settingsV2Exe = path.join(rootDir, 'settings-v2.exe');
+              if (fs.existsSync(settingsExe)) {
+                log(`[Open Settings] Launching settings application: ${settingsExe}`);
+                exec(`start "" "${settingsExe}"`);
+              } else if (fs.existsSync(settingsV2Exe)) {
+                log(`[Open Settings] Launching settings application: ${settingsV2Exe}`);
+                exec(`start "" "${settingsV2Exe}"`);
+              } else if (fs.existsSync(path.join(rootDir, 'settings-v2.html'))) {
+                log(`[Open Settings] Launching settings v2: ${path.join(rootDir, 'settings-v2.html')}`);
+                exec(`start "" "${path.join(rootDir, 'settings-v2.html')}"`);
+              } else {
+                log(`[Open Settings] Launching settings dashboard: ${settingsHtmlFile}`);
+                exec(`start "" "${settingsHtmlFile}"`);
+              }
             }
           }
         } else if (data.id === 77777) {
@@ -1592,13 +1606,14 @@ function handleNewWorktreeSync(targetDir) {
     let syncedFiles = [];
     let sharedCacheEnabled = false;
 
-    // 2. 自动同步主工程中未被 git 追踪的关键配置文件 (.env*, local.properties 等)
+    // 2. 自动同步主工程中未被 git 追踪的关键配置文件 (.env*, local.properties, config.json 等)
     try {
       const filesInMain = fs.readdirSync(mainRoot);
       const candidates = filesInMain.filter(fn => {
         const lower = fn.toLowerCase();
         if (lower.startsWith('.env') && !lower.endsWith('.example') && !lower.endsWith('.sample')) return true;
         if (lower === 'local.properties') return true;
+        if (lower === 'config.json' || lower.endsWith('.local.json') || lower === 'settings.local.json') return true;
         return false;
       });
 
@@ -1618,6 +1633,46 @@ function handleNewWorktreeSync(targetDir) {
     } catch (syncErr) {
       log(`[Worktree Automation] Config sync error:`, syncErr.message);
     }
+
+    // 2.2 自动同步 models 目录中未被 git 追踪的大模型文件 (*.onnx, *.bin, *.pt 等)
+    try {
+      const srcModelsDir = path.join(mainRoot, 'models');
+      const dstModelsDir = path.join(normTarget, 'models');
+      if (fs.existsSync(srcModelsDir)) {
+        const syncDirModels = (sDir, dDir) => {
+          let count = 0;
+          if (!fs.existsSync(dDir)) fs.mkdirSync(dDir, { recursive: true });
+          const entries = fs.readdirSync(sDir, { withFileTypes: true });
+          for (const ent of entries) {
+            const sPath = path.join(sDir, ent.name);
+            const dPath = path.join(dDir, ent.name);
+            if (ent.isDirectory()) {
+              count += syncDirModels(sPath, dPath);
+            } else if (ent.isFile()) {
+              const lower = ent.name.toLowerCase();
+              const isModel = lower.endsWith('.onnx') || lower.endsWith('.bin') || lower.endsWith('.pt') || lower.endsWith('.safetensors');
+              if (isModel && !fs.existsSync(dPath)) {
+                try {
+                  fs.copyFileSync(sPath, dPath);
+                  count++;
+                  log(`[Worktree Automation] Synced model file: ${ent.name}`);
+                } catch (e) {
+                  log(`[Worktree Automation] Failed to copy model ${ent.name}:`, e.message);
+                }
+              }
+            }
+          }
+          return count;
+        };
+        const syncedModelsCount = syncDirModels(srcModelsDir, dstModelsDir);
+        if (syncedModelsCount > 0) {
+          syncedFiles.push(`${syncedModelsCount} model files`);
+        }
+      }
+    } catch (modelErr) {
+      log(`[Worktree Automation] Models sync error:`, modelErr.message);
+    }
+
 
     // 3. 共享编译缓存配置
     // 3.1 Rust 项目共享 target-dir (避免每个分支膨胀数 GB)

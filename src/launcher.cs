@@ -12,22 +12,26 @@ namespace AgyEnhancer
         {
             try
             {
-                // 1. 若后台守护服务已在运行，直接平稳退出（全局单例保证）
+                // 1. 定位项目根目录
+                string baseDir = AppDomain.CurrentDomain.BaseDirectory.TrimEnd('\\', '/');
+                string rootDir = baseDir;
+                if (Path.GetFileName(rootDir).Equals("scripts", StringComparison.OrdinalIgnoreCase))
+                {
+                    rootDir = Path.GetDirectoryName(rootDir);
+                }
+
+                // 2. 若后台守护服务已在运行，唤起设置中心后平稳退出（全局单例保护与快捷设置入口）
                 if (IsDaemonOnline())
                 {
+                    OpenSettings(rootDir);
                     return;
                 }
 
-                // 2. 定位项目根目录与 loader.js
-                string baseDir = AppDomain.CurrentDomain.BaseDirectory.TrimEnd('\\', '/');
-                string rootDir = baseDir;
-                string targetJs = Path.Combine(baseDir, "scripts", "loader.js");
-
+                // 3. 定位 loader.js
+                string targetJs = Path.Combine(rootDir, "scripts", "loader.js");
                 if (!File.Exists(targetJs))
                 {
-                    // 若可执行文件直接放在 scripts 目录下运行
                     targetJs = Path.Combine(baseDir, "loader.js");
-                    rootDir = Path.GetDirectoryName(baseDir);
                 }
 
                 if (!File.Exists(targetJs))
@@ -96,6 +100,42 @@ namespace AgyEnhancer
 
             // 默认回退到系统环境变量中的 node
             return "node.exe";
+        }
+
+        private static void OpenSettings(string rootDir)
+        {
+            try
+            {
+                // 优先调起专属设置程序 settings.exe
+                string settingsExe = Path.Combine(rootDir, "settings.exe");
+                if (File.Exists(settingsExe))
+                {
+                    Process.Start(new ProcessStartInfo(settingsExe) { UseShellExecute = true });
+                    return;
+                }
+
+                string settingsV2Exe = Path.Combine(rootDir, "settings-v2.exe");
+                if (File.Exists(settingsV2Exe))
+                {
+                    Process.Start(new ProcessStartInfo(settingsV2Exe) { UseShellExecute = true });
+                    return;
+                }
+
+                string settingsV2Html = Path.Combine(rootDir, "settings-v2.html");
+                if (File.Exists(settingsV2Html))
+                {
+                    Process.Start(new ProcessStartInfo(settingsV2Html) { UseShellExecute = true });
+                    return;
+                }
+
+                string settingsHtml = Path.Combine(rootDir, "settings.html");
+                if (File.Exists(settingsHtml))
+                {
+                    Process.Start(new ProcessStartInfo(settingsHtml) { UseShellExecute = true });
+                    return;
+                }
+            }
+            catch {}
         }
     }
 }

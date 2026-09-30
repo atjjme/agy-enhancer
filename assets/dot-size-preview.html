@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>agy-enhancer 图标底部圆点尺寸对比预览</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card-bg: #1e293b;
+      --card-border: #334155;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --primary: #f59e0b;
+      --primary-hover: #d97706;
+      --accent: #ea580c;
+    }
+    body.light-theme {
+      --bg: #f1f5f9;
+      --card-bg: #ffffff;
+      --card-border: #e2e8f0;
+      --text-main: #0f172a;
+      --text-muted: #64748b;
+    }
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", sans-serif;
+    }
+    body {
+      background: var(--bg);
+      color: var(--text-main);
+      padding: 32px;
+      min-height: 100vh;
+      transition: background 0.2s, color 0.2s;
+    }
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 24px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--card-border);
+    }
+    .title-group h1 {
+      font-size: 24px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .badge {
+      font-size: 12px;
+      padding: 3px 8px;
+      border-radius: 6px;
+      background: rgba(245, 158, 11, 0.15);
+      color: #f59e0b;
+      border: 1px solid rgba(245, 158, 11, 0.3);
+    }
+    .subtitle {
+      font-size: 14px;
+      color: var(--text-muted);
+      margin-top: 6px;
+    }
+    .actions {
+      display: flex;
+      gap: 12px;
+    }
+    .btn {
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      border: 1px solid var(--card-border);
+      background: var(--card-bg);
+      color: var(--text-main);
+      transition: all 0.15s;
+    }
+    .btn:hover {
+      border-color: var(--primary);
+    }
+
+    /* 方案卡片网格 */
+    .scheme-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 16px;
+      margin-bottom: 36px;
+    }
+    .scheme-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 16px;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+    }
+    .scheme-card.recommended {
+      border-color: #f59e0b;
+      box-shadow: 0 0 16px rgba(245, 158, 11, 0.15);
+    }
+    .rec-tag {
+      position: absolute;
+      top: -10px;
+      right: 12px;
+      background: linear-gradient(135deg, #f59e0b, #ea580c);
+      color: #fff;
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-weight: 700;
+    }
+    .scheme-header {
+      font-size: 16px;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+    .scheme-meta {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-bottom: 16px;
+    }
+    .scheme-large-preview {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background: rgba(0, 0, 0, 0.15);
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 16px;
+      height: 140px;
+    }
+    .scheme-large-preview img {
+      width: 100px;
+      height: 100px;
+    }
+
+    /* 真实像素尺寸对比表 */
+    .section-title {
+      font-size: 18px;
+      font-weight: 700;
+      margin: 32px 0 16px 0;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .table-container {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      overflow: hidden;
+      margin-bottom: 36px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: center;
+    }
+    th, td {
+      padding: 14px 12px;
+      border-bottom: 1px solid var(--card-border);
+      border-right: 1px solid var(--card-border);
+    }
+    th:last-child, td:last-child {
+      border-right: none;
+    }
+    tr:last-child td {
+      border-bottom: none;
+    }
+    th {
+      background: rgba(0, 0, 0, 0.2);
+      font-size: 13px;
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+    body.light-theme th {
+      background: rgba(0, 0, 0, 0.03);
+    }
+    .size-label {
+      text-align: left;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-main);
+      padding-left: 20px;
+    }
+    .size-label span {
+      display: block;
+      font-size: 11px;
+      font-weight: 400;
+      color: var(--text-muted);
+    }
+    .icon-cell {
+      vertical-align: middle;
+    }
+    .icon-cell img {
+      display: inline-block;
+      vertical-align: middle;
+      image-rendering: -webkit-optimize-contrast;
+    }
+
+    /* 任务栏场景仿真 */
+    .mockup-container {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 36px;
+    }
+    .taskbar-mockup {
+      display: flex;
+      align-items: center;
+      background: #0b1120;
+      height: 48px;
+      border-radius: 8px;
+      padding: 0 16px;
+      border: 1px solid #1e293b;
+      margin-top: 12px;
+      gap: 20px;
+    }
+    .taskbar-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 12px;
+      color: #94a3b8;
+    }
+    .taskbar-slot {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 36px;
+      height: 36px;
+      border-radius: 6px;
+      background: rgba(255, 255, 255, 0.05);
+    }
+    .taskbar-slot:hover {
+      background: rgba(255, 255, 255, 0.1);
+    }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <div class="title-group">
+      <h1>agy-enhancer 底部圆点尺寸对比方案 <span class="badge">变体评测</span></h1>
+      <div class="subtitle">针对小图标 (16px 托盘 / 24px 任务栏) 下圆点模糊或缺失问题，生成 5 组不同半径方案供选型</div>
+    </div>
+    <div class="actions">
+      <button class="btn" onclick="toggleTheme()">🌓 切换深浅背景</button>
+    </div>
+  </div>
+
+  <!-- 5大方案横向卡片对比 -->
+  <div class="scheme-grid">
+    <!-- 方案 A -->
+    <div class="scheme-card">
+      <div class="scheme-header">方案 A · 原版 (r=22)</div>
+      <div class="scheme-meta">圆点直径 44px (占比 8.6%)</div>
+      <div class="scheme-large-preview">
+        <img src="dot-variants/dot-r22-original.svg" alt="r22">
+      </div>
+      <div style="font-size:12px; color:var(--text-muted); line-height:1.5;">
+        大图精致，但在 16px/24px 缩放下由于仅占约 1.3px，抗锯齿后极易看不清或发灰消失。
+      </div>
+    </div>
+
+    <!-- 方案 B -->
+    <div class="scheme-card">
+      <div class="scheme-header">方案 B · 等粗款 (r=28)</div>
+      <div class="scheme-meta">圆点直径 56px (与 56px 折线等粗)</div>
+      <div class="scheme-large-preview">
+        <img src="dot-variants/dot-r28-stroke-match.svg" alt="r28">
+      </div>
+      <div style="font-size:12px; color:var(--text-muted); line-height:1.5;">
+        圆点直径与上方的线条描边宽度 1:1 严格对齐，符合网格严谨性，小图清晰度比原版提升 27%。
+      </div>
+    </div>
+
+    <!-- 方案 C -->
+    <div class="scheme-card">
+      <div class="scheme-header">方案 C · 均衡款 (r=34)</div>
+      <div class="scheme-meta">圆点直径 68px (略微加重)</div>
+      <div class="scheme-large-preview">
+        <img src="dot-variants/dot-r34-balanced.svg" alt="r34">
+      </div>
+      <div style="font-size:12px; color:var(--text-muted); line-height:1.5;">
+        在保证大图比例协调的同时，让圆点视觉权重适当增强，在 24px 与 32px 下有极好的辨识度。
+      </div>
+    </div>
+
+    <!-- 方案 D -->
+    <div class="scheme-card recommended">
+      <span class="rec-tag">推荐 (清晰醒目)</span>
+      <div class="scheme-header">方案 D · 清晰款 (r=40)</div>
+      <div class="scheme-meta">圆点直径 80px (专门针对小图标优化)</div>
+      <div class="scheme-large-preview">
+        <img src="dot-variants/dot-r40-clear.svg" alt="r40">
+      </div>
+      <div style="font-size:12px; color:var(--text-muted); line-height:1.5;">
+        <b>首选推荐</b>。在 16px/20px/24px 系统托盘与任务栏中，该圆点能保证至少 2.5~3 个完整物理像素点，一眼可见。
+      </div>
+    </div>
+
+    <!-- 方案 E -->
+    <div class="scheme-card">
+      <div class="scheme-header">方案 E · 强力款 (r=46)</div>
+      <div class="scheme-meta">圆点直径 92px (视觉焦点极大化)</div>
+      <div class="scheme-large-preview">
+        <img src="dot-variants/dot-r46-bold.svg" alt="r46">
+      </div>
+      <div style="font-size:12px; color:var(--text-muted); line-height:1.5;">
+        圆点极其显眼，大图下略显饱满厚实，即使在极端模糊显示下也绝不会丢失。
+      </div>
+    </div>
+  </div>
+
+  <!-- 真实运行环境尺寸对照矩阵 -->
+  <div class="section-title">
+    <span>📐 真实像素尺寸对照矩阵 (100% 实际渲染比例)</span>
+  </div>
+
+  <div class="table-container">
+    <table>
+      <thead>
+        <tr>
+          <th style="width: 220px; text-align: left; padding-left: 20px;">应用场景与物理尺寸</th>
+          <th>方案 A (原版 r=22)</th>
+          <th>方案 B (等粗款 r=28)</th>
+          <th>方案 C (均衡款 r=34)</th>
+          <th style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">方案 D (推荐 r=40)</th>
+          <th>方案 E (强力款 r=46)</th>
+        </tr>
+      </thead>
+      <tbody>
+        <!-- 16px 托盘 -->
+        <tr>
+          <td class="size-label">
+            16 × 16 px
+            <span>Windows 系统托盘通知区 (标准)</span>
+          </td>
+          <td class="icon-cell"><img src="dot-variants/dot-r22-original.svg" style="width:16px; height:16px;"></td>
+          <td class="icon-cell"><img src="dot-variants/dot-r28-stroke-match.svg" style="width:16px; height:16px;"></td>
+          <td class="icon-cell"><img src="dot-variants/dot-r34-balanced.svg" style="width:16px; height:16px;"></td>
+          <td class="icon-cell" style="background: rgba(245, 158, 11, 0.05);"><img src="dot-variants/dot-r40-clear.svg" style="width:16px; height:16px;"></td>
+          <td class="icon-cell"><img src="dot-variants/dot-r46-bold.svg" style="width:16px; height:16px;"></td>
+        </tr>
+
+        <!-- 20px 托盘高分屏 -->
+        <tr>
+          <td class="size-label">
+            20 × 20 px
+            <span>125% 缩放托盘 / 极小任务栏</span>
+          </td>
+          <td class="icon-cell"><img src="dot-variants/dot-r22-original.svg" style="width:20px; height:20px;"></td>
+          <td class="icon-cell"><img src="dot-variants/dot-r28-stroke-match.svg" style="width:20px; height:20px;"></td>
+          <td class="icon-cell"><img src="dot-variants/dot-r34-balanced.svg" style="width:20px; height:20px;"></td>
+          <td class="icon-cell" style="background: rgba(245, 158, 11, 0.05);"><img src="dot-variants/dot-r40-clear.svg" style="width:20px; height:20px;"></td>
+          <td class="icon-cell"><img src="dot-variants/dot-r46-bold.svg" style="width:20px; height:20px;"></td>
+        </tr>
+
+        <!-- 24px 任务栏小图标 -->
+        <tr>
+          <td class="size-label">
+            24 × 24 px
+            <span>Windows 10/11 任务栏小图标 / 弹窗标题栏</span>
+          </td>
+          <td class="icon-cell"><img src="dot-variants/dot-r22-original.svg" style="width:24px; height:24px;"></td>
+          <td class="icon-cell"><img src="dot-variants/dot-r28-stroke-match.svg" style="width:24px; height:24px;"></td>
+          <td class="icon-cell"><img src="dot-variants/dot-r34-balanced.svg" style="width:24px; height:24px;"></td>
+          <td class="icon-cell" style="background: rgba(245, 158, 11, 0.05);"><img src="dot-variants/dot-r40-clear.svg" style="width:24px; height:24px;"></td>
+          <td class="icon-cell"><img src="dot-variants/dot-r46-bold.svg" style="width:24px; height:24px;"></td>
+        </tr>
+
+        <!-- 32px 任务栏标准 -->
+        <tr>
+          <td class="size-label">
+            32 × 32 px
+            <span>Windows 11 默认任务栏居中图标</span>
+          </td>
+          <td class="icon-cell"><img src="dot-variants/dot-r22-original.svg" style="width:32px; height:32px;"></td>
+          <td class="icon-cell"><img src="dot-variants/dot-r28-stroke-match.svg" style="width:32px; height:32px;"></td>
+          <td class="icon-cell"><img src="dot-variants/dot-r34-balanced.svg" style="width:32px; height:32px;"></td>
+          <td class="icon-cell" style="background: rgba(245, 158, 11, 0.05);"><img src="dot-variants/dot-r40-clear.svg" style="width:32px; height:32px;"></td>
+          <td class="icon-cell"><img src="dot-variants/dot-r46-bold.svg" style="width:32px; height:32px;"></td>
+        </tr>
+
+        <!-- 48px 桌面图标 -->
+        <tr>
+          <td class="size-label">
+            48 × 48 px
+            <span>Windows 桌面图标中等规格</span>
+          </td>
+          <td class="icon-cell"><img src="dot-variants/dot-r22-original.svg" style="width:48px; height:48px;"></td>
+          <td class="icon-cell"><img src="dot-variants/dot-r28-stroke-match.svg" style="width:48px; height:48px;"></td>
+          <td class="icon-cell"><img src="dot-variants/dot-r34-balanced.svg" style="width:48px; height:48px;"></td>
+          <td class="icon-cell" style="background: rgba(245, 158, 11, 0.05);"><img src="dot-variants/dot-r40-clear.svg" style="width:48px; height:48px;"></td>
+          <td class="icon-cell"><img src="dot-variants/dot-r46-bold.svg" style="width:48px; height:48px;"></td>
+        </tr>
+
+        <!-- 64px 开始菜单 -->
+        <tr>
+          <td class="size-label">
+            64 × 64 px
+            <span>开始菜单磁贴 / 高清应用清单</span>
+          </td>
+          <td class="icon-cell"><img src="dot-variants/dot-r22-original.svg" style="width:64px; height:64px;"></td>
+          <td class="icon-cell"><img src="dot-variants/dot-r28-stroke-match.svg" style="width:64px; height:64px;"></td>
+          <td class="icon-cell"><img src="dot-variants/dot-r34-balanced.svg" style="width:64px; height:64px;"></td>
+          <td class="icon-cell" style="background: rgba(245, 158, 11, 0.05);"><img src="dot-variants/dot-r40-clear.svg" style="width:64px; height:64px;"></td>
+          <td class="icon-cell"><img src="dot-variants/dot-r46-bold.svg" style="width:64px; height:64px;"></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Windows 系统托盘实景仿真 -->
+  <div class="mockup-container">
+    <div style="font-size:15px; font-weight:700;">🖥️ 仿真 Windows 任务栏通知区 (16px 托盘实景)</div>
+    <div class="taskbar-mockup">
+      <div class="taskbar-item">
+        <span>方案 A (原版)</span>
+        <div class="taskbar-slot"><img src="dot-variants/dot-r22-original.svg" style="width:16px; height:16px;"></div>
+      </div>
+      <div class="taskbar-item">
+        <span>方案 B (等粗)</span>
+        <div class="taskbar-slot"><img src="dot-variants/dot-r28-stroke-match.svg" style="width:16px; height:16px;"></div>
+      </div>
+      <div class="taskbar-item">
+        <span>方案 C (均衡)</span>
+        <div class="taskbar-slot"><img src="dot-variants/dot-r34-balanced.svg" style="width:16px; height:16px;"></div>
+      </div>
+      <div class="taskbar-item" style="color: #f59e0b; font-weight: bold;">
+        <span>方案 D (清晰 - 推荐)</span>
+        <div class="taskbar-slot" style="border: 1px solid #f59e0b;"><img src="dot-variants/dot-r40-clear.svg" style="width:16px; height:16px;"></div>
+      </div>
+      <div class="taskbar-item">
+        <span>方案 E (强力)</span>
+        <div class="taskbar-slot"><img src="dot-variants/dot-r46-bold.svg" style="width:16px; height:16px;"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function toggleTheme() {
+      document.body.classList.toggle('light-theme');
+    }
+  </script>
+</body>
+</html>

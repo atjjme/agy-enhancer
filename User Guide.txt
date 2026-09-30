@@ -15,8 +15,8 @@ Welcome to AGY Enhancer! 【下划有中文简体，中文繁体介绍】
    - Runs 100% silently in the background (no popup windows).
 
 2. [Settings / Adjust Preferences]:
-   Double-click [ settings.html ] in the root directory anytime.
-   - Directly opens the configuration dashboard in your browser;
+   Double-click [ settings.exe ] in the root directory anytime (or double-click agy-enhancer.exe while running).
+   - Directly opens the dedicated configuration window;
    - Green indicator (● Connected) in top-right corner confirms active connection;
    - Changes take effect instantly without restarting Antigravity.
 
@@ -56,8 +56,8 @@ Welcome to AGY Enhancer! 【下划有中文简体，中文繁体介绍】
    - 100% 纯后台静默运行（无任何弹窗干扰）。
 
 2. 【日常调参 / 随时修改配置】：
-   随时双击根目录下的【 settings.html 】
-   - 会直接在浏览器中打开配置面板；
+   随时双击根目录下的【 settings.exe 】（或在服务运行中再次双击 agy-enhancer.exe / 托盘菜单 / 页面指示灯）
+   - 会直接弹出独立配置窗口；
    - 界面右上角显示绿色指示灯（● 服务已连接）即表示配置即时生效；
    - 任何修改实时热生效，无需重启客户端。
 
@@ -97,8 +97,8 @@ Welcome to AGY Enhancer! 【下划有中文简体，中文繁体介绍】
    - 100% 純後台靜默運行（無任何彈窗干擾）。
 
 2. 【日常調參 / 隨時修改配置】：
-   隨時按兩下根目錄下的【 settings.html 】
-   - 會直接在瀏覽器中打開配置面板；
+   隨時按兩下根目錄下的【 settings.exe 】（或在服務執行中再次按兩下 agy-enhancer.exe / 系統匣功能表 / 頁面指示燈）
+   - 會直接彈出獨立設定視窗；
    - 介面右上角顯示綠色指示燈（● 服務已連接）即表示配置即時生效；
    - 任何修改實時熱生效，無需重啟客戶端。
 

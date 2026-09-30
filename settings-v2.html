@@ -1,0 +1,2010 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>agy-enhancer</title>
+  
+  <link rel="icon" type="image/png" href="data:image/png;base64,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">
+  <link rel="apple-touch-icon" href="assets/icon.png">
+  <link rel="manifest" href="assets/app.webmanifest">
+  <meta name="theme-color" content="#ea580c">
+
+  <style>
+    :root {
+      --solar-amber: #f59e0b;
+      --solar-orange: #ea580c;
+      --solar-gradient: linear-gradient(135deg, #f59e0b 0%, #ea580c 100%);
+      --solar-glow: rgba(245, 158, 11, 0.28);
+      --solar-glow-subtle: rgba(234, 88, 12, 0.12);
+
+      --radius-xl: 18px;
+      --radius-lg: 14px;
+      --radius-md: 10px;
+      --radius-sm: 6px;
+      --sidebar-width: 250px;
+    }
+
+    /* 🌙 深色主题 */
+    html[data-theme="dark"] {
+      --bg-base: #090d16;
+      --bg-body-gradient: radial-gradient(circle at 15% 0%, rgba(245, 158, 11, 0.08) 0%, transparent 40%),
+                          radial-gradient(circle at 85% 100%, rgba(234, 88, 12, 0.06) 0%, transparent 45%);
+      --bg-header: rgba(11, 17, 32, 0.88);
+      --bg-surface: #0f172a;
+      --bg-card: rgba(30, 41, 59, 0.65);
+      --bg-subcard: rgba(15, 23, 42, 0.75);
+      --bg-tag: rgba(255, 255, 255, 0.06);
+
+      --border-subtle: rgba(255, 255, 255, 0.08);
+      --border-card: rgba(255, 255, 255, 0.08);
+      --border-card-hover: rgba(255, 255, 255, 0.16);
+
+      --text-title: #f8fafc;
+      --text-main: #e2e8f0;
+      --text-muted: #94a3b8;
+      --text-dim: #64748b;
+
+      --toggle-off: #334155;
+      --dock-bg: rgba(15, 23, 42, 0.88);
+      --dock-border: rgba(255, 255, 255, 0.12);
+      --card-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+    }
+
+    /* ☀️ 浅色主题 */
+    html[data-theme="light"] {
+      --bg-base: #f8fafc;
+      --bg-body-gradient: radial-gradient(circle at 10% 0%, rgba(245, 158, 11, 0.07) 0%, transparent 40%),
+                          radial-gradient(circle at 90% 100%, rgba(234, 88, 12, 0.05) 0%, transparent 50%);
+      --bg-header: rgba(255, 255, 255, 0.88);
+      --bg-surface: #ffffff;
+      --bg-card: rgba(255, 255, 255, 0.95);
+      --bg-subcard: #f1f5f9;
+      --bg-tag: rgba(15, 23, 42, 0.06);
+
+      --border-subtle: rgba(0, 0, 0, 0.08);
+      --border-card: rgba(0, 0, 0, 0.07);
+      --border-card-hover: rgba(234, 88, 12, 0.35);
+
+      --text-title: #0f172a;
+      --text-main: #1e293b;
+      --text-muted: #475569;
+      --text-dim: #64748b;
+
+      --toggle-off: #cbd5e1;
+      --dock-bg: rgba(255, 255, 255, 0.92);
+      --dock-border: rgba(0, 0, 0, 0.12);
+      --card-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      transition: background-color 0.2s ease, border-color 0.2s ease, color 0.15s ease;
+    }
+
+    body {
+      background-color: var(--bg-base);
+      background-image: var(--bg-body-gradient);
+      background-attachment: fixed;
+      color: var(--text-main);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      -webkit-font-smoothing: antialiased;
+      overflow-x: hidden;
+    }
+
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(148, 163, 184, 0.25);
+      border-radius: 999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(148, 163, 184, 0.45);
+    }
+
+    /* 顶部导航栏 */
+    .top-header {
+      height: 68px;
+      border-bottom: 1px solid var(--border-subtle);
+      background: var(--bg-header);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 32px;
+    }
+
+    .brand-section {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      user-select: none;
+    }
+
+    .brand-logo-frame {
+      width: 42px;
+      height: 42px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .brand-logo-frame img {
+      width: 100%;
+      height: 100%;
+      display: block;
+      filter: drop-shadow(0 3px 8px rgba(234, 88, 12, 0.35));
+    }
+
+    .brand-title {
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      color: var(--text-title);
+      line-height: 1;
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .header-pill-select {
+      display: inline-flex;
+      align-items: center;
+      background: var(--bg-subcard);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      padding: 4px 8px;
+      font-size: 12px;
+      color: var(--text-muted);
+      cursor: pointer;
+    }
+
+    .header-pill-select select {
+      background: transparent;
+      border: none;
+      color: var(--text-main);
+      font-size: 12px;
+      outline: none;
+      cursor: pointer;
+      font-family: inherit;
+    }
+
+    .header-pill-select select option {
+      background: var(--bg-surface);
+      color: var(--text-main);
+    }
+
+    .status-capsule {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 5px 12px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 500;
+      background: rgba(16, 185, 129, 0.12);
+      color: #10b981;
+      border: 1px solid rgba(16, 185, 129, 0.28);
+    }
+
+    .status-capsule.disconnected {
+      background: rgba(244, 63, 94, 0.12);
+      color: #f43f5e;
+      border-color: rgba(244, 63, 94, 0.3);
+    }
+
+    .pulse-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: currentColor;
+      box-shadow: 0 0 6px currentColor;
+    }
+
+    .status-capsule:not(.disconnected) .pulse-dot {
+      animation: heartBeat 2s infinite ease-in-out;
+    }
+
+    @keyframes heartBeat {
+      0%, 100% { opacity: 0.6; transform: scale(0.9); }
+      50% { opacity: 1; transform: scale(1.2); }
+    }
+
+    /* 页面工作区 */
+    .app-workspace {
+      display: flex;
+      flex: 1;
+      max-width: 1380px;
+      width: 100%;
+      margin: 0 auto;
+      padding: 24px 32px 40px;
+      gap: 32px;
+    }
+
+    /* 左侧分类侧边栏 */
+    .app-sidebar {
+      width: var(--sidebar-width);
+      flex-shrink: 0;
+      position: sticky;
+      top: 88px;
+      height: fit-content;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .search-box {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+
+    .search-box svg {
+      position: absolute;
+      left: 12px;
+      width: 15px;
+      height: 15px;
+      stroke: var(--text-dim);
+      pointer-events: none;
+    }
+
+    .search-input {
+      width: 100%;
+      background: var(--bg-subcard);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 9px 30px 9px 36px;
+      color: var(--text-title);
+      font-size: 13px;
+      outline: none;
+    }
+
+    .search-input:focus {
+      border-color: var(--solar-amber);
+      box-shadow: 0 0 0 2px var(--solar-glow-subtle);
+    }
+
+    .search-clear {
+      position: absolute;
+      right: 10px;
+      cursor: pointer;
+      display: none;
+      color: var(--text-dim);
+      font-size: 14px;
+      line-height: 1;
+    }
+
+    .search-clear:hover {
+      color: var(--text-title);
+    }
+
+    .nav-group-title {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-dim);
+      padding-left: 10px;
+      margin-bottom: 2px;
+    }
+
+    .nav-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 14px;
+      border-radius: var(--radius-md);
+      color: var(--text-muted);
+      font-size: 13.5px;
+      font-weight: 500;
+      cursor: pointer;
+      border: 1px solid transparent;
+      user-select: none;
+      transition: all 0.18s ease;
+    }
+
+    .nav-item-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .nav-icon {
+      width: 18px;
+      height: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-dim);
+    }
+
+    .nav-icon svg {
+      width: 17px;
+      height: 17px;
+    }
+
+    .nav-item:hover {
+      color: var(--text-title);
+      background: var(--bg-subcard);
+    }
+
+    .nav-item.active {
+      color: var(--solar-orange);
+      background: var(--solar-glow-subtle);
+      border-color: rgba(234, 88, 12, 0.25);
+      font-weight: 600;
+    }
+
+    .nav-item.active .nav-icon {
+      color: var(--solar-orange);
+    }
+
+    .nav-count-badge {
+      font-size: 11px;
+      color: var(--text-dim);
+      background: var(--bg-tag);
+      padding: 1px 7px;
+      border-radius: 999px;
+    }
+
+    .nav-item.active .nav-count-badge {
+      background: rgba(234, 88, 12, 0.18);
+      color: var(--solar-orange);
+    }
+
+    .sidebar-stats-card {
+      margin-top: 8px;
+      background: var(--bg-subcard);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 14px 16px;
+    }
+
+    .stats-title {
+      font-size: 11px;
+      color: var(--text-dim);
+      margin-bottom: 6px;
+      font-weight: 500;
+    }
+
+    .stats-row {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+    }
+
+    .stats-val {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--text-title);
+    }
+
+    .stats-label {
+      font-size: 12px;
+      color: #10b981;
+      font-weight: 500;
+    }
+
+    .stats-progress-bar {
+      margin-top: 8px;
+      width: 100%;
+      height: 4px;
+      border-radius: 2px;
+      background: var(--border-subtle);
+      overflow: hidden;
+    }
+
+    .stats-progress-fill {
+      height: 100%;
+      background: var(--solar-gradient);
+      width: 80%;
+      border-radius: 2px;
+      transition: width 0.3s ease;
+    }
+
+    /* 右侧内容面板 (按选项卡只展示选中的分类功能) */
+    .app-content {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      position: relative;
+      padding-bottom: 96px;
+    }
+
+    .offline-notice-bar {
+      display: none;
+      background: linear-gradient(135deg, rgba(234, 88, 12, 0.12) 0%, rgba(245, 158, 11, 0.08) 100%);
+      border: 1px solid rgba(245, 158, 11, 0.35);
+      border-radius: var(--radius-lg);
+      padding: 16px 20px;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .offline-notice-bar.active {
+      display: flex;
+    }
+
+    .offline-icon {
+      font-size: 24px;
+      flex-shrink: 0;
+    }
+
+    .offline-text {
+      flex: 1;
+    }
+
+    .offline-text h4 {
+      font-size: 14px;
+      color: var(--text-title);
+      margin-bottom: 2px;
+    }
+
+    .offline-text p {
+      font-size: 12.5px;
+      color: var(--text-muted);
+    }
+
+    .btn-reconnect {
+      padding: 6px 14px;
+      background: rgba(234, 88, 12, 0.15);
+      border: 1px solid var(--solar-orange);
+      color: var(--text-title);
+      border-radius: var(--radius-sm);
+      font-size: 12.5px;
+      cursor: pointer;
+      font-weight: 500;
+      white-space: nowrap;
+      transition: all 0.2s;
+    }
+
+    .btn-reconnect:hover {
+      background: var(--solar-gradient);
+      color: #fff;
+    }
+
+    .search-result-hint {
+      display: none;
+      align-items: center;
+      justify-content: space-between;
+      background: rgba(245, 158, 11, 0.08);
+      border: 1px dashed rgba(245, 158, 11, 0.35);
+      border-radius: var(--radius-md);
+      padding: 10px 16px;
+      font-size: 13px;
+      color: var(--solar-orange);
+    }
+
+    /* 每一个分类卡片容器 (默认只显示激活的项) */
+    .tab-section {
+      display: none;
+      background: var(--bg-card);
+      border: 1px solid var(--border-card);
+      border-radius: var(--radius-xl);
+      padding: 24px 28px;
+      box-shadow: var(--card-shadow);
+    }
+
+    .tab-section.active {
+      display: block;
+      animation: fadeIn 0.22s ease-out;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--border-subtle);
+      margin-bottom: 8px;
+    }
+
+    .section-title-wrap {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .section-icon-box {
+      width: 34px;
+      height: 34px;
+      border-radius: var(--radius-md);
+      background: var(--solar-glow-subtle);
+      color: var(--solar-orange);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid rgba(234, 88, 12, 0.2);
+      flex-shrink: 0;
+    }
+
+    .section-icon-box svg {
+      width: 19px;
+      height: 19px;
+    }
+
+    .section-heading {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--text-title);
+    }
+
+    .section-subtitle {
+      font-size: 12px;
+      color: var(--text-dim);
+      margin-top: 2px;
+    }
+
+    .setting-item-row {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      padding: 16px 0;
+      border-bottom: 1px solid var(--border-subtle);
+      gap: 20px;
+    }
+
+    .setting-item-row:last-child {
+      border-bottom: none;
+      padding-bottom: 4px;
+    }
+
+    .setting-item-row.hidden {
+      display: none !important;
+    }
+
+    .item-meta {
+      flex: 1;
+    }
+
+    .item-title-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 4px;
+      flex-wrap: wrap;
+    }
+
+    .item-title {
+      font-size: 14.5px;
+      font-weight: 600;
+      color: var(--text-title);
+    }
+
+    .item-tag {
+      font-size: 11px;
+      font-weight: 500;
+      padding: 1.5px 7px;
+      border-radius: 4px;
+      background: var(--bg-tag);
+      color: var(--text-dim);
+    }
+
+    .item-tag.recommended {
+      background: rgba(16, 185, 129, 0.12);
+      color: #10b981;
+      border: 1px solid rgba(16, 185, 129, 0.25);
+    }
+
+    .item-desc {
+      font-size: 13px;
+      color: var(--text-muted);
+      line-height: 1.55;
+    }
+
+    .item-warning {
+      margin-top: 4px;
+      font-size: 12px;
+      color: #f59e0b;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .sub-item-panel {
+      margin: 6px 0 14px 18px;
+      padding: 12px 16px 12px 20px;
+      background: var(--bg-subcard);
+      border-left: 2px solid var(--solar-orange);
+      border-radius: 0 var(--radius-md) var(--radius-md) 0;
+      transition: all 0.25s ease;
+    }
+
+    .sub-item-panel.collapsed {
+      opacity: 0.35;
+      filter: grayscale(0.7);
+      pointer-events: none;
+    }
+
+    /* 极简 Switch */
+    .switch-ui {
+      position: relative;
+      display: inline-block;
+      width: 44px;
+      height: 24px;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+
+    .switch-ui input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .switch-track {
+      position: absolute;
+      cursor: pointer;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background-color: var(--toggle-off);
+      transition: background-color 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+      border-radius: 999px;
+    }
+
+    .switch-track:before {
+      position: absolute;
+      content: "";
+      height: 18px;
+      width: 18px;
+      left: 3px;
+      bottom: 3px;
+      background-color: #ffffff;
+      transition: transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
+      border-radius: 50%;
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+    }
+
+    input:checked + .switch-track {
+      background: var(--solar-gradient);
+      box-shadow: 0 0 12px var(--solar-glow);
+    }
+
+    input:checked + .switch-track:before {
+      transform: translateX(20px);
+    }
+
+    .hero-switch {
+      width: 52px;
+      height: 28px;
+    }
+
+    .hero-switch .switch-track:before {
+      height: 22px;
+      width: 22px;
+      left: 3px;
+      bottom: 3px;
+    }
+
+    .hero-switch input:checked + .switch-track:before {
+      transform: translateX(24px);
+    }
+
+    .mini-switch {
+      width: 36px;
+      height: 20px;
+    }
+
+    .mini-switch .switch-track:before {
+      height: 14px;
+      width: 14px;
+      left: 3px;
+      bottom: 3px;
+    }
+
+    .mini-switch input:checked + .switch-track:before {
+      transform: translateX(16px);
+    }
+
+    /* 固定在底部，绝对不随动，严格与右侧内容区居中对齐 */
+    .dock-fixed-wrapper {
+      position: fixed;
+      bottom: 24px;
+      left: 0;
+      right: 0;
+      display: flex;
+      justify-content: center;
+      pointer-events: none;
+      z-index: 100;
+    }
+
+    @media (min-width: 961px) {
+      .dock-fixed-wrapper {
+        left: calc(max(32px, (100vw - 1380px) / 2) + var(--sidebar-width) + 32px);
+        right: max(32px, (100vw - 1380px) / 2);
+      }
+    }
+
+    .action-dock {
+      pointer-events: auto;
+      width: 100%;
+      max-width: 660px;
+      margin: 0 auto;
+      background: var(--dock-bg);
+      border: 1px solid var(--dock-border);
+      border-radius: 999px;
+      padding: 8px 16px 8px 22px;
+      box-shadow: 0 16px 36px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(245, 158, 11, 0.12);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .dock-status {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+
+    .dock-status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #10b981;
+      box-shadow: 0 0 6px rgba(16, 185, 129, 0.5);
+    }
+
+    .dock-status.dirty .dock-status-dot {
+      background: var(--solar-amber);
+      box-shadow: 0 0 8px var(--solar-glow);
+    }
+
+    .dock-btns {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .dock-btn {
+      font-family: inherit;
+      border: none;
+      border-radius: 999px;
+      padding: 8px 18px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.18s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      user-select: none;
+    }
+
+    .btn-secondary {
+      background: var(--bg-subcard);
+      color: var(--text-main);
+      border: 1px solid var(--border-subtle);
+    }
+
+    .btn-secondary:hover {
+      background: var(--border-subtle);
+      color: var(--text-title);
+    }
+
+    .btn-primary {
+      background: var(--solar-gradient);
+      color: #fff;
+      box-shadow: 0 4px 14px var(--solar-glow);
+    }
+
+    .btn-primary:hover {
+      filter: brightness(1.08);
+      transform: translateY(-1px);
+    }
+
+    .btn-primary:active {
+      transform: translateY(0);
+    }
+
+    .btn-primary:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .toast-pill {
+      position: fixed;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%) translateY(-30px);
+      background: var(--bg-surface);
+      border: 1px solid var(--solar-orange);
+      color: var(--text-title);
+      padding: 9px 20px;
+      border-radius: 999px;
+      font-size: 13.5px;
+      font-weight: 500;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+      backdrop-filter: blur(10px);
+      opacity: 0;
+      pointer-events: none;
+      transition: all 0.28s cubic-bezier(0.34, 1.56, 0.64, 1);
+      z-index: 999;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .toast-pill.visible {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    @media (max-width: 960px) {
+      .app-workspace {
+        flex-direction: column;
+        padding: 16px 16px 40px;
+      }
+      .app-sidebar {
+        width: 100%;
+        position: static;
+      }
+      .nav-list {
+        flex-direction: row;
+        overflow-x: auto;
+      }
+      .nav-item {
+        white-space: nowrap;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Toast -->
+  <div class="toast-pill" id="toastPill">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ea580c" stroke-width="2.5"><path d="M20 6L9 17l-5-5"/></svg>
+    <span id="toastText">配置已成功保存并即时生效</span>
+  </div>
+
+  <!-- 顶部导航栏 -->
+  <header class="top-header">
+    <div class="brand-section">
+      <div class="brand-logo-frame">
+        <img src="assets/icon.svg" alt="agy-enhancer Logo">
+      </div>
+      <div class="brand-title">agy-enhancer</div>
+    </div>
+
+    <div class="header-actions">
+      <!-- 多主题 (系统 / 浅色 / 深色) -->
+      <div class="header-pill-select" title="界面色彩主题">
+        <span style="margin-right: 4px;">🎨</span>
+        <select id="themeSelect" onchange="setThemeMode(this.value)">
+          <option value="system" data-i18n="theme_system">跟随系统</option>
+          <option value="light" data-i18n="theme_light">浅色模式</option>
+          <option value="dark" data-i18n="theme_dark">深色模式</option>
+        </select>
+      </div>
+
+      <!-- 多语言 (系统 / 简体 / 繁体 / English) -->
+      <div class="header-pill-select" title="显示语言">
+        <span style="margin-right: 4px;">🌐</span>
+        <select id="langSelect" onchange="changeLanguage(this.value)">
+          <option value="auto" data-i18n="lang_auto">跟随系统</option>
+          <option value="zh-CN" data-i18n="lang_zh_cn">简体中文</option>
+          <option value="zh-TW" data-i18n="lang_zh_tw">繁體中文</option>
+          <option value="en" data-i18n="lang_en">English</option>
+        </select>
+      </div>
+
+      <!-- 守护通信状态 -->
+      <div class="status-capsule" id="connCapsule">
+        <span class="pulse-dot"></span>
+        <span id="connLabel" data-i18n="conn_connecting">连接守护服务中...</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- 工作区 -->
+  <main class="app-workspace">
+
+    <!-- 左侧分类侧边栏 (去掉了全部设置项，仅保留清晰分类) -->
+    <aside class="app-sidebar">
+      <!-- 搜索框 -->
+      <div class="search-box">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+        <input type="text" class="search-input" id="searchInput" data-i18n-ph="search_placeholder" placeholder="搜索功能或关键词... (按 / 聚焦)" />
+        <span class="search-clear" id="searchClear" onclick="clearSearch()">✕</span>
+      </div>
+
+      <div class="nav-group-title" data-i18n="nav_title">功能模块</div>
+      <ul class="nav-list" id="navList">
+        <li class="nav-item active" data-target="tab-master" onclick="switchCategoryTab('tab-master')">
+          <div class="nav-item-left">
+            <span class="nav-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+            </span>
+            <span data-i18n="master_title">全局总控</span>
+          </div>
+          <span class="nav-count-badge">1</span>
+        </li>
+
+        <li class="nav-item" data-target="tab-system" onclick="switchCategoryTab('tab-system')">
+          <div class="nav-item-left">
+            <span class="nav-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+            </span>
+            <span data-i18n="sec_system_title">系统与自启</span>
+          </div>
+          <span class="nav-count-badge">2</span>
+        </li>
+
+        <li class="nav-item" data-target="tab-chat" onclick="switchCategoryTab('tab-chat')">
+          <div class="nav-item-left">
+            <span class="nav-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            </span>
+            <span data-i18n="sec_chat_title">对话与阅读</span>
+          </div>
+          <span class="nav-count-badge">5</span>
+        </li>
+
+        <li class="nav-item" data-target="tab-worktree" onclick="switchCategoryTab('tab-worktree')">
+          <div class="nav-item-left">
+            <span class="nav-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="6" y1="3" x2="6" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></svg>
+            </span>
+            <span data-i18n="sec_worktree_title">分支与工作树</span>
+          </div>
+          <span class="nav-count-badge">3</span>
+        </li>
+
+        <li class="nav-item" data-target="tab-interaction" onclick="switchCategoryTab('tab-interaction')">
+          <div class="nav-item-left">
+            <span class="nav-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="7"/><line x1="12" y1="6" x2="12" y2="10"/></svg>
+            </span>
+            <span data-i18n="sec_interaction_title">交互与菜单</span>
+          </div>
+          <span class="nav-count-badge">2</span>
+        </li>
+
+        <li class="nav-item" data-target="tab-visual" onclick="switchCategoryTab('tab-visual')">
+          <div class="nav-item-left">
+            <span class="nav-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/></svg>
+            </span>
+            <span data-i18n="sec_visual_title">视觉与辅助</span>
+          </div>
+          <span class="nav-count-badge">2</span>
+        </li>
+      </ul>
+
+      <!-- 快速统计 -->
+      <div class="sidebar-stats-card">
+        <div class="stats-title" data-i18n="stats_title">当前特性激活率</div>
+        <div class="stats-row">
+          <span class="stats-val" id="activeStatsCount">13 / 14</span>
+          <span class="stats-label" id="activeStatsPercent">93% 已激活</span>
+        </div>
+        <div class="stats-progress-bar">
+          <div class="stats-progress-fill" id="activeProgressBar" style="width: 93%;"></div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- 右侧内容面板：选项卡模式，只显示当前左侧分类的功能！ -->
+    <div class="app-content" id="contentArea">
+
+      <!-- 离线提示 -->
+      <div class="offline-notice-bar" id="offlineNoticeBar">
+        <div class="offline-icon">⚠️</div>
+        <div class="offline-text">
+          <h4 data-i18n="offline_welcome">守护服务未运行 (Daemon Offline)</h4>
+          <p data-i18n="offline_notice">请在根目录运行 agy-enhancer.exe 启动本地静默守护服务，即可点亮本界面并实现即时热重载。</p>
+        </div>
+        <button class="btn-reconnect" onclick="fetchLiveConfig()" data-i18n="offline_btn_retry">检测服务</button>
+      </div>
+
+      <!-- 搜索过滤条 -->
+      <div class="search-result-hint" id="searchResultHint">
+        <span>🔍 <span data-i18n="search_matching">搜索结果过滤中</span></span>
+        <span id="searchResultCount">共匹配 0 项</span>
+      </div>
+
+      <!-- 0. 全局总控分类 Tab (tab-master) -->
+      <section class="tab-section active" id="tab-master">
+        <div class="section-header">
+          <div class="section-title-wrap">
+            <div class="section-icon-box">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+            </div>
+            <div>
+              <div class="section-heading" data-i18n="master_title">增强器全局总开关</div>
+              <div class="section-subtitle" data-i18n="master_active_tag">全局运行核心控制</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="setting-item-row" data-keywords="master switch 全局 总开关 关闭 纯净 休眠">
+          <div class="item-meta">
+            <div class="item-title-row">
+              <span class="item-title" data-i18n="master_title">增强器全局总开关</span>
+              <span class="item-tag recommended" data-i18n="tag_core">核心控制</span>
+            </div>
+            <div class="item-desc" id="masterDescText" data-i18n="master_active_desc">
+              开启时全面激活各项注入功能；关闭时彻底休眠，客户端不挂载任何事件与监听器，100% 恢复官方原生纯净状态。
+            </div>
+          </div>
+          <label class="switch-ui hero-switch">
+            <input type="checkbox" id="ENABLE_MASTER">
+            <span class="switch-track"></span>
+          </label>
+        </div>
+      </section>
+
+      <!-- 1. 系统与自启分类 Tab (tab-system) -->
+      <section class="tab-section" id="tab-system">
+        <div class="section-header">
+          <div class="section-title-wrap">
+            <div class="section-icon-box">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+            </div>
+            <div>
+              <div class="section-heading" data-i18n="sec_system_title">系统与自启服务</div>
+              <div class="section-subtitle" data-i18n="sec_system_subtitle">管理开机静默常驻与任务栏通知区域图标</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="setting-item-row" data-keywords="autostart 开机自启 启动项 windows 静默">
+          <div class="item-meta">
+            <div class="item-title-row">
+              <span class="item-title" data-i18n="sw_autostart_title">Windows 开机静默自启动</span>
+              <span class="item-tag recommended" data-i18n="tag_recommended">推荐开启</span>
+            </div>
+            <div class="item-desc" data-i18n="sw_autostart_desc">随 Windows 开机静默在后台启动轻量守护进程，无需手动每次打开软件。</div>
+          </div>
+          <label class="switch-ui">
+            <input type="checkbox" id="ENABLE_AUTOSTART">
+            <span class="switch-track"></span>
+          </label>
+        </div>
+
+        <div class="setting-item-row" data-keywords="system tray 托盘 图标 任务栏 右下角">
+          <div class="item-meta">
+            <div class="item-title-row">
+              <span class="item-title" data-i18n="sw_system_tray_title">Windows 系统托盘常驻图标</span>
+              <span class="item-tag" data-i18n="tag_low_overhead">极低开销</span>
+            </div>
+            <div class="item-desc" data-i18n="sw_system_tray_desc">在任务栏右下角显示折角跃升图标，提供快速进入设置中心及一键退出。关闭时不常驻任何托盘进程。</div>
+          </div>
+          <label class="switch-ui">
+            <input type="checkbox" id="ENABLE_SYSTEM_TRAY">
+            <span class="switch-track"></span>
+          </label>
+        </div>
+      </section>
+
+      <!-- 2. 对话与阅读分类 Tab (tab-chat) -->
+      <section class="tab-section" id="tab-chat">
+        <div class="section-header">
+          <div class="section-title-wrap">
+            <div class="section-icon-box">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            </div>
+            <div>
+              <div class="section-heading" data-i18n="sec_chat_title">对话与阅读体验</div>
+              <div class="section-subtitle" data-i18n="sec_chat_subtitle">长对话快速滚动、记忆恢复与阅读标记</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="setting-item-row" data-keywords="nav scroll 翻页 按钮 快速回到顶部 最新消息">
+          <div class="item-meta">
+            <div class="item-title-row">
+              <span class="item-title" data-i18n="sw_nav_buttons_title">右下角常驻智能翻页双按钮</span>
+              <span class="item-tag recommended" data-i18n="tag_core">核心功能</span>
+            </div>
+            <div class="item-desc" data-i18n="sw_nav_buttons_desc">在对话右下角提供向上（↑）/向下（↓）平滑滚动翻阅长对话，双击可直接瞬间直达最新消息。</div>
+          </div>
+          <label class="switch-ui">
+            <input type="checkbox" id="ENABLE_NAV_BUTTONS">
+            <span class="switch-track"></span>
+          </label>
+        </div>
+
+        <div class="setting-item-row" data-keywords="block bottom button 屏蔽 原生 箭头 下拉 聊天框上方">
+          <div class="item-meta">
+            <div class="item-title-row">
+              <span class="item-title" data-i18n="sw_block_bottom_btn_title">屏蔽聊天输入框上方官方原生向下按钮</span>
+            </div>
+            <div class="item-desc" data-i18n="sw_block_bottom_btn_desc">向上翻看历史消息时，自动屏蔽官方在输入框正上方弹出的遮挡性（↓）小圆钮。</div>
+          </div>
+          <label class="switch-ui">
+            <input type="checkbox" id="ENABLE_BLOCK_CHAT_BOTTOM_BUTTON">
+            <span class="switch-track"></span>
+          </label>
+        </div>
+
+        <div class="setting-item-row" data-keywords="scroll persistence 记忆 阅读进度 滚动位置 切换会话">
+          <div class="item-meta">
+            <div class="item-title-row">
+              <span class="item-title" data-i18n="sw_scroll_persist_title">多会话阅读进度记忆与自动回滚</span>
+              <span class="item-tag recommended" data-i18n="tag_recommended">体验优化</span>
+            </div>
+            <div class="item-desc" data-i18n="sw_scroll_persist_desc">在左侧切换不同对话时，自动恢复您上次阅读的历史位置，告别每次切换都滚到底部重新翻找。</div>
+          </div>
+          <label class="switch-ui">
+            <input type="checkbox" id="ENABLE_SCROLL_PERSISTENCE">
+            <span class="switch-track"></span>
+          </label>
+        </div>
+
+        <!-- 智能未读：默认关闭 -->
+        <div class="setting-item-row" data-keywords="smart unread 未读 已读 侧边栏 圆点 标记">
+          <div class="item-meta">
+            <div class="item-title-row">
+              <span class="item-title" data-i18n="sw_smart_unread_title">智能未读/已读状态精确追踪</span>
+              <span class="item-tag" data-i18n="tag_disabled_default">默认关闭</span>
+            </div>
+            <div class="item-desc" data-i18n="sw_smart_unread_desc">真实触底阅读后才将消息标记为已读，避免切换经过被误标已读。关停后可停止定时器节省资源。</div>
+          </div>
+          <label class="switch-ui">
+            <input type="checkbox" id="ENABLE_SMART_UNREAD">
+            <span class="switch-track"></span>
+          </label>
+        </div>
+
+        <div class="setting-item-row" data-keywords="pinned summary pip 画中画 钉选 回复 悬浮 边看边聊">
+          <div class="item-meta">
+            <div class="item-title-row">
+              <span class="item-title" data-i18n="sw_pinned_summary_title">AI 回复钉选与画中画速览 (PiP)</span>
+              <span class="item-tag recommended" data-i18n="tag_recommended">高效神器</span>
+            </div>
+            <div class="item-desc" data-i18n="sw_pinned_summary_desc">在 AI 回复卡片上提供钉选按钮，在顶部生成悬浮胶囊与独立可拖拽速览卡片，边看长代码边继续提问。</div>
+          </div>
+          <label class="switch-ui">
+            <input type="checkbox" id="ENABLE_PINNED_SUMMARY">
+            <span class="switch-track"></span>
+          </label>
+        </div>
+      </section>
+
+      <!-- 3. 分支与工作树分类 Tab (tab-worktree) -->
+      <section class="tab-section" id="tab-worktree">
+        <div class="section-header">
+          <div class="section-title-wrap">
+            <div class="section-icon-box">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="6" y1="3" x2="6" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></svg>
+            </div>
+            <div>
+              <div class="section-heading" data-i18n="sec_worktree_title">分支与工作树管理</div>
+              <div class="section-subtitle" data-i18n="sec_worktree_subtitle">一键分叉会话、清理失效分支与配置跨分支同步</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="setting-item-row" data-keywords="fork conversation 分叉 分支 切片 克隆 create fork">
+          <div class="item-meta">
+            <div class="item-title-row">
+              <span class="item-title" data-i18n="sw_fork_convo_title">会话切片分叉与分支创建 (Create fork)</span>
+              <span class="item-tag recommended" data-i18n="tag_recommended">协作利器</span>
+            </div>
+            <div class="item-desc" data-i18n="sw_fork_convo_desc">允许从任一消息节点一键复制切片并新建对话分支，自动前缀规范化命名，支持并行探索多种解决方案。</div>
+          </div>
+          <label class="switch-ui">
+            <input type="checkbox" id="ENABLE_FORK_CONVERSATION">
+            <span class="switch-track"></span>
+          </label>
+        </div>
+
+        <div class="setting-item-row" data-keywords="worktree management 工作树 分支 下拉 删除 垃圾桶 右键">
+          <div class="item-meta">
+            <div class="item-title-row">
+              <span class="item-title" data-i18n="sw_worktree_mgmt_title">分支与工作树列表快捷管理</span>
+            </div>
+            <div class="item-desc" data-i18n="sw_worktree_mgmt_desc">在顶部工作树下拉面板中显示悬停删除垃圾桶，并提供右键复制名称/路径、在终端/资源管理器打开等菜单。</div>
+          </div>
+          <label class="switch-ui">
+            <input type="checkbox" id="ENABLE_WORKTREE_MANAGEMENT">
+            <span class="switch-track"></span>
+          </label>
+        </div>
+
+        <div class="setting-item-row" data-keywords="worktree auto sync 自动同步 缓存 env 编译 gradle rust">
+          <div class="item-meta">
+            <div class="item-title-row">
+              <span class="item-title" data-i18n="sw_worktree_auto_sync_title">开分支自动同步本地配置与共享编译缓存</span>
+            </div>
+            <div class="item-desc" data-i18n="sw_worktree_auto_sync_desc">创建新分支时，自动拷贝未纳入 Git 的 .env*、local.properties，并自动配置 Rust / Gradle 共享缓存，秒级构建。</div>
+          </div>
+          <label class="switch-ui">
+            <input type="checkbox" id="ENABLE_WORKTREE_AUTO_SYNC">
+            <span class="switch-track"></span>
+          </label>
+        </div>
+      </section>
+
+      <!-- 4. 交互与菜单分类 Tab (tab-interaction) -->
+      <section class="tab-section" id="tab-interaction">
+        <div class="section-header">
+          <div class="section-title-wrap">
+            <div class="section-icon-box">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="7"/><line x1="12" y1="6" x2="12" y2="10"/></svg>
+            </div>
+            <div>
+              <div class="section-heading" data-i18n="sec_interaction_title">交互与菜单增强</div>
+              <div class="section-subtitle" data-i18n="sec_interaction_subtitle">统一右键接管、文本划词与弹窗控制</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="setting-item-row" data-keywords="context menu 右键 菜单 复制 代码 侧栏">
+          <div class="item-meta">
+            <div class="item-title-row">
+              <span class="item-title" data-i18n="sw_context_menu_title">全局右键功能增强</span>
+              <span class="item-tag recommended" data-i18n="tag_recommended">推荐开启</span>
+            </div>
+            <div class="item-desc" data-i18n="sw_context_menu_desc">接管侧边栏项目/会话、聊天内容、代码块与图片的右键操作。关闭后彻底不拦截原生右键。</div>
+          </div>
+          <label class="switch-ui">
+            <input type="checkbox" id="ENABLE_CONTEXT_MENU">
+            <span class="switch-track"></span>
+          </label>
+        </div>
+
+        <div class="sub-item-panel" id="quotePopupSubPanel">
+          <div class="setting-item-row" style="padding: 4px 0; border: none;" data-keywords="block quote popup 划词 选中文本 气泡 引用 ctrl l 拦截">
+            <div class="item-meta">
+              <div class="item-title-row">
+                <span class="item-title" style="font-size: 13px;" data-i18n="sw_block_quote_title">屏蔽选中文本时的 Quote 浮窗气泡</span>
+              </div>
+              <div class="item-desc" style="font-size: 12px;" data-i18n="sw_block_quote_desc">划词选择文字时不再弹出官方 Quote (Ctrl+L) 气泡，彻底消除文本选择时的卡顿感（从属于右键菜单开关）。</div>
+            </div>
+            <label class="switch-ui mini-switch">
+              <input type="checkbox" id="ENABLE_BLOCK_QUOTE_POPUP">
+              <span class="switch-track"></span>
+            </label>
+          </div>
+        </div>
+      </section>
+
+      <!-- 5. 视觉与辅助分类 Tab (tab-visual) -->
+      <section class="tab-section" id="tab-visual">
+        <div class="section-header">
+          <div class="section-title-wrap">
+            <div class="section-icon-box">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/></svg>
+            </div>
+            <div>
+              <div class="section-heading" data-i18n="sec_visual_title">视觉与辅助组件</div>
+              <div class="section-subtitle" data-i18n="sec_visual_subtitle">注入指示、项目抽屉与界面清爽化</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="setting-item-row" data-keywords="status indicator 状态指示点 绿点 右上角">
+          <div class="item-meta">
+            <div class="item-title-row">
+              <span class="item-title" data-i18n="sw_status_indicator_title">右上角常驻绿色运行指示点</span>
+              <span class="item-tag" data-i18n="tag_status">状态感知</span>
+            </div>
+            <div class="item-desc" data-i18n="sw_status_indicator_desc">在 Antigravity 界面右上角显示精致的微小绿点，并在启动注入成功时提供优雅的展开反馈。</div>
+          </div>
+          <label class="switch-ui">
+            <input type="checkbox" id="ENABLE_STATUS_INDICATOR">
+            <span class="switch-track"></span>
+          </label>
+        </div>
+
+        <div class="setting-item-row" data-keywords="project archiver 项目 归档 隐藏 抽屉 侧栏 整理">
+          <div class="item-meta">
+            <div class="item-title-row">
+              <span class="item-title" data-i18n="sw_project_archiver_title">左侧项目折叠与归档抽屉</span>
+            </div>
+            <div class="item-desc" data-i18n="sw_project_archiver_desc">鼠标悬停一键隐藏暂不需要的项目，保持侧栏干净整洁；并在侧边栏 Projects 旁提供专属归档抽屉。</div>
+            <div class="item-warning" data-i18n="sw_project_archiver_warn">⚠️ 关闭后已归档项目仍保持隐藏，重新开启即可随时点开抽屉恢复。</div>
+          </div>
+          <label class="switch-ui">
+            <input type="checkbox" id="ENABLE_PROJECT_ARCHIVER">
+            <span class="switch-track"></span>
+          </label>
+        </div>
+      </section>
+
+      <!-- 悬浮保存胶囊底栏 (固定在底部，不随内容滚动随动，严格与右侧居中对齐) -->
+      <div class="dock-fixed-wrapper">
+        <footer class="action-dock">
+          <div class="dock-status" id="dockStatus">
+            <span class="dock-status-dot"></span>
+            <span id="dockStatusText" data-i18n="dock_synced">已同步本地配置</span>
+          </div>
+          <div class="dock-btns">
+            <button class="dock-btn btn-secondary" type="button" onclick="handleReset()" data-i18n="btn_reset">恢复默认</button>
+            <button class="dock-btn btn-primary" type="button" id="btnSave" onclick="handleSave()">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/></svg>
+              <span data-i18n="btn_save">保存设置</span>
+            </button>
+          </div>
+        </footer>
+      </div>
+
+    </div>
+  </main>
+
+  <script>
+    const I18N_LOCAL = {
+      'zh-CN': {
+        app_title: 'agy-enhancer',
+        brand_subtitle: '设置中心',
+        theme_system: '跟随系统',
+        theme_light: '浅色模式',
+        theme_dark: '深色模式',
+        lang_auto: '跟随系统',
+        lang_zh_cn: '简体中文',
+        lang_zh_tw: '繁體中文',
+        lang_en: 'English',
+        conn_connecting: '连接守护服务中...',
+        conn_online: '守护服务在线 (实时同步)',
+        conn_offline: '守护服务离线',
+        offline_welcome: '守护服务未运行 (Daemon Offline)',
+        offline_notice: '请在根目录双击运行 agy-enhancer.exe 启动本地静默守护进程，即可点亮本界面并实现即时热重载。',
+        offline_btn_retry: '检测服务',
+        master_title: '全局总控',
+        master_active_tag: '● 运行状态活跃',
+        master_active_desc: '开启时全面激活各项注入功能；关闭时彻底休眠，客户端不挂载任何事件与监听器，100% 恢复官方原生纯净状态。',
+        master_dormant_tag: '○ 全局已休眠',
+        master_dormant_desc: '总开关当前已关闭。所有注入代码已停止执行，无事件拦截，Antigravity 处于 100% 官方原生纯净模式。',
+        nav_title: '功能模块',
+        search_placeholder: '搜索功能或关键词... (按 / 聚焦)',
+        search_matching: '搜索结果过滤中',
+        search_count: '共匹配 {n} 项',
+        stats_title: '当前特性激活率',
+        sec_system_title: '系统与自启',
+        sec_system_subtitle: '管理开机静默常驻与任务栏通知区域图标',
+        sw_autostart_title: 'Windows 开机静默自启动',
+        sw_autostart_desc: '随 Windows 开机静默在后台启动轻量守护进程，无需手动每次打开软件。',
+        sw_system_tray_title: 'Windows 系统托盘常驻图标',
+        sw_system_tray_desc: '在任务栏右下角显示折角跃升图标，提供快速进入设置中心及一键退出。默认关闭，关闭时不常驻任何托盘进程。',
+        sec_chat_title: '对话与阅读',
+        sec_chat_subtitle: '长对话快速滚动、记忆恢复与阅读标记',
+        sw_nav_buttons_title: '右下角常驻智能翻页双按钮',
+        sw_nav_buttons_desc: '在对话右下角提供向上（↑）/向下（↓）平滑滚动翻阅长对话，双击可直接瞬间直达最新消息。',
+        sw_block_bottom_btn_title: '屏蔽聊天输入框上方官方原生向下按钮',
+        sw_block_bottom_btn_desc: '向上翻看历史消息时，自动屏蔽官方在输入框正上方弹出的遮挡性（↓）小圆钮。',
+        sw_scroll_persist_title: '多会话阅读进度记忆与自动回滚',
+        sw_scroll_persist_desc: '在左侧切换不同对话时，自动恢复您上次阅读的历史位置，告别每次切换都滚到底部重新翻找。',
+        sw_smart_unread_title: '智能未读/已读状态精确追踪',
+        sw_smart_unread_desc: '真实触底阅读后才将消息标记为已读，避免切换经过被误标已读。关停后可停止定时器节省资源。',
+        sw_pinned_summary_title: 'AI 回复钉选与画中画速览 (PiP)',
+        sw_pinned_summary_desc: '在 AI 回复卡片上提供钉选按钮，在顶部生成悬浮胶囊与独立可拖拽速览卡片，边看长代码边继续提问。',
+        sec_worktree_title: '分支与工作树',
+        sec_worktree_subtitle: '一键分叉会话、清理失效分支与配置跨分支同步',
+        sw_fork_convo_title: '会话切片分叉与分支创建 (Create fork)',
+        sw_fork_convo_desc: '允许从任一消息节点一键复制切片并新建对话分支，自动前缀规范化命名，支持并行探索多种解决方案。',
+        sw_worktree_mgmt_title: '分支与工作树列表快捷管理',
+        sw_worktree_mgmt_desc: '在顶部工作树下拉面板中显示悬停删除垃圾桶，并提供右键复制名称/路径、在终端/资源管理器打开等菜单。',
+        sw_worktree_auto_sync_title: '开分支自动同步本地配置与共享编译缓存',
+        sw_worktree_auto_sync_desc: '创建新分支时，自动拷贝未纳入 Git 的 .env*、local.properties，并自动配置 Rust / Gradle 共享缓存，秒级构建。',
+        sec_interaction_title: '交互与菜单',
+        sec_interaction_subtitle: '统一右键接管、文本划词与弹窗控制',
+        sw_context_menu_title: '全局右键功能增强',
+        sw_context_menu_desc: '接管侧边栏项目/会话、聊天内容、代码块与图片的右键操作。关闭后彻底不拦截原生右键。',
+        sw_block_quote_title: '屏蔽选中文本时的 Quote 浮窗气泡',
+        sw_block_quote_desc: '划词选择文字时不再弹出官方 Quote (Ctrl+L) 气泡，彻底消除文本选择时的卡顿感（从属于右键菜单开关）。',
+        sec_visual_title: '视觉与辅助',
+        sec_visual_subtitle: '注入指示、项目抽屉与界面清爽化',
+        sw_status_indicator_title: '右上角常驻绿色运行指示点',
+        sw_status_indicator_desc: '在 Antigravity 界面右上角显示精致的微小绿点，并在启动注入成功时提供优雅的展开反馈。',
+        sw_project_archiver_title: '左侧项目折叠与归档抽屉',
+        sw_project_archiver_desc: '鼠标悬停一键隐藏暂不需要的项目，保持侧栏干净整洁；并在侧边栏 Projects 旁提供专属归档抽屉。',
+        sw_project_archiver_warn: '⚠️ 关闭后已归档项目仍保持隐藏，重新开启即可随时点开抽屉恢复。',
+        tag_recommended: '推荐开启',
+        tag_core: '核心功能',
+        tag_low_overhead: '极低开销',
+        tag_disabled_default: '默认关闭',
+        tag_status: '状态感知',
+        dock_synced: '已同步本地配置',
+        dock_modified: '● 存在未保存的修改',
+        btn_reset: '恢复默认',
+        btn_save: '保存设置',
+        toast_saved: '✅ 配置已成功保存并即时生效！',
+        toast_reset: '已恢复为推荐默认值 (点击保存后生效)',
+        dialog_reset: '确定要恢复到推荐的默认配置吗？'
+      },
+      'zh-TW': {
+        app_title: 'agy-enhancer',
+        brand_subtitle: '設定中心',
+        theme_system: '跟隨系統',
+        theme_light: '淺色模式',
+        theme_dark: '深色模式',
+        lang_auto: '跟隨系統',
+        lang_zh_cn: '簡體中文',
+        lang_zh_tw: '繁體中文',
+        lang_en: 'English',
+        conn_connecting: '正在連接守護服務...',
+        conn_online: '守護服務在線 (即時同步)',
+        conn_offline: '守護服務離線',
+        offline_welcome: '守護服務未運行 (Daemon Offline)',
+        offline_notice: '請在根目錄執行 agy-enhancer.exe 啟動本機守護程序以啟用全部功能。',
+        offline_btn_retry: '檢測服務',
+        master_title: '全域總控',
+        master_active_tag: '● 運行狀態活躍',
+        master_active_desc: '開啟時全面啟動各項注入功能；關閉時徹底休眠，100% 恢復官方原生純淨狀態。',
+        master_dormant_tag: '○ 全面休眠',
+        master_dormant_desc: '總開關目前已關閉，客戶端處於純淨原生模式。',
+        nav_title: '功能模組',
+        search_placeholder: '搜尋功能或關鍵字... (按 / 聚焦)',
+        search_matching: '搜尋結果過濾中',
+        search_count: '共匹配 {n} 項',
+        stats_title: '目前特性啟動率',
+        sec_system_title: '系統與自啟',
+        sec_system_subtitle: '管理開機靜默常駐與通知區域圖示',
+        sw_autostart_title: 'Windows 開機靜默自啟動',
+        sw_autostart_desc: '隨開機自動駐留背景，無需手動啟動。',
+        sw_system_tray_title: 'Windows 系統匣常駐圖示',
+        sw_system_tray_desc: '在工作列右下角顯示托盤圖示，關閉時徹底清退不佔記憶體。',
+        sec_chat_title: '對話與閱讀',
+        sec_chat_subtitle: '長對話快速捲動、記憶恢復與標記',
+        sw_nav_buttons_title: '右下角常駐智慧翻頁雙按鈕',
+        sw_nav_buttons_desc: '平滑向上/向下捲動長對話，雙擊直達最新訊息。',
+        sw_block_bottom_btn_title: '屏蔽輸入框上方原生向下圖示',
+        sw_block_bottom_btn_desc: '向上翻閱時不再彈出官方居中向下滾動圓鈕。',
+        sw_scroll_persist_title: '多對話閱讀進度記憶與自動還原',
+        sw_scroll_persist_desc: '切換對話時精確還原上次瀏覽位置。',
+        sw_smart_unread_title: '智慧未讀/已讀狀態精確追蹤',
+        sw_smart_unread_desc: '觸底閱讀後才標記已讀，避免誤判。',
+        sw_pinned_summary_title: 'AI 回覆釘選與畫中畫速覽 (PiP)',
+        sw_pinned_summary_desc: '在頂部生成懸浮膠囊與畫中畫速覽窗，邊看長文邊提問。',
+        sec_worktree_title: '分支與工作樹',
+        sec_worktree_subtitle: '一鍵分叉對話與清理失效分支',
+        sw_fork_convo_title: '對話切片分叉與分支建立 (Create fork)',
+        sw_fork_convo_desc: '從任意節點克隆切片並開闢新對話分支。',
+        sw_worktree_mgmt_title: '分支與工作樹列表快捷管理',
+        sw_worktree_mgmt_desc: '在下拉清單中提供刪除垃圾桶與完整右鍵選單。',
+        sw_worktree_auto_sync_title: '開分支自動同步配置與共用編譯快取',
+        sw_worktree_auto_sync_desc: '開新分支時自動拷貝 .env* 並配置共用快取。',
+        sec_interaction_title: '互動與選單',
+        sec_interaction_subtitle: '統一右鍵接管與劃詞彈窗控制',
+        sw_context_menu_title: '全域右鍵功能增強',
+        sw_context_menu_desc: '接管側邊欄、對話與程式碼塊右鍵操作。',
+        sw_block_quote_title: '屏蔽選取文字時的 Quote 浮窗氣泡',
+        sw_block_quote_desc: '劃詞選字不再彈出 Quote (Ctrl+L) 氣泡。',
+        sec_visual_title: '視覺與輔助',
+        sec_visual_subtitle: '注入指示與專案收納抽屜',
+        sw_status_indicator_title: '右上角常駐綠色運行指示點',
+        sw_status_indicator_desc: '在客戶端右上角顯示極小綠色狀態指示點。',
+        sw_project_archiver_title: '左側專案折疊與歸檔抽屜',
+        sw_project_archiver_desc: '滑鼠懸停隱藏暫緩專案，提供專屬收納抽屜。',
+        sw_project_archiver_warn: '⚠️ 關閉不會還原已隱藏專案，重新開啟即可找回。',
+        tag_recommended: '推薦開啟',
+        tag_core: '核心功能',
+        tag_low_overhead: '極低開銷',
+        tag_disabled_default: '預設關閉',
+        tag_status: '狀態感知',
+        dock_synced: '已同步本機設定',
+        dock_modified: '● 存在未儲存的修改',
+        btn_reset: '還原預設',
+        btn_save: '儲存設定',
+        toast_saved: '✅ 設定已成功儲存並即時生效！',
+        toast_reset: '已還原為推薦預設值 (點擊儲存後生效)',
+        dialog_reset: '確定要還原到推薦的預設設定嗎？'
+      },
+      'en': {
+        app_title: 'agy-enhancer',
+        brand_subtitle: 'Settings Center',
+        theme_system: 'Follow System',
+        theme_light: 'Light Mode',
+        theme_dark: 'Dark Mode',
+        lang_auto: 'Follow System',
+        lang_zh_cn: 'Simplified Chinese',
+        lang_zh_tw: 'Traditional Chinese',
+        lang_en: 'English',
+        conn_connecting: 'Connecting to daemon...',
+        conn_online: 'Daemon Online (Live Sync)',
+        conn_offline: 'Daemon Offline',
+        offline_welcome: 'Daemon Offline',
+        offline_notice: 'Please run agy-enhancer.exe in the root folder to start the daemon service for real-time hot-reloading.',
+        offline_btn_retry: 'Check Service',
+        master_title: 'Master Control',
+        master_active_tag: '● RUNNING ACTIVE',
+        master_active_desc: 'Active enables all enhancements. Off ensures 100% native pure client state.',
+        master_dormant_tag: '○ DORMANT',
+        master_dormant_desc: 'Master switch is off. Antigravity is in native pure mode.',
+        nav_title: 'CATEGORIES',
+        search_placeholder: 'Search features or keywords... (Press / to focus)',
+        search_matching: 'Filtering results',
+        search_count: '{n} matched',
+        stats_title: 'Active Features Ratio',
+        sec_system_title: 'System & Services',
+        sec_system_subtitle: 'Manage autostart and notification tray icon',
+        sw_autostart_title: 'Windows Silent Autostart',
+        sw_autostart_desc: 'Automatically launches background daemon silently on Windows boot.',
+        sw_system_tray_title: 'Windows System Tray Icon',
+        sw_system_tray_desc: 'Displays leap chevron tray icon with quick settings. Closed by default with 0 extra processes.',
+        sec_chat_title: 'Chat & Reading',
+        sec_chat_subtitle: 'Smooth scrolling, reading memory and state tracking',
+        sw_nav_buttons_title: 'Bottom-Right Smart Double Scroll Buttons',
+        sw_nav_buttons_desc: 'Smart scroll up (↑) and down (↓). Double-click jumps to newest message.',
+        sw_block_bottom_btn_title: 'Block Chat Input Bottom (↓) Button',
+        sw_block_bottom_btn_desc: 'Hides official downward button above the input while scrolling.',
+        sw_scroll_persist_title: 'Multi-Session Reading Scroll Memory',
+        sw_scroll_persist_desc: 'Accurately restores your scroll position when switching conversations.',
+        sw_smart_unread_title: 'Smart Read/Unread State Tracking',
+        sw_smart_unread_desc: 'Marks as read only upon genuine bottom view, preventing false reads.',
+        sw_pinned_summary_title: 'Pinned Summaries & Picture-in-Picture (PiP)',
+        sw_pinned_summary_desc: 'Pins key AI responses with top capsules and draggable PiP preview window.',
+        sec_worktree_title: 'Worktree & Branch',
+        sec_worktree_subtitle: 'Fork conversations and synchronize build caches',
+        sw_fork_convo_title: 'Conversation Forking & Branching (Create fork)',
+        sw_fork_convo_desc: 'Clones conversation slices into new branches with automatic naming.',
+        sw_worktree_mgmt_title: 'Worktree & Branch Quick Management',
+        sw_worktree_mgmt_desc: 'Enables hover trash button and rich context menus in branch dropdowns.',
+        sw_worktree_auto_sync_title: 'Worktree Auto-Sync & Shared Build Cache',
+        sw_worktree_auto_sync_desc: 'Copies untracked .env* and local.properties to new branches with shared cache.',
+        sec_interaction_title: 'Interaction & Menus',
+        sec_interaction_subtitle: 'Context menu overhaul and selection popup control',
+        sw_context_menu_title: 'Global Right-Click Enhancement',
+        sw_context_menu_desc: 'Takes over sidebar, messages, and code copying with native-feeling actions.',
+        sw_block_quote_title: 'Block Selection Quote (Ctrl+L) Popup',
+        sw_block_quote_desc: 'Prevents Quote bubble when selecting text, eliminating typing lag.',
+        sec_visual_title: 'Visual & UI',
+        sec_visual_subtitle: 'Indicator status dot and project organizer',
+        sw_status_indicator_title: 'Top-Right Green Status Indicator Dot',
+        sw_status_indicator_desc: 'Displays an unobtrusive status dot in top-right corner of Antigravity.',
+        sw_project_archiver_title: 'Left Sidebar Project Archiving Drawer',
+        sw_project_archiver_desc: 'Hover to collapse postponed projects into a dedicated archive drawer.',
+        sw_project_archiver_warn: '⚠️ Disabling will keep archived projects hidden until re-enabled.',
+        tag_recommended: 'Recommended',
+        tag_core: 'Core',
+        tag_low_overhead: 'Low Overhead',
+        tag_disabled_default: 'Off by Default',
+        tag_status: 'Visual',
+        dock_synced: 'Synced with local configuration',
+        dock_modified: '● Unsaved changes detected',
+        btn_reset: 'Restore Defaults',
+        btn_save: 'Save Settings',
+        toast_saved: '✅ Configuration saved and hot-reloaded successfully!',
+        toast_reset: 'Restored to recommended defaults (click Save to apply)',
+        dialog_reset: 'Are you sure you want to restore all settings to recommended defaults?'
+      }
+    };
+
+    /* -------------------------------------------------------------
+       多主题管理器 (跟随系统 / 浅色 / 深色)
+       ------------------------------------------------------------- */
+    let currentThemeMode = localStorage.getItem('agy_theme_mode') || 'system';
+
+    function applyTheme() {
+      const isDarkSys = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+      let effective = currentThemeMode;
+      if (currentThemeMode === 'system') {
+        effective = isDarkSys ? 'dark' : 'light';
+      }
+      document.documentElement.setAttribute('data-theme', effective);
+      const sel = document.getElementById('themeSelect');
+      if (sel) sel.value = currentThemeMode;
+    }
+
+    function setThemeMode(mode) {
+      currentThemeMode = mode;
+      localStorage.setItem('agy_theme_mode', mode);
+      applyTheme();
+      // 同步给后台配置，使托盘与设置中心一致
+      try {
+        fetch(`${API_BASE}/api/config`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ UI_THEME_MODE: mode })
+        }).catch(() => {});
+      } catch (e) {}
+    }
+
+    if (window.matchMedia) {
+      window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+        if (currentThemeMode === 'system') applyTheme();
+      });
+    }
+
+    /* -------------------------------------------------------------
+       多语言管理器 (跟随系统 / 简体 / 繁体 / English)
+       ------------------------------------------------------------- */
+    let currentLang = 'auto';
+
+    function getEffectiveLang() {
+      if (currentLang !== 'auto') return currentLang;
+      const navLang = (navigator.language || navigator.userLanguage || '').toLowerCase();
+      if (navLang.includes('tw') || navLang.includes('hk')) return 'zh-TW';
+      if (navLang.includes('zh')) return 'zh-CN';
+      return 'en';
+    }
+
+    function applyI18n() {
+      const lang = getEffectiveLang();
+      const dict = I18N_LOCAL[lang] || I18N_LOCAL['zh-CN'];
+
+      document.querySelectorAll('[data-i18n]').forEach(el => {
+        const key = el.getAttribute('data-i18n');
+        if (dict[key]) el.textContent = dict[key];
+      });
+
+      document.querySelectorAll('[data-i18n-ph]').forEach(el => {
+        const key = el.getAttribute('data-i18n-ph');
+        if (dict[key]) el.setAttribute('placeholder', dict[key]);
+      });
+
+      document.title = dict['app_title'];
+      document.getElementById('langSelect').value = currentLang;
+      updateVisualHierarchy();
+    }
+
+    function changeLanguage(val) {
+      currentLang = val;
+      setDirty();
+      applyI18n();
+      try {
+        fetch(`${API_BASE}/api/config`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ UI_LANG: val })
+        }).catch(() => {});
+      } catch (e) {}
+    }
+
+    /* -------------------------------------------------------------
+       选项卡 Tab 切换：右侧只显示左侧选中的分类功能！
+       ------------------------------------------------------------- */
+    let currentActiveTabId = 'tab-master';
+
+    function switchCategoryTab(tabId) {
+      currentActiveTabId = tabId;
+
+      // 清空搜索框状态
+      if (searchInput.value.trim()) {
+        searchInput.value = '';
+        clearSearch();
+      }
+
+      // 更新左侧激活高亮
+      document.querySelectorAll('#navList .nav-item').forEach(item => {
+        item.classList.toggle('active', item.getAttribute('data-target') === tabId);
+      });
+
+      // 右侧只显示当前选中的分类！
+      document.querySelectorAll('.tab-section').forEach(sec => {
+        sec.classList.toggle('active', sec.id === tabId);
+      });
+
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    /* -------------------------------------------------------------
+       配置参数与状态逻辑
+       ------------------------------------------------------------- */
+    const API_BASE = (location.protocol === 'http:' || location.protocol === 'https:') ? '' : 'http://127.0.0.1:37210';
+
+    const SWITCH_KEYS = [
+      'ENABLE_MASTER',
+      'ENABLE_AUTOSTART',
+      'ENABLE_SYSTEM_TRAY',
+      'ENABLE_NAV_BUTTONS',
+      'ENABLE_BLOCK_CHAT_BOTTOM_BUTTON',
+      'ENABLE_SCROLL_PERSISTENCE',
+      'ENABLE_SMART_UNREAD',
+      'ENABLE_PINNED_SUMMARY',
+      'ENABLE_FORK_CONVERSATION',
+      'ENABLE_WORKTREE_MANAGEMENT',
+      'ENABLE_WORKTREE_AUTO_SYNC',
+      'ENABLE_CONTEXT_MENU',
+      'ENABLE_BLOCK_QUOTE_POPUP',
+      'ENABLE_STATUS_INDICATOR',
+      'ENABLE_PROJECT_ARCHIVER'
+    ];
+
+    // 默认值：注意按要求将 ENABLE_SMART_UNREAD 设为 false
+    const DEFAULTS = {
+      ENABLE_MASTER: true,
+      ENABLE_AUTOSTART: true,
+      ENABLE_SYSTEM_TRAY: false,
+      ENABLE_NAV_BUTTONS: true,
+      ENABLE_BLOCK_CHAT_BOTTOM_BUTTON: true,
+      ENABLE_SCROLL_PERSISTENCE: true,
+      ENABLE_SMART_UNREAD: false, // 智能未读默认关闭
+      ENABLE_PINNED_SUMMARY: true,
+      ENABLE_FORK_CONVERSATION: true,
+      ENABLE_WORKTREE_MANAGEMENT: true,
+      ENABLE_WORKTREE_AUTO_SYNC: true,
+      ENABLE_CONTEXT_MENU: true,
+      ENABLE_BLOCK_QUOTE_POPUP: true,
+      ENABLE_STATUS_INDICATOR: true,
+      ENABLE_PROJECT_ARCHIVER: true
+    };
+
+    let isDirty = false;
+
+    function showToast(msg) {
+      const pill = document.getElementById('toastPill');
+      document.getElementById('toastText').textContent = msg;
+      pill.classList.add('visible');
+      setTimeout(() => pill.classList.remove('visible'), 2600);
+    }
+
+    function setDirty() {
+      isDirty = true;
+      const dock = document.getElementById('dockStatus');
+      dock.classList.add('dirty');
+      const lang = getEffectiveLang();
+      document.getElementById('dockStatusText').textContent = (I18N_LOCAL[lang] || I18N_LOCAL['zh-CN'])['dock_modified'];
+    }
+
+    function updateVisualHierarchy() {
+      const lang = getEffectiveLang();
+      const dict = I18N_LOCAL[lang] || I18N_LOCAL['zh-CN'];
+      const masterCheck = document.getElementById('ENABLE_MASTER').checked;
+      const masterDescText = document.getElementById('masterDescText');
+
+      if (masterCheck) {
+        masterDescText.textContent = dict['master_active_desc'];
+      } else {
+        masterDescText.textContent = dict['master_dormant_desc'];
+      }
+
+      // 右键开关联动 Quote
+      const ctxCheck = document.getElementById('ENABLE_CONTEXT_MENU').checked;
+      const quotePanel = document.getElementById('quotePopupSubPanel');
+      const quoteInput = document.getElementById('ENABLE_BLOCK_QUOTE_POPUP');
+      if (ctxCheck && masterCheck) {
+        quotePanel.classList.remove('collapsed');
+        quoteInput.disabled = false;
+      } else {
+        quotePanel.classList.add('collapsed');
+        quoteInput.disabled = true;
+      }
+
+      updateActiveStats();
+    }
+
+    function updateActiveStats() {
+      const lang = getEffectiveLang();
+      let activeCount = 0;
+      SWITCH_KEYS.forEach(k => {
+        if (k === 'ENABLE_MASTER') return;
+        const el = document.getElementById(k);
+        if (el && el.checked) activeCount++;
+      });
+      const total = SWITCH_KEYS.length - 1;
+      const percent = Math.round((activeCount / total) * 100);
+      document.getElementById('activeStatsCount').textContent = `${activeCount} / ${total}`;
+      document.getElementById('activeStatsPercent').textContent = `${percent}% ` + (lang.startsWith('zh') ? '已激活' : 'Active');
+      document.getElementById('activeProgressBar').style.width = `${percent}%`;
+    }
+
+    SWITCH_KEYS.forEach(k => {
+      const el = document.getElementById(k);
+      if (el) {
+        el.addEventListener('change', () => {
+          setDirty();
+          updateVisualHierarchy();
+        });
+      }
+    });
+
+    document.getElementById('ENABLE_CONTEXT_MENU').addEventListener('change', (e) => {
+      document.getElementById('ENABLE_BLOCK_QUOTE_POPUP').checked = e.target.checked;
+    });
+
+    document.getElementById('ENABLE_SYSTEM_TRAY').addEventListener('change', async (e) => {
+      try {
+        await fetch(`${API_BASE}/api/config`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ENABLE_SYSTEM_TRAY: e.target.checked })
+        });
+      } catch (_) {}
+    });
+
+    /* -------------------------------------------------------------
+       即时搜索过滤 (搜索时跨分类显示匹配项)
+       ------------------------------------------------------------- */
+    const searchInput = document.getElementById('searchInput');
+    const searchClear = document.getElementById('searchClear');
+    const searchHint = document.getElementById('searchResultHint');
+    const searchCountText = document.getElementById('searchResultCount');
+
+    searchInput.addEventListener('input', (e) => {
+      const query = e.target.value.trim().toLowerCase();
+      searchClear.style.display = query ? 'block' : 'none';
+
+      if (!query) {
+        searchHint.style.display = 'none';
+        document.querySelectorAll('.setting-item-row').forEach(row => row.classList.remove('hidden'));
+        // 恢复只显示当前选中的 Tab
+        document.querySelectorAll('.tab-section').forEach(sec => {
+          sec.classList.toggle('active', sec.id === currentActiveTabId);
+        });
+        return;
+      }
+
+      let matchCount = 0;
+      document.querySelectorAll('.setting-item-row').forEach(row => {
+        const text = row.innerText.toLowerCase();
+        const keywords = (row.getAttribute('data-keywords') || '').toLowerCase();
+        const matches = text.includes(query) || keywords.includes(query);
+        row.classList.toggle('hidden', !matches);
+        if (matches) matchCount++;
+      });
+
+      // 搜索中：有匹配项的分类 Tab 都展示
+      document.querySelectorAll('.tab-section').forEach(sec => {
+        const visibleRows = sec.querySelectorAll('.setting-item-row:not(.hidden)');
+        sec.classList.toggle('active', visibleRows.length > 0);
+      });
+
+      searchHint.style.display = 'flex';
+      const lang = getEffectiveLang();
+      const countTpl = (I18N_LOCAL[lang] || I18N_LOCAL['zh-CN'])['search_count'];
+      searchCountText.textContent = countTpl.replace('{n}', matchCount);
+    });
+
+    function clearSearch() {
+      searchInput.value = '';
+      searchClear.style.display = 'none';
+      searchHint.style.display = 'none';
+      document.querySelectorAll('.setting-item-row').forEach(row => row.classList.remove('hidden'));
+      document.querySelectorAll('.tab-section').forEach(sec => {
+        sec.classList.toggle('active', sec.id === currentActiveTabId);
+      });
+      searchInput.focus();
+    }
+
+    window.addEventListener('keydown', (e) => {
+      if (e.key === '/' && document.activeElement !== searchInput) {
+        e.preventDefault();
+        searchInput.focus();
+      }
+    });
+
+    /* -------------------------------------------------------------
+       数据同步与通信
+       ------------------------------------------------------------- */
+    async function fetchLiveConfig() {
+      const capsule = document.getElementById('connCapsule');
+      const label = document.getElementById('connLabel');
+      const noticeBar = document.getElementById('offlineNoticeBar');
+      const lang = getEffectiveLang();
+      const dict = I18N_LOCAL[lang] || I18N_LOCAL['zh-CN'];
+
+      try {
+        const res = await fetch(`${API_BASE}/api/config?t=${Date.now()}`, { cache: 'no-store' });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const data = await res.json();
+
+        if (data.success && data.config) {
+          capsule.classList.remove('disconnected');
+          label.textContent = dict['conn_online'];
+          noticeBar.classList.remove('active');
+
+          SWITCH_KEYS.forEach(k => {
+            const el = document.getElementById(k);
+            if (el && typeof data.config[k] === 'boolean') {
+              el.checked = data.config[k];
+            }
+          });
+
+          if (data.config.UI_LANG) {
+            currentLang = data.config.UI_LANG;
+            applyI18n();
+          }
+
+          if (data.config.UI_THEME_MODE) {
+            currentThemeMode = data.config.UI_THEME_MODE;
+            localStorage.setItem('agy_theme_mode', currentThemeMode);
+            applyTheme();
+          }
+
+          isDirty = false;
+          const dock = document.getElementById('dockStatus');
+          dock.classList.remove('dirty');
+          document.getElementById('dockStatusText').textContent = dict['dock_synced'];
+          updateVisualHierarchy();
+        }
+      } catch (err) {
+        capsule.classList.add('disconnected');
+        label.textContent = dict['conn_offline'];
+        noticeBar.classList.add('active');
+      }
+    }
+
+    async function handleSave() {
+      const btn = document.getElementById('btnSave');
+      btn.disabled = true;
+
+      const payload = {};
+      SWITCH_KEYS.forEach(k => {
+        const el = document.getElementById(k);
+        if (el) payload[k] = el.checked;
+      });
+
+      payload.UI_LANG = currentLang;
+      payload.UI_THEME_MODE = currentThemeMode;
+
+      try {
+        const res = await fetch(`${API_BASE}/api/config`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        const lang = getEffectiveLang();
+        const dict = I18N_LOCAL[lang] || I18N_LOCAL['zh-CN'];
+
+        if (data.success) {
+          isDirty = false;
+          const dock = document.getElementById('dockStatus');
+          dock.classList.remove('dirty');
+          document.getElementById('dockStatusText').textContent = `${dict['dock_synced']} (${new Date().toLocaleTimeString()})`;
+          showToast(dict['toast_saved']);
+        } else {
+          alert('Save failed: ' + (data.error || 'Unknown error'));
+        }
+      } catch (e) {
+        alert('无法连接至后台守护服务，请确认 agy-enhancer.exe 是否正在运行！');
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    function handleReset() {
+      const lang = getEffectiveLang();
+      const dict = I18N_LOCAL[lang] || I18N_LOCAL['zh-CN'];
+      if (!confirm(dict['dialog_reset'])) return;
+
+      SWITCH_KEYS.forEach(k => {
+        const el = document.getElementById(k);
+        if (el && typeof DEFAULTS[k] === 'boolean') {
+          el.checked = DEFAULTS[k];
+        }
+      });
+
+      setDirty();
+      updateVisualHierarchy();
+      showToast(dict['toast_reset']);
+    }
+
+    window.addEventListener('focus', () => {
+      if (!isDirty) fetchLiveConfig();
+    });
+
+    applyTheme();
+    applyI18n();
+    fetchLiveConfig();
+  </script>
+</body>
+</html>

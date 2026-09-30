@@ -1,0 +1,22 @@
+{
+  "name": "agy-enhancer",
+  "short_name": "agy-enhancer",
+  "description": "agy-enhancer Settings",
+  "start_url": "../settings-v2.html",
+  "display": "standalone",
+  "background_color": "#090d16",
+  "theme_color": "#ea580c",
+  "icons": [
+    {
+      "src": "icon.png",
+      "sizes": "512x512 256x256 128x128 64x64 48x48 32x32 16x16",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon.ico",
+      "sizes": "16x16 24x24 32x32 48x48 64x64 128x128 256x256",
+      "type": "image/x-icon"
+    }
+  ]
+}
