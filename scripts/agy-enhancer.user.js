@@ -45,6 +45,9 @@ window.__AGY_BRANCH_NAME__ = "hide_file_explorer_setting";
     // 【文件浏览】是否屏蔽项目右键菜单中的原生 Show in File Explorer（依附于右键总开关）
     ENABLE_BLOCK_FILE_EXPLORER: true,
 
+    // 【原生复制】是否屏蔽左侧栏会话与项目右键菜单中的原生 Copy 菜单项（依附于右键总开关）
+    ENABLE_BLOCK_SIDEBAR_COPY: true,
+
     // 【会话分叉】是否开启会话切片分叉与分支创建功能（独立开关，并在右键菜单中提供入口）
     ENABLE_FORK_CONVERSATION: true,
 
@@ -3200,14 +3203,31 @@ window.__AGY_BRANCH_NAME__ = "hide_file_explorer_setting";
               }
             };
 
-            // 移除原生多级 Copy 菜单项
-            const nativeCopyItem = Array.from(menu.children).find(c =>
-              c.getAttribute('role') === 'menuitem' &&
-              c.innerText.trim().startsWith('Copy') &&
-              !c.classList.contains('agy-native-enhanced')
-            );
-            if (nativeCopyItem) {
-              nativeCopyItem.remove();
+            // 屏蔽官方原生多级 Copy 菜单项
+            if (USER_CONFIG.ENABLE_BLOCK_SIDEBAR_COPY !== false) {
+              const removeNativeCopy = () => {
+                const items = Array.from(menu.querySelectorAll('[role="menuitem"], div'));
+                for (const item of items) {
+                  if (item.classList?.contains('agy-native-enhanced')) continue;
+                  const testid = (item.getAttribute?.('data-testid') || '').toLowerCase();
+                  const text = (item.textContent || '').trim().toLowerCase();
+                  if (
+                    testid.includes('copy') ||
+                    text === 'copy' ||
+                    text.startsWith('copy') ||
+                    text === '复制' ||
+                    text.startsWith('复制')
+                  ) {
+                    const targetItem = item.closest('[role="menuitem"]') || item;
+                    targetItem.remove();
+                    return true;
+                  }
+                }
+                return false;
+              };
+              if (!removeNativeCopy()) {
+                requestAnimationFrame(removeNativeCopy);
+              }
             }
 
             // 1. 原生项与复制项之间的分隔线（若原生菜单末尾已有分隔线则复用，避免出现双分隔线）
@@ -3495,6 +3515,33 @@ window.__AGY_BRANCH_NAME__ = "hide_file_explorer_setting";
               };
               if (!removeExplorerItem()) {
                 requestAnimationFrame(removeExplorerItem);
+              }
+            }
+
+            // 屏蔽官方原生 "Copy" / "Copy Project Name" 菜单项
+            if (USER_CONFIG.ENABLE_BLOCK_SIDEBAR_COPY !== false) {
+              const removeProjCopy = () => {
+                const items = Array.from(menu.querySelectorAll('[role="menuitem"], div'));
+                for (const item of items) {
+                  if (item.classList?.contains('agy-native-enhanced')) continue;
+                  const testid = (item.getAttribute?.('data-testid') || '').toLowerCase();
+                  const text = (item.textContent || '').trim().toLowerCase();
+                  if (
+                    testid.includes('copy') ||
+                    text === 'copy' ||
+                    text.startsWith('copy') ||
+                    text === '复制' ||
+                    text.startsWith('复制')
+                  ) {
+                    const targetItem = item.closest('[role="menuitem"]') || item;
+                    targetItem.remove();
+                    return true;
+                  }
+                }
+                return false;
+              };
+              if (!removeProjCopy()) {
+                requestAnimationFrame(removeProjCopy);
               }
             }
 

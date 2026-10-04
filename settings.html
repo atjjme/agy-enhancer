@@ -642,6 +642,18 @@
       border: 1px solid rgba(16, 185, 129, 0.25);
     }
 
+    .item-tag.block-native {
+      background: rgba(139, 92, 246, 0.12);
+      color: #a78bfa;
+      border: 1px solid rgba(139, 92, 246, 0.28);
+    }
+
+    html[data-theme="light"] .item-tag.block-native {
+      background: rgba(124, 58, 237, 0.08);
+      color: #7c3aed;
+      border: 1px solid rgba(124, 58, 237, 0.22);
+    }
+
     .item-desc {
       font-size: 13px;
       color: var(--text-muted);
@@ -1168,7 +1180,7 @@
           <div class="item-meta">
             <div class="item-title-row">
               <span class="item-title" data-i18n="sw_block_bottom_btn_title">屏蔽聊天输入框上方官方原生向下按钮</span>
-              <span class="item-tag recommended" data-i18n="tag_recommended">推荐开启</span>
+              <span class="item-tag block-native" data-i18n="tag_block_native">屏蔽原生功能</span>
             </div>
             <div class="item-desc" data-i18n="sw_block_bottom_btn_desc">向上翻看历史消息时，自动屏蔽官方在输入框正上方弹出的遮挡性（↓）小圆钮。</div>
           </div>
@@ -1310,7 +1322,7 @@
             <div class="item-meta">
               <div class="item-title-row">
                 <span class="item-title" style="font-size: 13px;" data-i18n="sw_block_quote_title">屏蔽选中文本时的 Quote 浮窗气泡</span>
-                <span class="item-tag recommended" data-i18n="tag_recommended">推荐开启</span>
+                <span class="item-tag block-native" data-i18n="tag_block_native">屏蔽原生功能</span>
               </div>
               <div class="item-desc" style="font-size: 12px;" data-i18n="sw_block_quote_desc">划词选择文字时不再弹出官方 Quote (Ctrl+L) 气泡，彻底消除文本选择时的卡顿感（从属于右键菜单开关）。</div>
             </div>
@@ -1324,12 +1336,26 @@
             <div class="item-meta">
               <div class="item-title-row">
                 <span class="item-title" style="font-size: 13px;" data-i18n="sw_block_file_explorer_title">屏蔽项目右键菜单 Show in File Explorer</span>
-                <span class="item-tag recommended" data-i18n="tag_recommended">推荐开启</span>
+                <span class="item-tag block-native" data-i18n="tag_block_native">屏蔽原生功能</span>
               </div>
               <div class="item-desc" style="font-size: 12px;" data-i18n="sw_block_file_explorer_desc">屏蔽官方原生重复的 Show in File Explorer 菜单项，统一使用增强器提供的 Open Project Folder 快捷打开。</div>
             </div>
             <label class="switch-ui mini-switch">
               <input type="checkbox" id="ENABLE_BLOCK_FILE_EXPLORER">
+              <span class="switch-track"></span>
+            </label>
+          </div>
+
+          <div class="setting-item-row" style="padding: 10px 0 4px 0; border: none; border-top: 1px dashed var(--border-subtle); margin-top: 8px;" data-keywords="block sidebar copy 屏蔽 原生 复制 copy 侧栏 菜单">
+            <div class="item-meta">
+              <div class="item-title-row">
+                <span class="item-title" style="font-size: 13px;" data-i18n="sw_block_sidebar_copy_title">屏蔽左侧栏右键原生 Copy 菜单项</span>
+                <span class="item-tag block-native" data-i18n="tag_block_native">屏蔽原生功能</span>
+              </div>
+              <div class="item-desc" style="font-size: 12px;" data-i18n="sw_block_sidebar_copy_desc">屏蔽左侧栏会话与项目右键菜单中官方原生的 Copy 多级子菜单及复制项，统一纯净交互。</div>
+            </div>
+            <label class="switch-ui mini-switch">
+              <input type="checkbox" id="ENABLE_BLOCK_SIDEBAR_COPY">
               <span class="switch-track"></span>
             </label>
           </div>
@@ -1461,6 +1487,8 @@
         sw_block_quote_desc: '划词选择文字时不再弹出官方 Quote (Ctrl+L) 气泡，彻底消除文本选择时的卡顿感（从属于右键菜单开关）。',
         sw_block_file_explorer_title: '屏蔽项目右键菜单 Show in File Explorer',
         sw_block_file_explorer_desc: '屏蔽官方原生重复的 Show in File Explorer 菜单项，统一使用增强器提供的 Open Project Folder 快捷打开。',
+        sw_block_sidebar_copy_title: '屏蔽左侧栏右键原生 Copy 菜单项',
+        sw_block_sidebar_copy_desc: '屏蔽左侧栏会话与项目右键菜单中官方原生的 Copy 多级子菜单及复制项，统一纯净交互。',
         sec_visual_title: '视觉与辅助',
         sec_visual_subtitle: '注入指示、项目抽屉与界面清爽化',
         sw_status_indicator_title: '右上角常驻绿色运行指示点',
@@ -1469,6 +1497,7 @@
         sw_project_archiver_desc: '鼠标悬停一键隐藏暂不需要的项目，保持侧栏干净整洁；并在侧边栏 Projects 旁提供专属归档抽屉。',
         sw_project_archiver_warn: '⚠️ 关闭后已归档项目仍保持隐藏，重新开启即可随时点开抽屉恢复。',
         tag_recommended: '推荐开启',
+        tag_block_native: '屏蔽原生功能',
         tag_core: '核心功能',
         tag_low_overhead: '极低开销',
         tag_disabled_default: '默认关闭',
@@ -1541,6 +1570,8 @@
         sw_block_quote_desc: '劃詞選字不再彈出 Quote (Ctrl+L) 氣泡。',
         sw_block_file_explorer_title: '屏蔽專案右鍵選單 Show in File Explorer',
         sw_block_file_explorer_desc: '屏蔽官方原生重複的 Show in File Explorer 選項，統一使用增強器提供的 Open Project Folder 快速開啟。',
+        sw_block_sidebar_copy_title: '屏蔽左側欄右鍵原生 Copy 選項',
+        sw_block_sidebar_copy_desc: '屏蔽左側欄對話與專案右鍵選單中官方原生的 Copy 多級子選單及複製項目。',
         sec_visual_title: '視覺與輔助',
         sec_visual_subtitle: '注入指示與專案收納抽屜',
         sw_status_indicator_title: '右上角常駐綠色運行指示點',
@@ -1549,6 +1580,7 @@
         sw_project_archiver_desc: '滑鼠懸停隱藏暫緩專案，提供專屬收納抽屜。',
         sw_project_archiver_warn: '⚠️ 關閉不會還原已隱藏專案，重新開啟即可找回。',
         tag_recommended: '推薦開啟',
+        tag_block_native: '屏蔽原生功能',
         tag_core: '核心功能',
         tag_low_overhead: '極低開銷',
         tag_disabled_default: '預設關閉',
@@ -1621,6 +1653,8 @@
         sw_block_quote_desc: 'Prevents Quote bubble when selecting text, eliminating typing lag.',
         sw_block_file_explorer_title: 'Block "Show in File Explorer" in Project Menu',
         sw_block_file_explorer_desc: 'Hides redundant native "Show in File Explorer" item in project context menu in favor of Open Project Folder.',
+        sw_block_sidebar_copy_title: 'Block Native "Copy" in Sidebar Context Menu',
+        sw_block_sidebar_copy_desc: 'Hides redundant official native Copy cascading submenus and items in sidebar context menus.',
         sec_visual_title: 'Visual & UI',
         sec_visual_subtitle: 'Indicator status dot and project organizer',
         sw_status_indicator_title: 'Top-Right Green Status Indicator Dot',
@@ -1629,6 +1663,7 @@
         sw_project_archiver_desc: 'Hover to collapse postponed projects into a dedicated archive drawer.',
         sw_project_archiver_warn: '⚠️ Disabling will keep archived projects hidden until re-enabled.',
         tag_recommended: 'Recommended',
+        tag_block_native: 'Block Native',
         tag_core: 'Core',
         tag_low_overhead: 'Low Overhead',
         tag_disabled_default: 'Off by Default',
@@ -1771,6 +1806,7 @@
       'ENABLE_CONTEXT_MENU',
       'ENABLE_BLOCK_QUOTE_POPUP',
       'ENABLE_BLOCK_FILE_EXPLORER',
+      'ENABLE_BLOCK_SIDEBAR_COPY',
       'ENABLE_STATUS_INDICATOR',
       'ENABLE_PROJECT_ARCHIVER'
     ];
@@ -1791,6 +1827,7 @@
       ENABLE_CONTEXT_MENU: true,
       ENABLE_BLOCK_QUOTE_POPUP: true,
       ENABLE_BLOCK_FILE_EXPLORER: true,
+      ENABLE_BLOCK_SIDEBAR_COPY: true,
       ENABLE_STATUS_INDICATOR: true,
       ENABLE_PROJECT_ARCHIVER: true
     };
@@ -1836,19 +1873,22 @@
         }
       });
 
-      // 右键开关联动 Quote 与 File Explorer 屏蔽
+      // 右键开关联动 Quote 与 File Explorer 及 Sidebar Copy 屏蔽
       const ctxCheck = document.getElementById('ENABLE_CONTEXT_MENU').checked;
       const quotePanel = document.getElementById('quotePopupSubPanel');
       const quoteInput = document.getElementById('ENABLE_BLOCK_QUOTE_POPUP');
       const explorerInput = document.getElementById('ENABLE_BLOCK_FILE_EXPLORER');
+      const sidebarCopyInput = document.getElementById('ENABLE_BLOCK_SIDEBAR_COPY');
       if (ctxCheck && masterCheck) {
         quotePanel.classList.remove('collapsed');
         quoteInput.disabled = false;
         if (explorerInput) explorerInput.disabled = false;
+        if (sidebarCopyInput) sidebarCopyInput.disabled = false;
       } else {
         quotePanel.classList.add('collapsed');
         quoteInput.disabled = true;
         if (explorerInput) explorerInput.disabled = true;
+        if (sidebarCopyInput) sidebarCopyInput.disabled = true;
       }
 
       updateActiveStats();
@@ -1891,6 +1931,9 @@
       document.getElementById('ENABLE_BLOCK_QUOTE_POPUP').checked = e.target.checked;
       if (document.getElementById('ENABLE_BLOCK_FILE_EXPLORER')) {
         document.getElementById('ENABLE_BLOCK_FILE_EXPLORER').checked = e.target.checked;
+      }
+      if (document.getElementById('ENABLE_BLOCK_SIDEBAR_COPY')) {
+        document.getElementById('ENABLE_BLOCK_SIDEBAR_COPY').checked = e.target.checked;
       }
     });
 
