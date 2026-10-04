@@ -27,6 +27,9 @@
     // 【选词弹窗】是否屏蔽划词选中文本时弹出的 Quote (Ctrl+L) 浮窗（依附于右键总开关）
     ENABLE_BLOCK_QUOTE_POPUP: true,
 
+    // 【文件浏览】是否屏蔽项目右键菜单中的原生 Show in File Explorer（依附于右键总开关）
+    ENABLE_BLOCK_FILE_EXPLORER: true,
+
     // 【会话分叉】是否开启会话切片分叉与分支创建功能（独立开关，并在右键菜单中提供入口）
     ENABLE_FORK_CONVERSATION: true,
 
@@ -3448,6 +3451,37 @@
             activeNativeProjectObj = null;
             activeNativeProjectId = null;
             lastProjectActionTime = 0;
+
+            // 屏蔽官方原生 "Show in File Explorer" 菜单项
+            if (USER_CONFIG.ENABLE_BLOCK_FILE_EXPLORER !== false) {
+              const removeExplorerItem = () => {
+                const items = Array.from(menu.querySelectorAll('[role="menuitem"], div'));
+                for (const item of items) {
+                  if (item.classList?.contains('agy-native-enhanced')) continue;
+                  const testid = (item.getAttribute?.('data-testid') || '').toLowerCase();
+                  const text = (item.textContent || '').trim().toLowerCase();
+                  if (
+                    testid.includes('file-explorer') ||
+                    testid.includes('show-in-explorer') ||
+                    text === 'show in file explorer' ||
+                    text.includes('show in file explorer') ||
+                    text.includes('show in explorer') ||
+                    text.includes('show in finder') ||
+                    text.includes('在文件资源管理器中显示') ||
+                    text.includes('在资源管理器中显示') ||
+                    text.includes('在访达中显示')
+                  ) {
+                    const targetItem = item.closest('[role="menuitem"]') || item;
+                    targetItem.remove();
+                    return true;
+                  }
+                }
+                return false;
+              };
+              if (!removeExplorerItem()) {
+                requestAnimationFrame(removeExplorerItem);
+              }
+            }
 
             const targetUri = getProjectFolderUri(targetProject);
             if (!targetUri) return;

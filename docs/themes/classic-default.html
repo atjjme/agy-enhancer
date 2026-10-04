@@ -796,6 +796,16 @@
               <span class="switch-slider"></span>
             </label>
           </div>
+          <div class="sub-control-row" style="border-top: 1px dashed var(--border-color); padding-top: 8px; margin-top: 6px;">
+            <div class="control-text" style="padding-right: 12px;">
+              <div class="sub-control-label" style="font-weight: 500;" data-i18n="sw_block_file_explorer_title">屏蔽项目右键菜单 Show in File Explorer</div>
+              <div class="control-subtext" style="font-size: 11.5px; margin-top: 2px;" data-i18n="sw_block_file_explorer_desc">屏蔽官方原生重复的 Show in File Explorer 菜单项，统一使用增强器提供的 Open Project Folder 快捷打开。</div>
+            </div>
+            <label class="switch-ui mini-switch">
+              <input type="checkbox" id="ENABLE_BLOCK_FILE_EXPLORER">
+              <span class="switch-slider"></span>
+            </label>
+          </div>
         </div>
 
         <div class="control-row">
@@ -974,6 +984,7 @@
       'ENABLE_SYSTEM_TRAY',
       'ENABLE_CONTEXT_MENU',
       'ENABLE_BLOCK_QUOTE_POPUP',
+      'ENABLE_BLOCK_FILE_EXPLORER',
       'ENABLE_FORK_CONVERSATION',
       'ENABLE_WORKTREE_MANAGEMENT',
       'ENABLE_WORKTREE_AUTO_SYNC',
@@ -992,6 +1003,7 @@
       ENABLE_SYSTEM_TRAY: false,
       ENABLE_CONTEXT_MENU: true,
       ENABLE_BLOCK_QUOTE_POPUP: true,
+      ENABLE_BLOCK_FILE_EXPLORER: true,
       ENABLE_FORK_CONVERSATION: true,
       ENABLE_WORKTREE_MANAGEMENT: true,
       ENABLE_WORKTREE_AUTO_SYNC: true,
@@ -1040,12 +1052,15 @@
       const ctxMenuCheck = document.getElementById('ENABLE_CONTEXT_MENU').checked;
       const quoteSubPanel = document.getElementById('quotePopupSubPanel');
       const blockQuoteCheck = document.getElementById('ENABLE_BLOCK_QUOTE_POPUP');
+      const blockExplorerCheck = document.getElementById('ENABLE_BLOCK_FILE_EXPLORER');
       if (ctxMenuCheck && masterCheck) {
         quoteSubPanel.classList.remove('collapsed');
         blockQuoteCheck.disabled = false;
+        if (blockExplorerCheck) blockExplorerCheck.disabled = false;
       } else {
         quoteSubPanel.classList.add('collapsed');
         blockQuoteCheck.disabled = true;
+        if (blockExplorerCheck) blockExplorerCheck.disabled = true;
       }
     }
 
@@ -1166,10 +1181,9 @@
     }
 
     document.getElementById('ENABLE_CONTEXT_MENU').addEventListener('change', (e) => {
-      if (e.target.checked) {
-        document.getElementById('ENABLE_BLOCK_QUOTE_POPUP').checked = true;
-      } else {
-        document.getElementById('ENABLE_BLOCK_QUOTE_POPUP').checked = false;
+      document.getElementById('ENABLE_BLOCK_QUOTE_POPUP').checked = e.target.checked;
+      if (document.getElementById('ENABLE_BLOCK_FILE_EXPLORER')) {
+        document.getElementById('ENABLE_BLOCK_FILE_EXPLORER').checked = e.target.checked;
       }
     });
 
