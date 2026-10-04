@@ -1657,6 +1657,16 @@
     }
 
     // ==================== 项目与对话底层数据及文件夹工具 (Core Helpers) ====================
+    function getWorkspaceTerm() {
+      const header = document.querySelector('[data-testid="section-header"][data-title="Workspaces"], [data-testid="section-header"][data-title="Projects"]');
+      const isWorkspace = header ? header.getAttribute('data-title') === 'Workspaces' : !!document.querySelector('[data-title="Workspaces"]');
+      return {
+        singular: isWorkspace ? 'Workspace' : 'Project',
+        plural: isWorkspace ? 'Workspaces' : 'Projects',
+        archived: isWorkspace ? 'Archived Workspaces' : 'Archived Projects'
+      };
+    }
+
     function getPM() {
       const header = document.querySelector('[data-testid="section-header"][data-title="Workspaces"], [data-testid="section-header"][data-title="Projects"]');
       if (!header) return null;
@@ -2385,11 +2395,13 @@
           panel.style.left = `${leftPos}px`;
         }
 
+        const term = getWorkspaceTerm();
+
         panel.innerHTML = `
           <div class="agy-archive-panel-header">
             <div class="agy-archive-panel-title">
               <svg width="14" height="14" viewBox="0 -960 960 960" fill="currentColor"><path d="m480-256.16 146.15-146.15L584-444.46l-74 74v-178H450v178l-74-74-42.15 42.15L480-256.16ZM200-643.85v431.54q0 5.39 3.46 8.85t8.85 3.46h535.38q5.39 0 8.85-3.46t3.46-8.85v-431.54H200ZM215.39-140q-29.92 0-52.65-22.73T140-215.39v-464.38q0-12.85 4.12-24.5t12.35-21.5l56.15-67.92q9.85-12.85 24.62-19.58T268.46-820h422.3q16.46 0 31.42 6.73T747-793.69L803.54-725q8.23 9.85 12.35 21.69T820-678.61v463.22q0 29.92-22.73 52.65T744.61-140H215.39Zm.23-563.84H744l-43.62-51.92q-1.92-1.92-4.42-3.08T690.77-760H268.85q-2.69 0-5.19 1.15t-4.42 3.08l-43.62 51.92ZM480-421.92Z"/></svg>
-              <span>Archived Workspaces (${archived.length})</span>
+              <span>${term.archived} (${archived.length})</span>
             </div>
             <button class="agy-archive-close" title="Close">✕</button>
           </div>
@@ -2397,8 +2409,8 @@
             ${archived.length === 0 ? `
               <div class="agy-archive-empty">
                 <div style="font-size: 22px; margin-bottom: 4px;">📂</div>
-                No archived workspaces<br>
-                <span style="font-size: 11px; opacity: 0.65;">Hover over a workspace and click 📥 to archive</span>
+                No archived ${term.plural.toLowerCase()}<br>
+                <span style="font-size: 11px; opacity: 0.65;">Hover over a ${term.singular.toLowerCase()} and click 📥 to archive</span>
               </div>
             ` : archived.map(item => {
               const isExpanded = expandedProjects.has(item.project.id);
@@ -2417,11 +2429,11 @@
                     </div>
                     <div class="agy-archive-actions">
                       <!-- 1. Restore 按钮 (替代 Archive) -->
-                      <button class="agy-quick-restore-btn" data-restore-id="${item.project.id}" title="Restore Workspace [${escapeHtml(item.project.name)}]">
+                      <button class="agy-quick-restore-btn" data-restore-id="${item.project.id}" title="Restore [${escapeHtml(item.project.name)}]">
                         <svg width="13" height="13" viewBox="0 -960 960 960" fill="currentColor"><path d="M440-160v-327L336-383l-56-57 200-200 200 200-56 57-104-104v327h-80ZM160-600v-120q0-33 23.5-56.5T240-800h480q33 0 56.5 23.5T800-720v120h-80v-120H240v120h-80Z"/></svg>
                       </button>
                       <!-- 2. 三个点选项按钮 -->
-                      <button class="agy-quick-options-btn" data-project-id="${item.project.id}" title="Workspace options" aria-label="Workspace options">
+                      <button class="agy-quick-options-btn" data-project-id="${item.project.id}" title="${term.singular} options" aria-label="${term.singular} options">
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 -960 960 960" fill="currentColor"><path d="M480-189.23q-24.75,0-42.37-17.62T420-249.23t17.62-42.37T480-309.23t42.37,17.62T540-249.23t-17.62,42.37T480-189.23ZM480-420q-24.75,0-42.37-17.62T420-480t17.62-42.37T480-540t42.37,17.62T540-480t-17.62,42.37T480-420Zm0-230.77q-24.75,0-42.37-17.62T420-710.77t17.62-42.37T480-770.77t42.37,17.62T540-710.77t-17.62,42.37T480-650.77Z"/></svg>
                       </button>
                       <!-- 3. +号新建对话按钮 -->
@@ -2477,7 +2489,7 @@
               btn.style.pointerEvents = 'none';
               btn.style.opacity = '0.5';
               await pm.updateProject({ ...p.project, archived: false });
-              showNotification(`Workspace [${p.project.name}] restored`);
+              showNotification(`Project [${p.project.name}] restored`);
               renderArchivePanel(pm);
               updateArchiveUI();
             }
@@ -2532,16 +2544,16 @@
             dd.innerHTML = `
               <div class="agy-dd-item copy-name">
                 <svg width="16" height="16" viewBox="0 -960 960 960" fill="currentColor"><path d="M360-240q-33 0-56.5-23.5T280-320v-480q0-33 23.5-56.5T360-880h360q33 0 56.5 23.5T800-800v480q0 33-23.5 56.5T720-240H360Zm0-80h360v-480H360v480ZM200-80q-33 0-56.5-23.5T120-160v-560h80v560h440v80H200Zm160-240v-480 480Z"/></svg>
-                <span>Copy Workspace Name</span>
+                <span>Copy Project Name</span>
               </div>
               <div class="agy-dd-item settings">
                 <svg width="16" height="16" viewBox="0 -960 960 960" fill="currentColor"><path d="m370-80-16-128q-13-5-24.5-12T307-235l-119 50L78-375l103-78q-1-7-1-13.5v-27q0-6.5 1-13.5L78-585l110-190 119 50q11-8 23-15t24-12l16-128h220l16 128q13 5 24.5 12t22.5 15l119-50 110 190-103 78q1 7 1 13.5v27q0 6.5-1 13.5l103 78-110 190-119-50q-11 8-23 15t-24 12L590-80H370Zm70-80h79l14-106q31-8 57.5-23.5T639-327l99 41 39-68-86-65q5-14 7-29.5t2-31.5q0-16-2-31.5t-7-29.5l86-65-39-68-99 42q-22-23-48.5-38.5T533-694l-13-106h-79l-14 106q-31 8-57.5 23.5T321-633l-99-41-39 68 86 64q-5 15-7 30t-2 32q0 16 2 31t7 30l-86 65 39 68 99-42q22 23 48.5 38.5T427-266l13 106Zm40-220q42 0 71-29t29-71q0-42-29-71t-71-29q-42 0-71 29t-29 71q0 42 29 71t71 29Z"/></svg>
-                <span>Workspace Settings</span>
+                <span>Project Settings</span>
               </div>
               <div class="agy-dd-divider"></div>
               <div class="agy-dd-item open-project-folder">
                 <svg width="16" height="16" viewBox="0 -960 960 960" fill="currentColor"><path d="M160-160q-33 0-56.5-23.5T80-240v-480q0-33 23.5-56.5T160-800h240l80 80h320q33 0 56.5 23.5T880-640v400q0 33-23.5 56.5T800-160H160Zm0-80h640v-400H447l-80-80H160v480Zm0 0v-480 480Z"/></svg>
-                <span>Open Workspace Folder</span>
+                <span>Open Project Folder</span>
               </div>
               <div class="agy-dd-divider"></div>
               <div class="agy-dd-item restore">
@@ -2555,7 +2567,7 @@
               <div class="agy-dd-divider"></div>
               <div class="agy-dd-item delete" style="color: #ef4444;">
                 <svg width="16" height="16" viewBox="0 -960 960 960" fill="currentColor"><path d="M280-120q-33 0-56.5-23.5T200-200v-520h-40v-80h200v-40h240v40h200v80h-40v520q0 33-23.5 56.5T680-120H280Zm400-600H280v520h400v-520ZM360-280h80v-360h-80v360Zm160 0h80v-360h-80v360ZM280-720v520-520Z"/></svg>
-                <span>Delete Workspace</span>
+                <span>Delete Project</span>
               </div>
             `;
 
@@ -2572,7 +2584,7 @@
             dd.querySelector('.agy-dd-item.copy-name')?.addEventListener('click', async () => {
               closeDropdown();
               await navigator.clipboard.writeText(p.project.name);
-              showNotification(`Copied workspace name: "${p.project.name}"`);
+              showNotification(`Copied project name: "${p.project.name}"`);
             });
 
             dd.querySelector('.agy-dd-item.settings')?.addEventListener('click', () => {
@@ -2587,16 +2599,16 @@
               const uri = getProjectFolderUri(p);
               if (uri) {
                 openLocalFolder(uri, 'project');
-                showNotification('Opened workspace folder');
+                showNotification('Opened project folder');
               } else {
-                showNotification('Failed to resolve workspace folder');
+                showNotification('Failed to resolve project folder');
               }
             });
 
             dd.querySelector('.agy-dd-item.restore')?.addEventListener('click', async () => {
               closeDropdown();
               await pm.updateProject({ ...p.project, archived: false });
-              showNotification(`Workspace [${p.project.name}] restored`);
+              showNotification(`Project [${p.project.name}] restored`);
               renderArchivePanel(pm);
               updateArchiveUI();
             });
@@ -2610,10 +2622,10 @@
 
             dd.querySelector('.agy-dd-item.delete')?.addEventListener('click', async () => {
               closeDropdown();
-              if (confirm(`Are you sure you want to delete workspace [${p.project.name}]?`)) {
+              if (confirm(`Are you sure you want to delete project [${p.project.name}]?`)) {
                 if (pm.deleteProject) {
                   await pm.deleteProject(p.project.id);
-                  showNotification(`Workspace [${p.project.name}] deleted`);
+                  showNotification(`Project [${p.project.name}] deleted`);
                   renderArchivePanel(pm);
                   updateArchiveUI();
                 }
@@ -3111,8 +3123,9 @@
             actionsContainer.insertBefore(btn, actionsContainer.firstChild);
           }
 
+          const term = getWorkspaceTerm();
           btn.className = 'inline-flex items-center font-medium transition-colors select-none outline-none cursor-pointer justify-center disabled:opacity-50 bg-transparent text-muted-foreground hover:text-foreground hover:bg-secondary focus-visible:text-foreground focus-visible:bg-secondary h-5 px-1.5 gap-1 shrink-0 rounded-md hover:bg-sidebar-secondary text-xs';
-          btn.title = archivedCount > 0 ? `Archived Workspaces (${archivedCount})` : 'Archived Workspaces';
+          btn.title = archivedCount > 0 ? `${term.archived} (${archivedCount})` : term.archived;
           btn.innerHTML = `
             <svg width="13" height="13" viewBox="0 -960 960 960" fill="currentColor"><path d="m480-256.16 146.15-146.15L584-444.46l-74 74v-178H450v178l-74-74-42.15 42.15L480-256.16ZM200-643.85v431.54q0 5.39 3.46 8.85t8.85 3.46h535.38q5.39 0 8.85-3.46t3.46-8.85v-431.54H200ZM215.39-140q-29.92 0-52.65-22.73T140-215.39v-464.38q0-12.85 4.12-24.5t12.35-21.5l56.15-67.92q9.85-12.85 24.62-19.58T268.46-820h422.3q16.46 0 31.42 6.73T747-793.69L803.54-725q8.23 9.85 12.35 21.69T820-678.61v463.22q0 29.92-22.73 52.65T744.61-140H215.39Zm.23-563.84H744l-43.62-51.92q-1.92-1.92-4.42-3.08T690.77-760H268.85q-2.69 0-5.19 1.15t-4.42 3.08l-43.62 51.92ZM480-421.92Z"/></svg>
             <span>Archive</span>
@@ -3136,8 +3149,8 @@
               const quickBtn = document.createElement('button');
               quickBtn.className = 'inline-flex items-center font-medium transition-colors select-none outline-none cursor-pointer justify-center disabled:opacity-50 bg-transparent text-muted-foreground hover:text-foreground hover:bg-secondary focus-visible:text-foreground focus-visible:bg-secondary h-6 w-6 shrink-0 flex items-center justify-center rounded-md hover:bg-sidebar-secondary agy-quick-archive-btn';
               quickBtn.type = 'button';
-              quickBtn.title = `Archive Workspace [${projectName}]`;
-              quickBtn.setAttribute('aria-label', `Archive Workspace [${projectName}]`);
+              quickBtn.title = `Archive [${projectName}]`;
+              quickBtn.setAttribute('aria-label', `Archive [${projectName}]`);
               quickBtn.innerHTML = `
                 <svg width="13" height="13" viewBox="0 -960 960 960" fill="currentColor"><path d="m480-256.16 146.15-146.15L584-444.46l-74 74v-178H450v178l-74-74-42.15 42.15L480-256.16ZM200-643.85v431.54q0 5.39 3.46 8.85t8.85 3.46h535.38q5.39 0 8.85-3.46t3.46-8.85v-431.54H200ZM215.39-140q-29.92 0-52.65-22.73T140-215.39v-464.38q0-12.85 4.12-24.5t12.35-21.5l56.15-67.92q9.85-12.85 24.62-19.58T268.46-820h422.3q16.46 0 31.42 6.73T747-793.69L803.54-725q8.23 9.85 12.35 21.69T820-678.61v463.22q0 29.92-22.73 52.65T744.61-140H215.39Zm.23-563.84H744l-43.62-51.92q-1.92-1.92-4.42-3.08T690.77-760H268.85q-2.69 0-5.19 1.15t-4.42 3.08l-43.62 51.92ZM480-421.92Z"/></svg>
               `;
@@ -3145,7 +3158,7 @@
                 e.stopPropagation();
                 e.preventDefault();
                 await pm.updateProject({ ...projectItem.project, archived: true });
-                showNotification(`Archived workspace [${projectName}]`);
+                showNotification(`Archived [${projectName}]`);
                 updateArchiveUI();
                 if (isPanelOpen) renderArchivePanel(pm);
               });
@@ -3425,27 +3438,8 @@
             });
             menu.appendChild(itemCopyId);
 
-            // 4. 复制分支/工作区名称 (存在工作区/分支时展示)
-            const isBranchDiffFromProject = workspaceName && (!projectName || workspaceName.toLowerCase() !== projectName.toLowerCase());
-            if (workspaceName && isBranchDiffFromProject) {
-              const itemCopyBranch = document.createElement('div');
-              itemCopyBranch.setAttribute('role', 'menuitem');
-              itemCopyBranch.className = 'w-full px-2 py-1 text-left text-[13px] cursor-pointer outline-none transition-colors select-none flex items-center gap-1.5 rounded-md hover:bg-secondary hover:text-foreground text-secondary-foreground agy-native-enhanced';
-              itemCopyBranch.innerHTML = `
-                <svg width="16" height="16" viewBox="0 -960 960 960" fill="currentColor" class="text-secondary-foreground shrink-0"><path d="M360-240q-33 0-56.5-23.5T280-320v-480q0-33 23.5-56.5T360-880h360q33 0 56.5 23.5T800-800v480q0 33-23.5 56.5T720-240H360Zm0-80h360v-480H360v480ZM200-80q-33 0-56.5-23.5T120-160v-560h80v560h440v80H200Zm160-240v-480 480Z"/></svg>
-                <span>Copy Branch Name</span>
-              `;
-              itemCopyBranch.addEventListener('click', async (ev) => {
-                ev.stopPropagation();
-                ev.preventDefault();
-                document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
-                await copyToClipboard(workspaceName, `Copied branch name: "${workspaceName}"`);
-              });
-              menu.appendChild(itemCopyBranch);
-            }
-
-            // 5. 复制工作区名称 (属于工作区时展示)
-            if (paths?.isInsideProject || projectName) {
+            // 4. 复制工作区/分支名称 (存在工作区时展示)
+            if (workspaceName) {
               const itemCopyWorkspace = document.createElement('div');
               itemCopyWorkspace.setAttribute('role', 'menuitem');
               itemCopyWorkspace.className = 'w-full px-2 py-1 text-left text-[13px] cursor-pointer outline-none transition-colors select-none flex items-center gap-1.5 rounded-md hover:bg-secondary hover:text-foreground text-secondary-foreground agy-native-enhanced';
@@ -3457,12 +3451,30 @@
                 ev.stopPropagation();
                 ev.preventDefault();
                 document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
-                await copyToClipboard(projectName, `Copied workspace name: "${projectName}"`);
+                await copyToClipboard(workspaceName, `Copied workspace name: "${workspaceName}"`);
               });
               menu.appendChild(itemCopyWorkspace);
             }
 
-            // 6. 复制项与文件夹操作之间的分隔线
+            // 5. 复制项目名称 (属于项目时展示)
+            if (paths?.isInsideProject || projectName) {
+              const itemCopyProject = document.createElement('div');
+              itemCopyProject.setAttribute('role', 'menuitem');
+              itemCopyProject.className = 'w-full px-2 py-1 text-left text-[13px] cursor-pointer outline-none transition-colors select-none flex items-center gap-1.5 rounded-md hover:bg-secondary hover:text-foreground text-secondary-foreground agy-native-enhanced';
+              itemCopyProject.innerHTML = `
+                <svg width="16" height="16" viewBox="0 -960 960 960" fill="currentColor" class="text-secondary-foreground shrink-0"><path d="M360-240q-33 0-56.5-23.5T280-320v-480q0-33 23.5-56.5T360-880h360q33 0 56.5 23.5T800-800v480q0 33-23.5 56.5T720-240H360Zm0-80h360v-480H360v480ZM200-80q-33 0-56.5-23.5T120-160v-560h80v560h440v80H200Zm160-240v-480 480Z"/></svg>
+                <span>Copy Project Name</span>
+              `;
+              itemCopyProject.addEventListener('click', async (ev) => {
+                ev.stopPropagation();
+                ev.preventDefault();
+                document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+                await copyToClipboard(projectName, `Copied project name: "${projectName}"`);
+              });
+              menu.appendChild(itemCopyProject);
+            }
+
+            // 5. 复制项与文件夹操作之间的分隔线
             const divider = document.createElement('div');
             divider.setAttribute('role', 'separator');
             divider.className = 'h-px bg-border my-1 -mx-1 agy-native-enhanced';
@@ -3489,14 +3501,14 @@
             menu.appendChild(divider);
             menu.appendChild(itemConvo);
 
-            // 仅当属于项目/工作区内部的对话时才添加“打开工作区文件夹”；普通对话不展示该项
+            // 仅当属于项目内部的对话时才添加“打开项目文件夹”；普通对话不展示该项
             if (paths?.isInsideProject) {
               const itemProject = document.createElement('div');
               itemProject.setAttribute('role', 'menuitem');
               itemProject.className = 'w-full px-2 py-1 text-left text-[13px] cursor-pointer outline-none transition-colors select-none flex items-center gap-1.5 rounded-md hover:bg-secondary hover:text-foreground text-secondary-foreground agy-native-enhanced';
               itemProject.innerHTML = `
                 <svg width="16" height="16" viewBox="0 -960 960 960" fill="currentColor" class="text-secondary-foreground shrink-0"><path d="M160-160q-33 0-56.5-23.5T80-240v-480q0-33 23.5-56.5T160-800h240l80 80h320q33 0 56.5 23.5T880-640v400q0 33-23.5 56.5T800-160H160Zm0-80h640v-400H447l-80-80H160v480Zm0 0v-480 480Z"/></svg>
-                <span>Open Workspace Folder</span>
+                <span>Open Project Folder</span>
               `;
               itemProject.addEventListener('click', (ev) => {
                 ev.stopPropagation();
@@ -3504,9 +3516,9 @@
                 document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
                 if (paths?.targetProjectUri) {
                   openLocalFolder(paths.targetProjectUri, 'project');
-                  showNotification(paths.isBranch ? 'Opened branch folder' : 'Opened workspace folder');
+                  showNotification(paths.isBranch ? 'Opened branch folder' : 'Opened project folder');
                 } else {
-                  showNotification('Failed to resolve workspace folder');
+                  showNotification('Failed to resolve project folder');
                 }
               });
 
@@ -3697,13 +3709,13 @@
               itemCopyProject.className = 'w-full px-2 py-1 text-left text-[13px] cursor-pointer outline-none transition-colors select-none flex items-center gap-1.5 rounded-md hover:bg-secondary hover:text-foreground text-secondary-foreground agy-native-enhanced agy-copy-project-name';
               itemCopyProject.innerHTML = `
                 <svg width="16" height="16" viewBox="0 -960 960 960" fill="currentColor" class="text-secondary-foreground shrink-0"><path d="M360-240q-33 0-56.5-23.5T280-320v-480q0-33 23.5-56.5T360-880h360q33 0 56.5 23.5T800-800v480q0 33-23.5 56.5T720-240H360Zm0-80h360v-480H360v480ZM200-80q-33 0-56.5-23.5T120-160v-560h80v560h440v80H200Zm160-240v-480 480Z"/></svg>
-                <span>Copy Workspace Name</span>
+                <span>Copy Project Name</span>
               `;
               itemCopyProject.addEventListener('click', async (ev) => {
                 ev.stopPropagation();
                 ev.preventDefault();
                 document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
-                await copyToClipboard(projectName, `Copied workspace name: "${projectName}"`);
+                await copyToClipboard(projectName, `Copied project name: "${projectName}"`);
               });
 
               const dividerTop = document.createElement('div');
@@ -3751,7 +3763,7 @@
               }
             }
 
-            // 屏蔽官方原生 "Copy" / "Copy Project Name" / "Copy Workspace Name" 菜单项
+            // 屏蔽官方原生 "Copy" / "Copy Project Name" 菜单项
             if (USER_CONFIG.ENABLE_BLOCK_SIDEBAR_COPY !== false) {
               const removeProjCopy = () => {
                 const items = Array.from(menu.querySelectorAll('[role="menuitem"], div'));
@@ -3790,14 +3802,14 @@
               itemProjectFolder.className = 'w-full px-2 py-1 text-left text-[13px] cursor-pointer outline-none transition-colors select-none flex items-center gap-1.5 rounded-md hover:bg-secondary hover:text-foreground text-secondary-foreground agy-native-enhanced';
               itemProjectFolder.innerHTML = `
                 <svg width="16" height="16" viewBox="0 -960 960 960" fill="currentColor" class="text-secondary-foreground shrink-0"><path d="M160-160q-33 0-56.5-23.5T80-240v-480q0-33 23.5-56.5T160-800h240l80 80h320q33 0 56.5 23.5T880-640v400q0 33-23.5 56.5T800-160H160Zm0-80h640v-400H447l-80-80H160v480Zm0 0v-480 480Z"/></svg>
-                <span>Open Workspace Folder</span>
+                <span>Open Project Folder</span>
               `;
               itemProjectFolder.addEventListener('click', (ev) => {
                 ev.stopPropagation();
                 ev.preventDefault();
                 document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
                 openLocalFolder(targetUri, 'project');
-                showNotification('Opened workspace folder');
+                showNotification('Opened project folder');
               });
 
               menu.appendChild(divider);
