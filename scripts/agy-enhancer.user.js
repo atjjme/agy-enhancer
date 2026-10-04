@@ -10106,17 +10106,50 @@ window.__AGY_BRANCH_NAME__ = "edit_scheduled_task_setting";
 
         if (hasAutoCollapsedHistory) return;
 
-        const cards = document.querySelectorAll('button[data-project-card="true"]');
-        if (cards.length === 0) return; // 项目卡片尚未挂载
+        // 仅定位 Conversation History 页面主列表容器，绝不触碰左侧边栏 Workspaces
+        const list = document.querySelector('[data-testid="conversation-list-history"]');
+        if (!list) return; // 历史会话列表尚未挂载到 DOM
 
-        const expandedCards = document.querySelectorAll('button[data-project-card="true"][aria-expanded="true"]');
-        if (expandedCards.length > 0) {
-          expandedCards.forEach(btn => {
-            try { btn.click(); } catch (_) {}
-          });
+        // 优先通过 React Fiber Props 进行全量极速折叠（兼容虚拟滚动未渲染在 DOM 中的项）
+        const fKey = Object.keys(list).find(k => k.startsWith('__reactFiber$'));
+        let fiber = list[fKey];
+        while (fiber) {
+          if (fiber.memoizedProps?.onToggleCollapseSection && fiber.memoizedProps?.items?.some(it => it.type === 'header')) {
+            break;
+          }
+          fiber = fiber.return;
         }
 
-        hasAutoCollapsedHistory = true;
+        if (fiber?.memoizedProps?.onToggleCollapseSection) {
+          const props = fiber.memoizedProps;
+          const headers = props.items.filter(it => it.type === 'header');
+          if (headers.length === 0) return; // 列表数据仍在加载中，等待下一次心跳或路由回调
+
+          const uncollapsed = headers.filter(it => !it.isCollapsed);
+          if (uncollapsed.length > 0) {
+            uncollapsed.forEach(h => {
+              try {
+                const sectionId = h.id.startsWith('header-') ? h.id.slice(7) : h.id;
+                props.onToggleCollapseSection(sectionId);
+              } catch (_) {}
+            });
+          }
+          hasAutoCollapsedHistory = true;
+          return;
+        }
+
+        // DOM 兜底：点击 conversation-list-history 内部所有展开的文件夹头部
+        const openHeaders = Array.from(list.querySelectorAll('.cursor-pointer')).filter(el => {
+          const svgPath = el.querySelector('svg path')?.getAttribute('d') || '';
+          return svgPath.includes('552') || svgPath.includes('536'); // 打开状态的文件夹图标
+        });
+
+        if (openHeaders.length > 0) {
+          openHeaders.forEach(h => {
+            try { h.click(); } catch (_) {}
+          });
+          hasAutoCollapsedHistory = true;
+        }
       }
 
       // 监听侧边栏/导航链接点击，当用户重新点击进入 Conversation History 时重置标志
@@ -10124,8 +10157,9 @@ window.__AGY_BRANCH_NAME__ = "edit_scheduled_task_setting";
         const link = e.target.closest?.('a[href="/history"], a[href^="/history/"], button[data-testid="conversation-history-btn"]');
         if (link) {
           hasAutoCollapsedHistory = false;
-          setTimeout(checkAndCollapseHistoryProjects, 80);
-          setTimeout(checkAndCollapseHistoryProjects, 250);
+          setTimeout(checkAndCollapseHistoryProjects, 100);
+          setTimeout(checkAndCollapseHistoryProjects, 350);
+          setTimeout(checkAndCollapseHistoryProjects, 700);
         }
       }, true);
 
@@ -10133,7 +10167,9 @@ window.__AGY_BRANCH_NAME__ = "edit_scheduled_task_setting";
         if (!isHistoryPage()) {
           hasAutoCollapsedHistory = false;
         } else {
-          setTimeout(checkAndCollapseHistoryProjects, 60);
+          setTimeout(checkAndCollapseHistoryProjects, 100);
+          setTimeout(checkAndCollapseHistoryProjects, 350);
+          setTimeout(checkAndCollapseHistoryProjects, 700);
         }
       };
       window.addEventListener('popstate', popstateHandler, true);
