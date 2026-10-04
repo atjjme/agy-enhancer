@@ -3101,6 +3101,26 @@ window.__AGY_BRANCH_NAME__ = "hide_file_explorer_setting";
           const menu = document.querySelector('[role="menu"]:not([data-agy-enhanced="true"])');
           if (!menu) return;
 
+          const copyToClipboard = async (text, successMsg) => {
+            try {
+              if (navigator.clipboard && navigator.clipboard.writeText) {
+                await navigator.clipboard.writeText(text);
+              } else {
+                const ta = document.createElement('textarea');
+                ta.value = text;
+                ta.style.position = 'fixed';
+                ta.style.opacity = '0';
+                document.body.appendChild(ta);
+                ta.select();
+                document.execCommand('copy');
+                ta.remove();
+              }
+              showNotification(successMsg);
+            } catch (err) {
+              showNotification(`Copy failed: ${err?.message || err}`);
+            }
+          };
+
           // 0. 明确过滤并排除筛选与排序菜单 (Filter / Group By / Sort)
           // 侧边栏顶部的筛选排序菜单绝对不属于对话或项目操作菜单，坚决不作任何增强
           const isFilterOrSortMenu = menu.textContent.includes('Group By') ||
@@ -3203,26 +3223,6 @@ window.__AGY_BRANCH_NAME__ = "hide_file_explorer_setting";
                 }
               }
             }
-
-            const copyToClipboard = async (text, successMsg) => {
-              try {
-                if (navigator.clipboard && navigator.clipboard.writeText) {
-                  await navigator.clipboard.writeText(text);
-                } else {
-                  const ta = document.createElement('textarea');
-                  ta.value = text;
-                  ta.style.position = 'fixed';
-                  ta.style.opacity = '0';
-                  document.body.appendChild(ta);
-                  ta.select();
-                  document.execCommand('copy');
-                  ta.remove();
-                }
-                showNotification(successMsg);
-              } catch (err) {
-                showNotification(`Copy failed: ${err?.message || err}`);
-              }
-            };
 
             // 屏蔽官方原生多级 Copy 菜单项
             if (USER_CONFIG.ENABLE_BLOCK_SIDEBAR_COPY !== false) {
@@ -3504,16 +3504,65 @@ window.__AGY_BRANCH_NAME__ = "hide_file_explorer_setting";
             if (!menu.children.length) return;
 
             menu.setAttribute('data-agy-enhanced', 'true');
+
+            // 0. 置顶添加“复制项目名称” (Copy Project Name)
+            let projectName = targetProject?.name || '';
+            if (!projectName && activeNativeProjectId) {
+              const pm = getPM();
+              const projects = pm?.projectsStateProvider?.getState?.() || [];
+              projectName = projects.find(p => p.project?.id === activeNativeProjectId)?.project?.name || '';
+            }
+            if (!projectName) {
+              const activeProjCard = document.querySelector(
+                'button[data-project-card="true"][data-selected="true"], ' +
+                'button[data-project-card="true"]:has(button[aria-label="Project options"][aria-expanded="true"]), ' +
+                '.group\\/header:has(button[aria-label="Project options"][aria-expanded="true"]) button[data-project-card="true"]'
+              );
+              if (activeProjCard) {
+                const projObj = resolveProjectFromElement(activeProjCard);
+                projectName = projObj?.name || activeProjCard.querySelector('.truncate')?.innerText?.trim() || '';
+                if (!targetProject && projObj) targetProject = projObj;
+              }
+            }
+
             activeNativeProjectObj = null;
             activeNativeProjectId = null;
             lastProjectActionTime = 0;
+
+            if (projectName && !menu.querySelector('.agy-copy-project-name')) {
+              const itemCopyProject = document.createElement('div');
+              itemCopyProject.setAttribute('role', 'menuitem');
+              itemCopyProject.className = 'w-full px-2 py-1 text-left text-[13px] cursor-pointer outline-none transition-colors select-none flex items-center gap-1.5 rounded-md hover:bg-secondary hover:text-foreground text-secondary-foreground agy-native-enhanced agy-copy-project-name';
+              itemCopyProject.innerHTML = `
+                <svg width="16" height="16" viewBox="0 -960 960 960" fill="currentColor" class="text-secondary-foreground shrink-0"><path d="M360-240q-33 0-56.5-23.5T280-320v-480q0-33 23.5-56.5T360-880h360q33 0 56.5 23.5T800-800v480q0 33-23.5 56.5T720-240H360Zm0-80h360v-480H360v480ZM200-80q-33 0-56.5-23.5T120-160v-560h80v560h440v80H200Zm160-240v-480 480Z"/></svg>
+                <span>Copy Project Name</span>
+              `;
+              itemCopyProject.addEventListener('click', async (ev) => {
+                ev.stopPropagation();
+                ev.preventDefault();
+                document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+                await copyToClipboard(projectName, `Copied project name: "${projectName}"`);
+              });
+
+              const dividerTop = document.createElement('div');
+              dividerTop.setAttribute('role', 'separator');
+              dividerTop.className = 'h-px bg-border my-1 -mx-1 agy-native-enhanced';
+
+              if (menu.firstChild) {
+                menu.insertBefore(dividerTop, menu.firstChild);
+                menu.insertBefore(itemCopyProject, dividerTop);
+              } else {
+                menu.appendChild(itemCopyProject);
+                menu.appendChild(dividerTop);
+              }
+            }
 
             // 屏蔽官方原生 "Show in File Explorer" 菜单项
             if (USER_CONFIG.ENABLE_BLOCK_FILE_EXPLORER !== false) {
               const removeExplorerItem = () => {
                 const items = Array.from(menu.querySelectorAll('[role="menuitem"], div'));
                 for (const item of items) {
-                  if (item.classList?.contains('agy-native-enhanced')) continue;
+                  if (item.classList?.contains('agy-native-enhanced') || item.closest('.agy-native-enhanced')) continue;
                   const testid = (item.getAttribute?.('data-testid') || '').toLowerCase();
                   const text = (item.textContent || '').trim().toLowerCase();
                   if (
@@ -3528,6 +3577,7 @@ window.__AGY_BRANCH_NAME__ = "hide_file_explorer_setting";
                     text.includes('在访达中显示')
                   ) {
                     const targetItem = item.closest('[role="menuitem"]') || item;
+                    if (targetItem.classList?.contains('agy-native-enhanced') || targetItem.closest('.agy-native-enhanced')) continue;
                     targetItem.remove();
                     return true;
                   }
@@ -3544,7 +3594,7 @@ window.__AGY_BRANCH_NAME__ = "hide_file_explorer_setting";
               const removeProjCopy = () => {
                 const items = Array.from(menu.querySelectorAll('[role="menuitem"], div'));
                 for (const item of items) {
-                  if (item.classList?.contains('agy-native-enhanced')) continue;
+                  if (item.classList?.contains('agy-native-enhanced') || item.closest('.agy-native-enhanced')) continue;
                   const testid = (item.getAttribute?.('data-testid') || '').toLowerCase();
                   const text = (item.textContent || '').trim().toLowerCase();
                   if (
@@ -3555,6 +3605,7 @@ window.__AGY_BRANCH_NAME__ = "hide_file_explorer_setting";
                     text.startsWith('复制')
                   ) {
                     const targetItem = item.closest('[role="menuitem"]') || item;
+                    if (targetItem.classList?.contains('agy-native-enhanced') || targetItem.closest('.agy-native-enhanced')) continue;
                     targetItem.remove();
                     return true;
                   }
