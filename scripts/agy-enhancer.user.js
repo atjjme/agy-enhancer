@@ -11,8 +11,6 @@
 // @run-at       document-idle
 // ==/UserScript==
 
-window.__AGY_BRANCH_TAG__ = " (branch)";
-window.__AGY_BRANCH_NAME__ = "edit_scheduled_task_setting";
 /**
  * Antigravity 增强器 (agy-enhancer enhancer)
  * 
