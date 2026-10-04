@@ -1412,13 +1412,13 @@
           </label>
         </div>
 
-        <div class="setting-item-row" data-keywords="conversation history collapse workspaces projects 历史会话 默认折叠 工作区 项目 文件夹 收起">
+        <div class="setting-item-row" data-keywords="conversation history collapse projects 历史会话 默认折叠 项目 文件夹 收起">
           <div class="item-meta">
             <div class="item-title-row">
-              <span class="item-title" data-i18n="sw_collapse_history_projects_title">历史会话默认折叠工作区列表</span>
+              <span class="item-title" data-i18n="sw_collapse_history_projects_title">历史会话默认折叠项目列表</span>
               <span class="item-tag recommended" data-i18n="tag_recommended">体验优化</span>
             </div>
-            <div class="item-desc" data-i18n="sw_collapse_history_projects_desc">进入 Conversation History（历史会话）页面时，默认将所有工作区文件夹折叠收起，避免展开大量对话列表，界面更紧凑清爽。</div>
+            <div class="item-desc" data-i18n="sw_collapse_history_projects_desc">进入 Conversation History（历史会话）页面时，默认将所有项目文件夹折叠收起，避免展开大量对话列表，界面更紧凑清爽。</div>
           </div>
           <label class="switch-ui">
             <input type="checkbox" id="ENABLE_COLLAPSE_HISTORY_PROJECTS">
@@ -1597,13 +1597,13 @@
           </label>
         </div>
 
-        <div class="setting-item-row" data-keywords="project workspace archiver 项目 工作区 归档 隐藏 抽屉 侧栏 整理">
+        <div class="setting-item-row" data-keywords="project archiver 项目 归档 隐藏 抽屉 侧栏 整理">
           <div class="item-meta">
             <div class="item-title-row">
-              <span class="item-title" data-i18n="sw_project_archiver_title">工作区归档面板 (Archived Workspaces)</span>
+              <span class="item-title" data-i18n="sw_project_archiver_title">左侧项目折叠与归档抽屉</span>
             </div>
-            <div class="item-desc" data-i18n="sw_project_archiver_desc">鼠标悬停一键隐藏暂不需要的工作区，保持侧栏干净整洁；并在侧边栏 Workspaces 旁提供专属归档入口。</div>
-            <div class="item-warning" data-i18n="sw_project_archiver_warn">⚠️ 关闭后已归档工作区仍保持隐藏，重新开启即可随时点开抽屉恢复。</div>
+            <div class="item-desc" data-i18n="sw_project_archiver_desc">鼠标悬停一键隐藏暂不需要的项目，保持侧栏干净整洁；并在侧边栏 Projects 旁提供专属归档抽屉。</div>
+            <div class="item-warning" data-i18n="sw_project_archiver_warn">⚠️ 关闭后已归档项目仍保持隐藏，重新开启即可随时点开抽屉恢复。</div>
           </div>
           <label class="switch-ui">
             <input type="checkbox" id="ENABLE_PROJECT_ARCHIVER">
@@ -1768,8 +1768,8 @@
         sw_smart_unread_desc: '真实触底阅读后才将消息标记为已读，避免切换经过被误标已读。关停后可停止定时器节省资源。',
         sw_pinned_summary_title: 'AI 回复钉选与画中画速览 (PiP)',
         sw_pinned_summary_desc: '在 AI 回复卡片上提供钉选按钮，在顶部生成悬浮胶囊与独立可拖拽速览卡片，边看长代码边继续提问。',
-        sw_collapse_history_projects_title: '历史会话默认折叠工作区列表',
-        sw_collapse_history_projects_desc: '进入 Conversation History（历史会话）页面时，默认将所有工作区文件夹折叠收起，避免展开大量对话列表，界面更紧凑清爽。',
+        sw_collapse_history_projects_title: '历史会话默认折叠项目列表',
+        sw_collapse_history_projects_desc: '进入 Conversation History（历史会话）页面时，默认将所有项目文件夹折叠收起，避免展开大量对话列表，界面更紧凑清爽。',
         sec_worktree_title: '分支与工作树',
         sec_worktree_subtitle: '一键分叉会话、清理失效分支与配置跨分支同步',
         sw_fork_convo_title: '会话切片分叉与分支创建 (Create fork)',
@@ -1786,17 +1786,17 @@
         sw_context_menu_desc: '接管侧边栏项目/会话、聊天内容、代码块与图片的右键操作。关闭后彻底不拦截原生右键。',
         sw_block_quote_title: '屏蔽选中文本时的 Quote 浮窗气泡',
         sw_block_quote_desc: '划词选择文字时不再弹出官方 Quote (Ctrl+L) 气泡，彻底消除文本选择时的卡顿感（从属于右键菜单开关）。',
-        sw_block_file_explorer_title: '屏蔽工作区右键菜单 Show in File Explorer',
-        sw_block_file_explorer_desc: '屏蔽官方原生重复的 Show in File Explorer 菜单项，统一使用增强器提供的 Open Workspace Folder 快捷打开。',
+        sw_block_file_explorer_title: '屏蔽项目右键菜单 Show in File Explorer',
+        sw_block_file_explorer_desc: '屏蔽官方原生重复的 Show in File Explorer 菜单项，统一使用增强器提供的 Open Project Folder 快捷打开。',
         sw_block_sidebar_copy_title: '屏蔽左侧栏右键原生 Copy 菜单项',
-        sw_block_sidebar_copy_desc: '屏蔽左侧栏会话与工作区右键菜单中官方原生的 Copy 多级子菜单及复制项，统一纯净交互。',
+        sw_block_sidebar_copy_desc: '屏蔽左侧栏会话与项目右键菜单中官方原生的 Copy 多级子菜单及复制项，统一纯净交互。',
         sec_visual_title: '视觉与辅助',
-        sec_visual_subtitle: '注入指示、工作区抽屉与界面清爽化',
+        sec_visual_subtitle: '注入指示、项目抽屉与界面清爽化',
         sw_status_indicator_title: '右上角常驻绿色运行指示点',
         sw_status_indicator_desc: '在 Antigravity 界面右上角显示精致的微小绿点，并在启动注入成功时提供优雅的展开反馈。',
-        sw_project_archiver_title: '工作区归档面板 (Archived Workspaces)',
-        sw_project_archiver_desc: '鼠标悬停一键隐藏暂不需要的工作区，保持侧栏干净整洁；并在侧边栏 Workspaces 旁提供专属归档入口。',
-        sw_project_archiver_warn: '⚠️ 关闭后已归档工作区仍保持隐藏，重新开启即可随时点开抽屉恢复。',
+        sw_project_archiver_title: '左侧项目折叠与归档抽屉',
+        sw_project_archiver_desc: '鼠标悬停一键隐藏暂不需要的项目，保持侧栏干净整洁；并在侧边栏 Projects 旁提供专属归档抽屉。',
+        sw_project_archiver_warn: '⚠️ 关闭后已归档项目仍保持隐藏，重新开启即可随时点开抽屉恢复。',
         tag_recommended: '推荐开启',
         tag_block_native: '屏蔽原生功能',
         tag_core: '核心功能',
@@ -1883,8 +1883,8 @@
         sw_smart_unread_desc: '觸底閱讀後才標記已讀，避免誤判。',
         sw_pinned_summary_title: 'AI 回覆釘選與畫中畫速覽 (PiP)',
         sw_pinned_summary_desc: '在頂部生成懸浮膠囊與畫中畫速覽窗，邊看長文邊提問。',
-        sw_collapse_history_projects_title: '歷史對話預設摺疊工作區列表',
-        sw_collapse_history_projects_desc: '進入 Conversation History（歷史對話）頁面時，預設將所有工作區資料夾摺疊收起，避免展開大量對話列表，介面更緊湊清爽。',
+        sw_collapse_history_projects_title: '歷史對話預設摺疊專案列表',
+        sw_collapse_history_projects_desc: '進入 Conversation History（歷史對話）頁面時，預設將所有專案資料夾摺疊收起，避免展開大量對話列表，介面更緊湊清爽。',
         sec_worktree_title: '分支與工作樹',
         sec_worktree_subtitle: '一鍵分叉對話與清理失效分支',
         sw_fork_convo_title: '對話切片分叉與分支建立 (Create fork)',
@@ -1901,17 +1901,17 @@
         sw_context_menu_desc: '接管側邊欄、對話與程式碼塊右鍵操作。',
         sw_block_quote_title: '屏蔽選取文字時的 Quote 浮窗氣泡',
         sw_block_quote_desc: '劃詞選字不再彈出 Quote (Ctrl+L) 氣泡。',
-        sw_block_file_explorer_title: '屏蔽工作區右鍵選單 Show in File Explorer',
-        sw_block_file_explorer_desc: '屏蔽官方原生重複的 Show in File Explorer 選項，統一使用增強器提供的 Open Workspace Folder 快速開啟。',
+        sw_block_file_explorer_title: '屏蔽專案右鍵選單 Show in File Explorer',
+        sw_block_file_explorer_desc: '屏蔽官方原生重複的 Show in File Explorer 選項，統一使用增強器提供的 Open Project Folder 快速開啟。',
         sw_block_sidebar_copy_title: '屏蔽左側欄右鍵原生 Copy 選項',
-        sw_block_sidebar_copy_desc: '屏蔽左側欄對話與工作區右鍵選單中官方原生的 Copy 多級子選單及複製項目。',
+        sw_block_sidebar_copy_desc: '屏蔽左側欄對話與專案右鍵選單中官方原生的 Copy 多級子選單及複製項目。',
         sec_visual_title: '視覺與輔助',
-        sec_visual_subtitle: '注入指示與工作區收納抽屜',
+        sec_visual_subtitle: '注入指示與專案收納抽屜',
         sw_status_indicator_title: '右上角常駐綠色運行指示點',
         sw_status_indicator_desc: '在客戶端右上角顯示極小綠色狀態指示點。',
-        sw_project_archiver_title: '工作區封存面板 (Archived Workspaces)',
-        sw_project_archiver_desc: '滑鼠懸停隱藏暫緩工作區，提供專屬收納入口。',
-        sw_project_archiver_warn: '⚠️ 關閉不會還原已隱藏工作區，重新開啟即可找回。',
+        sw_project_archiver_title: '左側專案折疊與歸檔抽屜',
+        sw_project_archiver_desc: '滑鼠懸停隱藏暫緩專案，提供專屬收納抽屜。',
+        sw_project_archiver_warn: '⚠️ 關閉不會還原已隱藏專案，重新開啟即可找回。',
         tag_recommended: '推薦開啟',
         tag_block_native: '屏蔽原生功能',
         tag_core: '核心功能',
@@ -1998,8 +1998,8 @@
         sw_smart_unread_desc: 'Marks as read only upon genuine bottom view, preventing false reads.',
         sw_pinned_summary_title: 'Pinned Summaries & Picture-in-Picture (PiP)',
         sw_pinned_summary_desc: 'Pins key AI responses with top capsules and draggable PiP preview window.',
-        sw_collapse_history_projects_title: 'Default Collapse Workspaces in Conversation History',
-        sw_collapse_history_projects_desc: 'Automatically collapse all workspace folders by default when navigating to Conversation History, keeping the view clean and compact.',
+        sw_collapse_history_projects_title: 'Default Collapse Projects in Conversation History',
+        sw_collapse_history_projects_desc: 'Automatically collapse all project folders by default when navigating to Conversation History, keeping the view clean and compact.',
         sec_worktree_title: 'Worktree & Branch',
         sec_worktree_subtitle: 'Fork conversations and synchronize build caches',
         sw_fork_convo_title: 'Conversation Forking & Branching (Create fork)',
@@ -2016,17 +2016,17 @@
         sw_context_menu_desc: 'Takes over sidebar, messages, and code copying with native-feeling actions.',
         sw_block_quote_title: 'Block Selection Quote (Ctrl+L) Popup',
         sw_block_quote_desc: 'Prevents Quote bubble when selecting text, eliminating typing lag.',
-        sw_block_file_explorer_title: 'Block "Show in File Explorer" in Workspace Menu',
-        sw_block_file_explorer_desc: 'Hides redundant native "Show in File Explorer" item in workspace context menu in favor of Open Workspace Folder.',
+        sw_block_file_explorer_title: 'Block "Show in File Explorer" in Project Menu',
+        sw_block_file_explorer_desc: 'Hides redundant native "Show in File Explorer" item in project context menu in favor of Open Project Folder.',
         sw_block_sidebar_copy_title: 'Block Native "Copy" in Sidebar Context Menu',
         sw_block_sidebar_copy_desc: 'Hides redundant official native Copy cascading submenus and items in sidebar context menus.',
         sec_visual_title: 'Visual & UI',
-        sec_visual_subtitle: 'Indicator status dot and workspace organizer',
+        sec_visual_subtitle: 'Indicator status dot and project organizer',
         sw_status_indicator_title: 'Top-Right Green Status Indicator Dot',
         sw_status_indicator_desc: 'Displays an unobtrusive status dot in top-right corner of Antigravity.',
-        sw_project_archiver_title: 'Left Sidebar Workspace Archiving Panel (Archived Workspaces)',
-        sw_project_archiver_desc: 'Provides an Archived Workspaces panel in the sidebar to archive and restore workspaces.',
-        sw_project_archiver_warn: '⚠️ Disabling will keep archived workspaces hidden until re-enabled.',
+        sw_project_archiver_title: 'Left Sidebar Project Archiving Drawer',
+        sw_project_archiver_desc: 'Hover to collapse postponed projects into a dedicated archive drawer.',
+        sw_project_archiver_warn: '⚠️ Disabling will keep archived projects hidden until re-enabled.',
         tag_recommended: 'Recommended',
         tag_block_native: 'Block Native',
         tag_core: 'Core',
