@@ -177,11 +177,11 @@ namespace AgyEnhancer
                     return true;
                 }
 
-                // 排除浏览器普通网页标签（常规浏览器标签页包含 " - Google Chrome" 等后缀）
-                // 仅识别由 --app 独立拉起的专属原生设置窗口，避免普通网页浏览阻碍 exe 窗口唤起
-                if (title.IndexOf("- Google Chrome", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                    title.IndexOf("- Microsoft Edge", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                    title.IndexOf("- Brave", StringComparison.OrdinalIgnoreCase) >= 0)
+                // 排除浏览器普通网页标签（任何带 Chrome/Edge/Brave 品牌后缀的普通标签页，无论是否有用户Profile前缀）
+                // 仅识别由 --app 独立拉起的专属原生窗口（--app 窗口标题绝不包含浏览器品牌后缀）
+                if (title.IndexOf("Chrome", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                    title.IndexOf("Edge", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                    title.IndexOf("Brave", StringComparison.OrdinalIgnoreCase) >= 0)
                 {
                     return true;
                 }

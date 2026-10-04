@@ -914,201 +914,164 @@
         flex-direction: row;
         overflow-x: auto;
       }
-    /* 关于与更新模块专属样式 */
-    .about-card {
-      background: var(--bg-subcard);
-      border: 1px solid var(--border-card);
-      border-radius: var(--radius-lg);
-      padding: 20px 22px;
-      margin-top: 18px;
     }
-    .about-card-header {
-      margin-bottom: 14px;
-    }
-    .about-card-title-row {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-    }
-    .update-card-title {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      font-size: 15px;
-      font-weight: 600;
-      color: var(--text-title);
-    }
-    .update-card-title svg {
-      color: var(--solar-orange);
-    }
-    .version-badge {
+
+    /* 关于与更新模块专属精简样式 */
+    .version-pill {
       display: inline-flex;
       align-items: center;
-      padding: 3px 10px;
-      border-radius: 999px;
-      background: rgba(245, 158, 11, 0.15);
-      border: 1px solid rgba(245, 158, 11, 0.4);
-      color: var(--solar-amber);
-      font-size: 12px;
-      font-weight: 600;
-      letter-spacing: 0.5px;
-    }
-    .license-tag {
       padding: 2px 8px;
-      border-radius: 4px;
-      background: var(--bg-tag);
-      color: var(--text-dim);
-      font-size: 11px;
-      border: 1px solid var(--border-subtle);
-    }
-    .about-card-desc {
+      border-radius: 6px;
+      background: rgba(245, 158, 11, 0.12);
+      border: 1px solid rgba(245, 158, 11, 0.35);
+      color: var(--solar-amber);
       font-size: 13px;
-      color: var(--text-muted);
-      margin-top: 6px;
-      line-height: 1.5;
+      font-weight: 700;
+      font-family: Consolas, 'Fira Code', monospace;
+      letter-spacing: 0.3px;
     }
-    .update-action-area {
-      display: flex;
-      align-items: center;
-      gap: 14px;
-      margin-top: 14px;
-      flex-wrap: wrap;
-    }
-    .update-btn {
+    .version-status-pill {
       display: inline-flex;
       align-items: center;
-      gap: 8px;
-      padding: 8px 18px;
+      gap: 5px;
+      padding: 2px 8px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 500;
+      transition: all 0.25s ease;
+    }
+    .version-status-pill.up-to-date {
+      background: rgba(16, 185, 129, 0.12);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      color: #10b981;
+    }
+    .version-status-pill.has-update {
+      background: rgba(249, 115, 22, 0.15);
+      border: 1px solid rgba(249, 115, 22, 0.4);
+      color: #f97316;
+      animation: pulseUpdate 2s infinite ease-in-out;
+    }
+    .version-status-pill.error {
+      background: rgba(239, 68, 68, 0.12);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+      color: #ef4444;
+    }
+    @keyframes pulseUpdate {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.85; transform: scale(0.98); }
+    }
+
+    /* 智能更新操作按钮 */
+    .update-action-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      padding: 8px 16px;
       border-radius: var(--radius-md);
       font-size: 13px;
-      font-weight: 500;
+      font-weight: 600;
       cursor: pointer;
       border: none;
-      transition: all 0.2s ease;
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+      white-space: nowrap;
+      min-width: 104px;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
     }
-    .update-status-hint {
-      font-size: 13px;
-      color: var(--text-dim);
+    .update-action-btn.has-update-ready {
+      background: var(--solar-gradient) !important;
+      color: #ffffff !important;
+      box-shadow: 0 0 14px var(--solar-glow), 0 2px 6px rgba(0, 0, 0, 0.2) !important;
+      animation: pulseGlow 2.5s infinite ease-in-out;
     }
-    .update-result-box {
-      margin-top: 16px;
-      padding: 16px;
+    @keyframes pulseGlow {
+      0%, 100% { box-shadow: 0 0 10px var(--solar-glow); }
+      50% { box-shadow: 0 0 20px var(--solar-glow); }
+    }
+
+    /* 更新日志折叠抽屉 */
+    .update-notes-drawer {
+      margin-top: 12px;
+      padding: 12px 14px;
       border-radius: var(--radius-md);
-      background: rgba(0, 0, 0, 0.12);
-      border: 1px solid var(--border-subtle);
-      animation: fadeIn 0.2s ease;
+      background: var(--bg-subcard);
+      border: 1px solid rgba(249, 115, 22, 0.3);
+      animation: fadeIn 0.25s ease;
     }
-    .update-result-up-to-date {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      color: #10b981;
-      font-weight: 500;
-      font-size: 14px;
-    }
-    .update-result-found {
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-    }
-    .update-found-header {
+    .drawer-header {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      flex-wrap: wrap;
-      gap: 8px;
+      gap: 10px;
+      margin-bottom: 8px;
     }
-    .update-found-title {
-      font-size: 14px;
+    .drawer-title {
+      font-size: 13px;
       font-weight: 600;
       color: var(--solar-amber);
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 6px;
     }
-    .update-found-date {
-      font-size: 12px;
-      color: var(--text-dim);
-    }
-    .release-notes-box {
-      max-height: 160px;
+    .drawer-notes-body {
+      max-height: 120px;
       overflow-y: auto;
-      padding: 10px 14px;
+      padding: 8px 12px;
       border-radius: var(--radius-sm);
       background: var(--bg-base);
+      border: 1px solid var(--border-subtle);
       font-size: 12px;
       line-height: 1.6;
       color: var(--text-main);
       white-space: pre-wrap;
       font-family: Consolas, monospace;
-      border: 1px solid var(--border-subtle);
     }
-    .update-actions-row {
+
+    /* 徽标胶囊链接行 (去文本化、精致徽标) */
+    .badge-pills-row {
       display: flex;
       align-items: center;
-      gap: 10px;
-      margin-top: 6px;
+      gap: 8px;
       flex-wrap: wrap;
+      margin-top: 10px;
     }
-    .project-info-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-      gap: 12px;
-      margin-top: 14px;
-    }
-    .info-grid-item {
-      padding: 12px;
-      border-radius: var(--radius-md);
-      background: var(--bg-base);
-      border: 1px solid var(--border-subtle);
-    }
-    .info-label {
-      font-size: 11px;
-      color: var(--text-dim);
-      margin-bottom: 4px;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-    }
-    .info-val {
-      font-size: 13px;
-      font-weight: 500;
-      color: var(--text-title);
-    }
-    .info-link {
-      font-size: 13px;
-      color: var(--solar-amber);
-      text-decoration: none;
-      word-break: break-all;
-    }
-    .info-link:hover {
-      text-decoration: underline;
-    }
-    .about-quick-links {
-      display: flex;
-      gap: 10px;
-      margin-top: 16px;
-      flex-wrap: wrap;
-    }
-    .quick-link-btn {
+    .badge-pill-link {
       display: inline-flex;
       align-items: center;
       gap: 6px;
-      padding: 7px 14px;
-      border-radius: var(--radius-md);
+      padding: 4px 10px;
+      border-radius: 999px;
       font-size: 12px;
-      background: var(--bg-base);
+      font-weight: 500;
+      color: var(--text-muted);
+      background: var(--bg-subcard);
       border: 1px solid var(--border-subtle);
-      color: var(--text-main);
       text-decoration: none;
       cursor: pointer;
-      transition: all 0.2s ease;
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
     }
-    .quick-link-btn:hover {
-      background: var(--bg-card);
+    .badge-pill-link:hover {
       color: var(--text-title);
+      background: var(--bg-card);
       border-color: var(--solar-orange);
+      transform: translateY(-1px);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
     }
+    .badge-pill-link svg {
+      width: 14px;
+      height: 14px;
+      stroke-width: 2;
+    }
+    .badge-pill-link.github-pill:hover {
+      border-color: #94a3b8;
+    }
+    .badge-pill-link.release-pill:hover {
+      border-color: var(--solar-amber);
+    }
+    .badge-pill-link.logs-pill:hover {
+      border-color: #3b82f6;
+    }
+
     @keyframes spin {
       100% { transform: rotate(360deg); }
     }
@@ -1635,13 +1598,49 @@
           </div>
         </div>
 
+        <!-- 比较：当前版本与检查/更新 交互行 -->
+        <div class="setting-item-row" data-keywords="version update check 当前版本 检查更新 立即更新 升级 release">
+          <div class="item-meta">
+            <div class="item-title-row">
+              <span class="item-title" style="display:flex; align-items:center; gap:8px;">
+                <span data-i18n="label_current_version_prefix">当前版本：</span>
+                <span class="version-pill" id="currentVersionBadge">v1.5.7</span>
+              </span>
+              <span class="version-status-pill up-to-date" id="versionStatusPill">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                <span id="versionStatusText" data-i18n="status_up_to_date">已是最新版本</span>
+              </span>
+            </div>
+            <div class="item-desc" id="versionSubDesc" data-i18n="sw_version_desc">通过 GitHub Releases 检测最新版本，支持自动下载并覆盖升级。</div>
+
+            <!-- 折叠更新日志抽屉 (有更新时展示) -->
+            <div class="update-notes-drawer" id="updateNotesDrawer" style="display: none;">
+              <div class="drawer-header">
+                <div class="drawer-title" id="drawerTitle">🚀 发现新版本</div>
+                <a href="https://github.com/atjjme/agy-enhancer/releases" target="_blank" rel="noopener noreferrer" class="badge-pill-link release-pill" style="font-size: 11px; padding: 2px 8px;">
+                  Releases ↗
+                </a>
+              </div>
+              <div class="drawer-notes-body" id="drawerNotesBody"></div>
+            </div>
+          </div>
+
+          <div style="flex-shrink: 0; margin-left: 16px;">
+            <button class="btn-primary update-action-btn" id="btnUpdateAction" type="button" onclick="handleUpdateAction()">
+              <svg class="btn-icon" id="updateActionIcon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+              <span id="updateActionText" data-i18n="btn_check_update">检查更新</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- 启动时自动检查更新 开关行 -->
         <div class="setting-item-row" data-keywords="update 自动检查更新 版本 升级 github release">
           <div class="item-meta">
             <div class="item-title-row">
               <span class="item-title" data-i18n="sw_auto_update_title">启动时自动检查更新</span>
               <span class="item-tag recommended" data-i18n="tag_recommended">推荐开启</span>
             </div>
-            <div class="item-desc" data-i18n="sw_auto_update_desc">打开设置中心时，在后台静默查询 GitHub Releases 是否发布新版本，并给予醒目提示。</div>
+            <div class="item-desc" data-i18n="sw_auto_update_desc">打开设置中心时在后台静默查询新版本，并在侧边栏提供提示。</div>
           </div>
           <label class="switch-ui">
             <input type="checkbox" id="ENABLE_AUTO_UPDATE">
@@ -1649,76 +1648,28 @@
           </label>
         </div>
 
-        <!-- 核心卡片 1：版本与在线更新 -->
-        <div class="about-card update-card">
-          <div class="about-card-header">
-            <div class="about-card-title-row">
-              <div class="update-card-title">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                <span data-i18n="card_version_update_title">版本状态与在线更新</span>
-              </div>
-              <span class="version-badge" id="currentVersionBadge">v1.5.7</span>
+        <!-- 关于项目与徽标快速入口 -->
+        <div class="setting-item-row" data-keywords="about github release license log 关于 仓库 徽标 日志">
+          <div class="item-meta">
+            <div class="item-title-row">
+              <span class="item-title">Antigravity Enhancer</span>
+              <span class="item-tag" style="font-family: Consolas, monospace;">MIT License</span>
             </div>
-            <div class="about-card-desc" data-i18n="card_version_update_desc">支持一键从 GitHub Releases 检测新版本，自动下载解压并平滑热重载更新。</div>
-          </div>
-
-          <div class="update-action-area">
-            <button class="update-btn btn-primary" id="btnCheckUpdate" type="button" onclick="handleCheckUpdate()">
-              <svg class="btn-icon" id="checkUpdateIcon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-              <span id="btnCheckUpdateText" data-i18n="btn_check_update">检查新版本</span>
-            </button>
-            <span class="update-status-hint" id="updateStatusHint"></span>
-          </div>
-
-          <!-- 更新结果容器 -->
-          <div class="update-result-box" id="updateResultBox" style="display: none;"></div>
-        </div>
-
-        <!-- 核心卡片 2：项目与环境信息 -->
-        <div class="about-card project-info-card">
-          <div class="about-card-header">
-            <div class="about-card-title-row">
-              <div class="update-card-title">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
-                <span data-i18n="card_about_project_title">项目与环境信息</span>
-              </div>
-              <span class="license-tag">MIT License</span>
+            <div class="item-desc" data-i18n="about_enhancer_summary">Google Antigravity 高性能增强套件，提供 0 侵入平滑增强体验。</div>
+            <div class="badge-pills-row">
+              <a href="https://github.com/atjjme/agy-enhancer" target="_blank" rel="noopener noreferrer" class="badge-pill-link github-pill" title="访问 GitHub 开源仓库">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg>
+                <span>GitHub</span>
+              </a>
+              <a href="https://github.com/atjjme/agy-enhancer/releases" target="_blank" rel="noopener noreferrer" class="badge-pill-link release-pill" title="查看所有历史版本发布">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
+                <span>Releases</span>
+              </a>
+              <button type="button" class="badge-pill-link logs-pill" onclick="openAppDataLogDir()" title="在资源管理器中打开运行日志目录">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+                <span data-i18n="btn_open_logs">运行日志</span>
+              </button>
             </div>
-            <div class="about-card-desc" data-i18n="card_about_project_desc">Antigravity Enhancer 是专为 Google Antigravity 打造的高性能增强套件，提供 0 侵入式平滑增强体验。</div>
-          </div>
-
-          <div class="project-info-grid">
-            <div class="info-grid-item">
-              <div class="info-label" data-i18n="label_repo">开源仓库</div>
-              <a href="https://github.com/atjjme/agy-enhancer" target="_blank" rel="noopener noreferrer" class="info-link">github.com/atjjme/agy-enhancer ↗</a>
-            </div>
-            <div class="info-grid-item">
-              <div class="info-label" data-i18n="label_author">开发作者</div>
-              <div class="info-val">atjjme</div>
-            </div>
-            <div class="info-grid-item">
-              <div class="info-label" data-i18n="label_port">微服务端口</div>
-              <div class="info-val">37210 (HTTP)</div>
-            </div>
-            <div class="info-grid-item">
-              <div class="info-label" data-i18n="label_arch">运行模式</div>
-              <div class="info-val" data-i18n="val_run_mode">Node.js 守护进程 / 0侵入安全热载</div>
-            </div>
-          </div>
-
-          <div class="about-quick-links">
-            <a href="https://github.com/atjjme/agy-enhancer" target="_blank" rel="noopener noreferrer" class="quick-link-btn">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg>
-              GitHub 仓库
-            </a>
-            <a href="https://github.com/atjjme/agy-enhancer/releases" target="_blank" rel="noopener noreferrer" class="quick-link-btn">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-              Releases 发布页
-            </a>
-            <button type="button" class="quick-link-btn" onclick="openAppDataLogDir()">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
-              <span data-i18n="btn_open_logs">打开运行日志目录</span>
-            </button>
           </div>
         </div>
       </section>
@@ -1850,7 +1801,11 @@
         label_port: '微服务端口',
         label_arch: '运行模式',
         val_run_mode: 'Node.js 守护进程 / 0侵入安全热载',
-        btn_open_logs: '打开运行日志目录'
+        btn_open_logs: '运行日志',
+        label_current_version_prefix: '当前版本：',
+        status_up_to_date: '已是最新版本',
+        sw_version_desc: '通过 GitHub Releases 检测最新版本，支持自动下载并覆盖升级。',
+        about_enhancer_summary: 'Google Antigravity 高性能增强套件，提供 0 侵入平滑增强体验。'
       },
       'zh-TW': {
         app_title: 'Antigravity Enhancer - 設定中心',
@@ -1957,7 +1912,11 @@
         label_port: '微服務連接埠',
         label_arch: '運行模式',
         val_run_mode: 'Node.js 守護進程 / 0侵入安全熱載',
-        btn_open_logs: '打開運行日誌目錄'
+        btn_open_logs: '運行日誌',
+        label_current_version_prefix: '目前版本：',
+        status_up_to_date: '已是最新版本',
+        sw_version_desc: '透過 GitHub Releases 檢測最新版本，支援自動下載並覆蓋升級。',
+        about_enhancer_summary: 'Google Antigravity 高性能增強套件，提供 0 侵入平滑增強體驗。'
       },
       'en': {
         app_title: 'Antigravity Enhancer - Settings',
@@ -2064,7 +2023,11 @@
         label_port: 'Daemon Port',
         label_arch: 'Architecture',
         val_run_mode: 'Node.js Daemon / Zero-Invasive Hot-Reload',
-        btn_open_logs: 'Open Log Folder'
+        btn_open_logs: 'Run Logs',
+        label_current_version_prefix: 'Current Version: ',
+        status_up_to_date: 'Up to date',
+        sw_version_desc: 'Check for latest releases from GitHub, download and apply updates in place.',
+        about_enhancer_summary: 'Non-invasive high performance enhancement suite for Google Antigravity.'
       }
     };
 
@@ -2509,28 +2472,37 @@
     }
 
     /* -------------------------------------------------------------
-       版本检测与在线更新交互逻辑
+       版本检测与在线更新交互逻辑 (比较：当前版本与智能检查/更新按钮)
        ------------------------------------------------------------- */
     let isCheckingUpdate = false;
     let isUpdating = false;
+    let currentUpdateData = null;
+
+    function handleUpdateAction() {
+      if (currentUpdateData && currentUpdateData.hasUpdate) {
+        handleDoUpdate(currentUpdateData.downloadUrl);
+      } else {
+        handleCheckUpdate(false);
+      }
+    }
 
     async function handleCheckUpdate(isSilent = false) {
       if (isCheckingUpdate || isUpdating) return;
       isCheckingUpdate = true;
 
-      const btn = document.getElementById('btnCheckUpdate');
-      const icon = document.getElementById('checkUpdateIcon');
-      const text = document.getElementById('btnCheckUpdateText');
-      const hint = document.getElementById('updateStatusHint');
-      const resultBox = document.getElementById('updateResultBox');
+      const btn = document.getElementById('btnUpdateAction');
+      const icon = document.getElementById('updateActionIcon');
+      const text = document.getElementById('updateActionText');
+      const statusPill = document.getElementById('versionStatusPill');
+      const subDesc = document.getElementById('versionSubDesc');
+      const notesDrawer = document.getElementById('updateNotesDrawer');
       const lang = getEffectiveLang();
       const dict = I18N_LOCAL[lang] || I18N_LOCAL['zh-CN'];
 
       if (!isSilent) {
         if (icon) icon.classList.add('spinning');
-        if (text) text.textContent = dict['btn_checking_update'];
+        if (text) text.textContent = dict['btn_checking_update'] || '检查中...';
         if (btn) btn.disabled = true;
-        if (hint) hint.textContent = '';
       }
 
       try {
@@ -2544,6 +2516,8 @@
 
         if (data.success) {
           if (data.hasUpdate) {
+            currentUpdateData = data;
+
             // 发现新版本：点亮侧栏红点 / NEW 徽标
             const navBadge = document.getElementById('aboutNavBadge');
             if (navBadge) {
@@ -2551,76 +2525,95 @@
               navBadge.classList.add('has-update-badge');
             }
 
-            // 渲染新版本卡片
-            if (!isSilent || currentActiveTabId === 'tab-about') {
-              resultBox.style.display = 'block';
-              const pubDate = data.publishedAt ? new Date(data.publishedAt).toLocaleDateString() : '';
-              const notes = (data.releaseNotes || '').trim() || '暂无更新日志';
-              resultBox.innerHTML = `
-                <div class="update-result-found">
-                  <div class="update-found-header">
-                    <div class="update-found-title">
-                      <span>🚀 ${dict['update_found_msg'].replace('{latest}', data.latestVersion).replace('{current}', data.currentVersion)}</span>
-                    </div>
-                    ${pubDate ? `<span class="update-found-date">${pubDate}</span>` : ''}
-                  </div>
-                  <div class="release-notes-box">${escapeHtml(notes)}</div>
-                  <div class="update-actions-row">
-                    <button class="update-btn btn-primary" type="button" id="btnDoUpdate" onclick="handleDoUpdate('${escapeAttr(data.downloadUrl)}')">
-                      ${dict['btn_do_update']}
-                    </button>
-                    <a href="${escapeAttr(data.htmlUrl)}" target="_blank" rel="noopener noreferrer" class="update-btn btn-secondary">
-                      ${dict['btn_manual_download']}
-                    </a>
-                  </div>
-                </div>
-              `;
+            // 更新状态胶囊与提示
+            if (statusPill) {
+              statusPill.className = 'version-status-pill has-update';
+              statusPill.innerHTML = `<span>🚀 发现新版本 ${escapeHtml(data.latestVersion)}</span>`;
+            }
+            if (subDesc) {
+              subDesc.textContent = dict['update_found_msg'] ? dict['update_found_msg'].replace('{latest}', data.latestVersion).replace('{current}', data.currentVersion) : `发现新版本 ${data.latestVersion}，点击立即更新即可全自动升级覆盖。`;
+            }
+
+            // 按钮变身为“立即更新”
+            if (btn) {
+              btn.className = 'btn-primary update-action-btn has-update-ready';
+              btn.disabled = false;
+            }
+            if (icon) {
+              icon.classList.remove('spinning');
+              icon.innerHTML = `<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>`;
+            }
+            if (text) {
+              text.textContent = `立即更新 (${data.latestVersion})`;
+            }
+
+            // 展开轻量更新日志抽屉
+            if (notesDrawer) {
+              notesDrawer.style.display = 'block';
+              const drawerTitle = document.getElementById('drawerTitle');
+              if (drawerTitle) drawerTitle.innerHTML = `🚀 ${escapeHtml(data.latestVersion)} 更新发布`;
+              const drawerNotes = document.getElementById('drawerNotesBody');
+              if (drawerNotes) drawerNotes.textContent = (data.releaseNotes || '').trim() || '暂无详细更新说明';
             }
           } else {
-            // 已是最新版本
-            if (!isSilent) {
-              resultBox.style.display = 'block';
-              resultBox.innerHTML = `
-                <div class="update-result-up-to-date">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-                  <span>${dict['update_latest_msg'].replace('{v}', data.currentVersion)}</span>
-                </div>
-              `;
+            currentUpdateData = null;
+
+            if (statusPill) {
+              statusPill.className = 'version-status-pill up-to-date';
+              statusPill.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> <span>${dict['status_up_to_date'] || '已是最新版本'}</span>`;
+            }
+            if (subDesc) {
+              subDesc.textContent = dict['sw_version_desc'] || '通过 GitHub Releases 检测最新版本，支持自动下载并覆盖升级。';
+            }
+            if (btn) {
+              btn.className = 'btn-primary update-action-btn';
+              btn.disabled = false;
+            }
+            if (icon) {
+              icon.classList.remove('spinning');
+              icon.innerHTML = `<path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>`;
+            }
+            if (text) {
+              text.textContent = dict['btn_check_update'] || '检查更新';
+            }
+            if (notesDrawer) {
+              notesDrawer.style.display = 'none';
             }
           }
         } else {
-          // 接口返回未成功或异常
+          // 检测异常
           if (!isSilent) {
-            resultBox.style.display = 'block';
-            resultBox.innerHTML = `
-              <div style="color: #ef4444; font-size: 13px; line-height: 1.5;">
-                <div style="font-weight: 600; margin-bottom: 6px;">⚠️ ${dict['update_failed']}: ${escapeHtml(data.error || 'Network error')}</div>
-                <a href="${escapeAttr(data.repoUrl || 'https://github.com/atjjme/agy-enhancer')}/releases" target="_blank" rel="noopener noreferrer" class="update-btn btn-secondary" style="margin-top: 6px;">
-                  ${dict['btn_manual_download']}
-                </a>
-              </div>
-            `;
+            if (statusPill) {
+              statusPill.className = 'version-status-pill error';
+              statusPill.innerHTML = `<span>⚠️ ${dict['update_failed'] || '检测失败'}</span>`;
+            }
+            if (subDesc) {
+              subDesc.textContent = (data.error || '无法连接至 GitHub Releases，请检查网络环境。');
+            }
+            if (btn) {
+              btn.className = 'btn-primary update-action-btn';
+              btn.disabled = false;
+            }
+            if (icon) icon.classList.remove('spinning');
+            if (text) text.textContent = dict['btn_check_update'] || '检查更新';
           }
         }
       } catch (err) {
         if (!isSilent) {
-          resultBox.style.display = 'block';
-          resultBox.innerHTML = `
-            <div style="color: #ef4444; font-size: 13px; line-height: 1.5;">
-              <div style="font-weight: 600; margin-bottom: 6px;">⚠️ ${dict['update_failed']}: ${escapeHtml(err.message)}</div>
-              <a href="https://github.com/atjjme/agy-enhancer/releases" target="_blank" rel="noopener noreferrer" class="update-btn btn-secondary" style="margin-top: 6px;">
-                ${dict['btn_manual_download']}
-              </a>
-            </div>
-          `;
+          if (statusPill) {
+            statusPill.className = 'version-status-pill error';
+            statusPill.innerHTML = `<span>⚠️ ${dict['update_failed'] || '网络异常'}</span>`;
+          }
+          if (subDesc) subDesc.textContent = err.message || '网络连接异常';
+          if (btn) {
+            btn.className = 'btn-primary update-action-btn';
+            btn.disabled = false;
+          }
+          if (icon) icon.classList.remove('spinning');
+          if (text) text.textContent = dict['btn_check_update'] || '检查更新';
         }
       } finally {
         isCheckingUpdate = false;
-        if (!isSilent) {
-          if (icon) icon.classList.remove('spinning');
-          if (text) text.textContent = dict['btn_check_update'];
-          if (btn) btn.disabled = false;
-        }
       }
     }
 
@@ -2630,24 +2623,22 @@
 
       const lang = getEffectiveLang();
       const dict = I18N_LOCAL[lang] || I18N_LOCAL['zh-CN'];
-      const btnDo = document.getElementById('btnDoUpdate');
-      const resultBox = document.getElementById('updateResultBox');
+      const btn = document.getElementById('btnUpdateAction');
+      const icon = document.getElementById('updateActionIcon');
+      const text = document.getElementById('updateActionText');
+      const statusPill = document.getElementById('versionStatusPill');
+      const subDesc = document.getElementById('versionSubDesc');
 
-      if (btnDo) {
-        btnDo.disabled = true;
-        btnDo.textContent = dict['update_in_progress'];
+      if (btn) btn.disabled = true;
+      if (icon) icon.classList.add('spinning');
+      if (text) text.textContent = '正在下载并覆盖升级...';
+      if (statusPill) {
+        statusPill.className = 'version-status-pill has-update';
+        statusPill.innerHTML = `<span>⏳ 正在全自动覆盖升级...</span>`;
       }
-
-      resultBox.innerHTML = `
-        <div style="padding: 12px; font-size: 13px; line-height: 1.6;">
-          <div style="font-weight: 600; color: var(--solar-amber); margin-bottom: 8px;">
-            ${dict['update_in_progress']}
-          </div>
-          <div id="updateReconnStatus" style="color: var(--text-dim);">
-            ${dict['update_reconnecting']}
-          </div>
-        </div>
-      `;
+      if (subDesc) {
+        subDesc.textContent = '程序正在自动下载最新版压缩包、解压并覆盖本地安装目录，随后将静默平滑重启...';
+      }
 
       try {
         const res = await fetch(`${API_BASE}/api/do-update`, {
@@ -2660,10 +2651,10 @@
           throw new Error(data.error || 'Update trigger failed');
         }
       } catch (e) {
-        // 服务关闭可能导致网络挂起
+        // 守护进程被更新脚本关闭，网络连接断开是预期行为
       }
 
-      // 启动重连轮询
+      // 启动心跳重连轮询
       let retryCount = 0;
       const pollTimer = setInterval(async () => {
         retryCount++;
@@ -2671,18 +2662,16 @@
           const ping = await fetch(`${API_BASE}/api/config?t=${Date.now()}`, { cache: 'no-store' });
           if (ping.ok) {
             clearInterval(pollTimer);
-            const statusEl = document.getElementById('updateReconnStatus');
-            if (statusEl) statusEl.textContent = dict['update_success_reloaded'];
-            showToast(dict['update_success_reloaded']);
+            if (subDesc) subDesc.textContent = dict['update_success_reloaded'] || '更新已完成，正在刷新页面...';
+            showToast(dict['update_success_reloaded'] || '🎉 更新已完成！版本已就绪。');
             setTimeout(() => {
               window.location.reload();
             }, 1200);
           }
         } catch (_) {
-          if (retryCount > 30) {
+          if (retryCount > 35) {
             clearInterval(pollTimer);
-            const statusEl = document.getElementById('updateReconnStatus');
-            if (statusEl) statusEl.textContent = '服务重启等待超时，请手动刷新本页面。';
+            if (subDesc) subDesc.textContent = '服务重启等待超时，请手动重启 agy-enhancer 或刷新本页面。';
           }
         }
       }, 1200);
