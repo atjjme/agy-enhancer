@@ -1645,7 +1645,7 @@
 
     // ==================== 项目与对话底层数据及文件夹工具 (Core Helpers) ====================
     function getPM() {
-      const header = document.querySelector('[data-testid="section-header"][data-title="Projects"]');
+      const header = document.querySelector('[data-testid="section-header"][data-title="Workspaces"], [data-testid="section-header"][data-title="Projects"]');
       if (!header) return null;
       const fiberKey = Object.keys(header).find(k => k.startsWith('__reactFiber$'));
       let fiber = header ? header[fiberKey] : null;
@@ -2354,8 +2354,8 @@
         const projects = pm?.projectsStateProvider?.getState() || [];
         const archived = projects.filter(p => p.project?.archived && p.project?.id !== 'outside-of-project');
 
-        // 智能定位：贴合 Projects 侧边栏宽度，严禁向右超出侧边栏边界
-        const header = document.querySelector('[data-testid="section-header"][data-title="Projects"]');
+        // 智能定位：贴合 Workspaces / Projects 侧边栏宽度，严禁向右超出侧边栏边界
+        const header = document.querySelector('[data-testid="section-header"][data-title="Workspaces"], [data-testid="section-header"][data-title="Projects"]');
         const headerBtn = document.getElementById('agy-archive-header-btn');
         if (header && headerBtn) {
           const hRect = header.getBoundingClientRect();
@@ -3075,8 +3075,9 @@
         const archived = projects.filter(p => p.project?.archived && p.project?.id !== 'outside-of-project');
         const archivedCount = archived.length;
 
-        // 1. Projects 标题栏归档按钮
-        const actionsContainer = document.querySelector('[data-testid="section-header"][data-title="Projects"] .flex.items-center.gap-1');
+        // 1. Workspaces / Projects 标题栏归档按钮
+        const header = document.querySelector('[data-testid="section-header"][data-title="Workspaces"], [data-testid="section-header"][data-title="Projects"]');
+        const actionsContainer = header?.querySelector('.flex.items-center.gap-1') || header?.querySelector('.flex.items-center:last-child');
         if (actionsContainer) {
           let btn = document.getElementById('agy-archive-header-btn');
           if (!btn) {
@@ -5898,7 +5899,7 @@
         // ------------------ 屏蔽左侧栏非卡片区域 / 总栏目头部无意义的原生 Copy 右键 ------------------
         if (USER_CONFIG.ENABLE_BLOCK_SIDEBAR_COPY !== false) {
           const isSidebarHeader = !!e.target?.closest?.(
-            '[data-testid="section-header"], [data-title="Projects"], [data-title="Conversations"], button[aria-label="Display Options"], button[aria-label*="project" i], button[aria-label*="folder" i]'
+            '[data-testid="section-header"], [data-title="Workspaces"], [data-title="Projects"], [data-title="Conversations"], button[aria-label="Display Options"], button[aria-label*="project" i], button[aria-label*="workspace" i], button[aria-label*="folder" i]'
           );
           const hasProjectOptions = !!(projectCard?.closest('.group\\/header') || projectCard?.parentElement?.parentElement)?.querySelector('button[aria-label="Project options"]');
           const isRealProjectCard = projectCard && hasProjectOptions;
