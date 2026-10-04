@@ -11,8 +11,12 @@
 const fs = require('fs');
 const path = require('path');
 const http = require('http');
+const https = require('https');
 const os = require('os');
-const { execSync, exec } = require('child_process');
+const { execSync, exec, spawn } = require('child_process');
+
+const CURRENT_VERSION = 'v1.5.7';
+const GITHUB_REPO = 'atjjme/agy-enhancer';
 
 const defaultAppData = process.env.APPDATA || (process.env.USERPROFILE ? path.join(process.env.USERPROFILE, 'AppData', 'Roaming') : 'C:\\ProgramData');
 
@@ -55,6 +59,7 @@ const DEFAULT_CONFIG = {
   ENABLE_MASTER: true,
   ENABLE_AUTOSTART: true,
   ENABLE_SYSTEM_TRAY: false,
+  ENABLE_AUTO_UPDATE: true,
   ENABLE_STATUS_INDICATOR: true,
   ENABLE_CONTEXT_MENU: true,
   ENABLE_BLOCK_QUOTE_POPUP: true,
@@ -1782,6 +1787,158 @@ function initWorktreeWatcher() {
   }
 }
 
+// ==================== 版本更新与在线下载工具函数 ====================
+function compareVersions(v1, v2) {
+  if (!v1 || !v2) return 0;
+  const clean1 = String(v1).trim().replace(/^v/i, '');
+  const clean2 = String(v2).trim().replace(/^v/i, '');
+  const parts1 = clean1.split(/[.-]/).map(p => isNaN(p) ? p : parseInt(p, 10));
+  const parts2 = clean2.split(/[.-]/).map(p => isNaN(p) ? p : parseInt(p, 10));
+  const len = Math.max(parts1.length, parts2.length);
+  for (let i = 0; i < len; i++) {
+    const p1 = parts1[i] !== undefined ? parts1[i] : 0;
+    const p2 = parts2[i] !== undefined ? parts2[i] : 0;
+    if (typeof p1 === 'number' && typeof p2 === 'number') {
+      if (p1 > p2) return 1;
+      if (p1 < p2) return -1;
+    } else {
+      const s1 = String(p1);
+      const s2 = String(p2);
+      if (s1 > s2) return 1;
+      if (s1 < s2) return -1;
+    }
+  }
+  return 0;
+}
+
+function fetchJsonWithRedirect(urlStr, options = {}, maxRedirects = 5) {
+  return new Promise((resolve, reject) => {
+    if (maxRedirects < 0) {
+      return reject(new Error('Too many redirects'));
+    }
+    const urlObj = new URL(urlStr);
+    const client = urlObj.protocol === 'http:' ? http : https;
+    const reqOptions = {
+      hostname: urlObj.hostname,
+      port: urlObj.port || (urlObj.protocol === 'http:' ? 80 : 443),
+      path: urlObj.pathname + urlObj.search,
+      method: options.method || 'GET',
+      headers: Object.assign({
+        'User-Agent': 'agy-enhancer-updater',
+        'Accept': 'application/vnd.github.v3+json'
+      }, options.headers || {})
+    };
+
+    const req = client.request(reqOptions, (res) => {
+      if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+        const nextUrl = new URL(res.headers.location, urlStr).href;
+        return resolve(fetchJsonWithRedirect(nextUrl, options, maxRedirects - 1));
+      }
+      if (res.statusCode < 200 || res.statusCode >= 300) {
+        let errBody = '';
+        res.on('data', chunk => { errBody += chunk; });
+        res.on('end', () => {
+          reject(new Error(`HTTP ${res.statusCode}: ${errBody || res.statusMessage}`));
+        });
+        return;
+      }
+      let data = '';
+      res.on('data', chunk => { data += chunk; });
+      res.on('end', () => {
+        try {
+          const json = JSON.parse(data);
+          resolve(json);
+        } catch (e) {
+          reject(new Error('Failed to parse JSON response: ' + e.message));
+        }
+      });
+    });
+
+    req.on('error', reject);
+    req.setTimeout(options.timeout || 10000, () => {
+      req.destroy(new Error('Request timed out'));
+    });
+    req.end();
+  });
+}
+
+function resolveLatestTagFromWeb(repo) {
+  return new Promise((resolve) => {
+    const options = {
+      hostname: 'github.com',
+      port: 443,
+      path: `/${repo}/releases/latest`,
+      method: 'GET',
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+      }
+    };
+    const req = https.request(options, (res) => {
+      if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+        const loc = res.headers.location;
+        const match = loc.match(/\/releases\/tag\/([^/?#]+)/);
+        if (match && match[1]) {
+          return resolve(match[1]);
+        }
+      }
+      resolve(null);
+    });
+    req.on('error', () => resolve(null));
+    req.setTimeout(8000, () => {
+      req.destroy();
+      resolve(null);
+    });
+    req.end();
+  });
+}
+
+function downloadFileWithRedirect(urlStr, destPath, maxRedirects = 5) {
+  return new Promise((resolve, reject) => {
+    if (maxRedirects < 0) {
+      return reject(new Error('Too many redirects'));
+    }
+    const urlObj = new URL(urlStr);
+    const client = urlObj.protocol === 'http:' ? http : https;
+    const reqOptions = {
+      hostname: urlObj.hostname,
+      port: urlObj.port || (urlObj.protocol === 'http:' ? 80 : 443),
+      path: urlObj.pathname + urlObj.search,
+      method: 'GET',
+      headers: {
+        'User-Agent': 'agy-enhancer-updater',
+        'Accept': 'application/octet-stream, */*'
+      }
+    };
+
+    const req = client.request(reqOptions, (res) => {
+      if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+        const nextUrl = new URL(res.headers.location, urlStr).href;
+        return resolve(downloadFileWithRedirect(nextUrl, destPath, maxRedirects - 1));
+      }
+      if (res.statusCode < 200 || res.statusCode >= 300) {
+        return reject(new Error(`Download failed with HTTP ${res.statusCode}: ${res.statusMessage}`));
+      }
+
+      const fileStream = fs.createWriteStream(destPath);
+      res.pipe(fileStream);
+
+      fileStream.on('finish', () => {
+        fileStream.close(resolve);
+      });
+      fileStream.on('error', (err) => {
+        try { fs.unlinkSync(destPath); } catch (_) {}
+        reject(err);
+      });
+    });
+
+    req.on('error', reject);
+    req.setTimeout(45000, () => {
+      req.destroy(new Error('Download timed out'));
+    });
+    req.end();
+  });
+}
+
 // ==================== 内置轻量设置微服务 (Embedded Settings Server) ====================
 function startEmbeddedSettingsServer() {
   const server = http.createServer((req, res) => {
@@ -1984,7 +2141,12 @@ function startEmbeddedSettingsServer() {
       req.on('end', () => {
         try {
           const { path: rawPath, folderUri, branchName, projectId, projectName } = JSON.parse(body || '{}');
-          let target = uriToLocalPath(folderUri || rawPath);
+          let target = '';
+          if (rawPath === 'logs' || rawPath === 'log_dir' || (rawPath && rawPath.toLowerCase().includes('agy-loader.log'))) {
+            target = path.join(defaultAppData, 'antigravity');
+          } else {
+            target = uriToLocalPath(folderUri || rawPath);
+          }
           if (!target || !fs.existsSync(target)) {
             // 智能反查物理路径
             if (branchName) {
@@ -2136,6 +2298,188 @@ function startEmbeddedSettingsServer() {
         } catch (err) {
           res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
           res.end(JSON.stringify({ success: false, error: err?.message || 'Internal error' }));
+        }
+      });
+      return;
+    }
+
+    if (req.method === 'GET' && urlPath === '/api/check-update') {
+      (async () => {
+        try {
+          let release = null;
+          try {
+            release = await fetchJsonWithRedirect(`https://api.github.com/repos/${GITHUB_REPO}/releases/latest`, { timeout: 10000 });
+          } catch (apiErr) {
+            log('[CheckUpdate API] GitHub API query failed, trying web fallback redirect:', apiErr.message);
+            const webTag = await resolveLatestTagFromWeb(GITHUB_REPO);
+            if (webTag) {
+              release = {
+                tag_name: webTag,
+                name: webTag,
+                body: '请访问 GitHub Releases 页面查看完整更新日志。',
+                html_url: `https://github.com/${GITHUB_REPO}/releases/tag/${webTag}`,
+                published_at: new Date().toISOString(),
+                assets: [
+                  {
+                    name: `agy-enhancer-${webTag}.zip`,
+                    browser_download_url: `https://github.com/${GITHUB_REPO}/releases/download/${webTag}/agy-enhancer-${webTag}.zip`
+                  }
+                ]
+              };
+            } else {
+              throw apiErr;
+            }
+          }
+
+          let zipAsset = null;
+          if (Array.isArray(release?.assets)) {
+            zipAsset = release.assets.find(a => a.name && a.name.toLowerCase().endsWith('.zip'));
+          }
+
+          const latestTag = release?.tag_name || '';
+          const hasUpdate = latestTag ? (compareVersions(latestTag, CURRENT_VERSION) > 0) : false;
+          const downloadUrl = zipAsset ? zipAsset.browser_download_url : (release?.zipball_url || `https://github.com/${GITHUB_REPO}/archive/refs/tags/${latestTag}.zip`);
+
+          res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+          res.end(JSON.stringify({
+            success: true,
+            hasUpdate,
+            currentVersion: CURRENT_VERSION,
+            latestVersion: latestTag,
+            releaseName: release?.name || latestTag,
+            releaseNotes: release?.body || '',
+            downloadUrl,
+            htmlUrl: release?.html_url || `https://github.com/${GITHUB_REPO}/releases`,
+            publishedAt: release?.published_at || ''
+          }));
+        } catch (err) {
+          log('[CheckUpdate API Error]', err.message);
+          res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+          res.end(JSON.stringify({
+            success: false,
+            error: err.message,
+            currentVersion: CURRENT_VERSION,
+            repoUrl: `https://github.com/${GITHUB_REPO}`
+          }));
+        }
+      })();
+      return;
+    }
+
+    if (req.method === 'POST' && urlPath === '/api/do-update') {
+      let body = '';
+      req.on('data', chunk => {
+        body += chunk;
+        if (body.length > 1e6) req.destroy();
+      });
+      req.on('end', async () => {
+        try {
+          const payload = JSON.parse(body || '{}');
+          let downloadUrl = payload.downloadUrl;
+
+          if (!downloadUrl) {
+            let release = null;
+            try {
+              release = await fetchJsonWithRedirect(`https://api.github.com/repos/${GITHUB_REPO}/releases/latest`, { timeout: 10000 });
+            } catch (_) {}
+
+            if (release && Array.isArray(release.assets)) {
+              const zipAsset = release.assets.find(a => a.name && a.name.toLowerCase().endsWith('.zip'));
+              downloadUrl = zipAsset ? zipAsset.browser_download_url : release.zipball_url;
+            }
+
+            if (!downloadUrl) {
+              const webTag = await resolveLatestTagFromWeb(GITHUB_REPO);
+              if (webTag) {
+                downloadUrl = `https://github.com/${GITHUB_REPO}/releases/download/${webTag}/agy-enhancer-${webTag}.zip`;
+              }
+            }
+          }
+
+          if (!downloadUrl) {
+            throw new Error('未找到可用的更新下载包地址');
+          }
+
+          const tempDir = path.join(os.tmpdir(), 'agy-enhancer-update');
+          if (fs.existsSync(tempDir)) {
+            try { fs.rmSync(tempDir, { recursive: true, force: true }); } catch (_) {}
+          }
+          fs.mkdirSync(tempDir, { recursive: true });
+
+          const zipPath = path.join(tempDir, 'update.zip');
+          const extractDir = path.join(tempDir, 'extracted');
+          fs.mkdirSync(extractDir, { recursive: true });
+
+          log('[Update API] Downloading update package from:', downloadUrl);
+          await downloadFileWithRedirect(downloadUrl, zipPath);
+          log('[Update API] Download completed. Extracting using tar.exe...');
+
+          execSync(`tar -xf "${zipPath}" -C "${extractDir}"`, { timeout: 25000 });
+          log('[Update API] Extraction completed. Preparing update batch script...');
+
+          let sourceDir = extractDir;
+          const entries = fs.readdirSync(extractDir);
+          if (entries.length === 1) {
+            const singleSub = path.join(extractDir, entries[0]);
+            if (fs.statSync(singleSub).isDirectory()) {
+              sourceDir = singleSub;
+            }
+          }
+
+          const rootDir = path.resolve(__dirname, '..');
+          const cleanSource = sourceDir.replace(/\//g, '\\');
+          const cleanRoot = rootDir.replace(/\//g, '\\');
+          const cleanTemp = tempDir.replace(/\//g, '\\');
+          const batPath = path.join(os.tmpdir(), 'apply-agy-enhancer-update.bat');
+
+          const batContent = `@echo off
+chcp 65001 >nul
+title Antigravity Enhancer Auto Updater
+echo [Update] Waiting for old process to exit...
+timeout /t 2 /nobreak >nul
+
+taskkill /F /IM agy-tray.exe >nul 2>&1
+
+echo [Update] Overwriting program files...
+xcopy "${cleanSource}\\*" "${cleanRoot}\\" /E /Y /I /Q >nul 2>&1
+
+echo [Update] Restarting background service...
+cd /d "${cleanRoot}"
+if exist "${cleanRoot}\\agy-enhancer.exe" (
+  start "" "${cleanRoot}\\agy-enhancer.exe"
+) else if exist "${cleanRoot}\\scripts\\agy-enhancer.vbs" (
+  wscript.exe "${cleanRoot}\\scripts\\agy-enhancer.vbs"
+)
+
+echo [Update] Cleaning temporary files...
+timeout /t 2 /nobreak >nul
+cd /d "%TEMP%"
+rmdir /s /q "${cleanTemp}" >nul 2>&1
+(goto) 2>nul & del "%~f0"
+`;
+          fs.writeFileSync(batPath, batContent, 'utf8');
+
+          res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+          res.end(JSON.stringify({
+            success: true,
+            message: '更新包已就绪，正在应用更新并重启服务...'
+          }));
+
+          setTimeout(() => {
+            log('[Update API] Spawning apply-agy-enhancer-update.bat and exiting daemon...');
+            const child = spawn('cmd.exe', ['/c', batPath], {
+              detached: true,
+              stdio: 'ignore',
+              windowsHide: true
+            });
+            child.unref();
+            process.exit(0);
+          }, 500);
+
+        } catch (err) {
+          log('[Update API Error]', err?.message || err);
+          res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
+          res.end(JSON.stringify({ success: false, error: err?.message || 'Update failed' }));
         }
       });
       return;

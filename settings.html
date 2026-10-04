@@ -914,9 +914,215 @@
         flex-direction: row;
         overflow-x: auto;
       }
-      .nav-item {
-        white-space: nowrap;
-      }
+    /* 关于与更新模块专属样式 */
+    .about-card {
+      background: var(--bg-subcard);
+      border: 1px solid var(--border-card);
+      border-radius: var(--radius-lg);
+      padding: 20px 22px;
+      margin-top: 18px;
+    }
+    .about-card-header {
+      margin-bottom: 14px;
+    }
+    .about-card-title-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .update-card-title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text-title);
+    }
+    .update-card-title svg {
+      color: var(--solar-orange);
+    }
+    .version-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 3px 10px;
+      border-radius: 999px;
+      background: rgba(245, 158, 11, 0.15);
+      border: 1px solid rgba(245, 158, 11, 0.4);
+      color: var(--solar-amber);
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+    }
+    .license-tag {
+      padding: 2px 8px;
+      border-radius: 4px;
+      background: var(--bg-tag);
+      color: var(--text-dim);
+      font-size: 11px;
+      border: 1px solid var(--border-subtle);
+    }
+    .about-card-desc {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-top: 6px;
+      line-height: 1.5;
+    }
+    .update-action-area {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-top: 14px;
+      flex-wrap: wrap;
+    }
+    .update-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 18px;
+      border-radius: var(--radius-md);
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      border: none;
+      transition: all 0.2s ease;
+    }
+    .update-status-hint {
+      font-size: 13px;
+      color: var(--text-dim);
+    }
+    .update-result-box {
+      margin-top: 16px;
+      padding: 16px;
+      border-radius: var(--radius-md);
+      background: rgba(0, 0, 0, 0.12);
+      border: 1px solid var(--border-subtle);
+      animation: fadeIn 0.2s ease;
+    }
+    .update-result-up-to-date {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: #10b981;
+      font-weight: 500;
+      font-size: 14px;
+    }
+    .update-result-found {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .update-found-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .update-found-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--solar-amber);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .update-found-date {
+      font-size: 12px;
+      color: var(--text-dim);
+    }
+    .release-notes-box {
+      max-height: 160px;
+      overflow-y: auto;
+      padding: 10px 14px;
+      border-radius: var(--radius-sm);
+      background: var(--bg-base);
+      font-size: 12px;
+      line-height: 1.6;
+      color: var(--text-main);
+      white-space: pre-wrap;
+      font-family: Consolas, monospace;
+      border: 1px solid var(--border-subtle);
+    }
+    .update-actions-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-top: 6px;
+      flex-wrap: wrap;
+    }
+    .project-info-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 12px;
+      margin-top: 14px;
+    }
+    .info-grid-item {
+      padding: 12px;
+      border-radius: var(--radius-md);
+      background: var(--bg-base);
+      border: 1px solid var(--border-subtle);
+    }
+    .info-label {
+      font-size: 11px;
+      color: var(--text-dim);
+      margin-bottom: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .info-val {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-title);
+    }
+    .info-link {
+      font-size: 13px;
+      color: var(--solar-amber);
+      text-decoration: none;
+      word-break: break-all;
+    }
+    .info-link:hover {
+      text-decoration: underline;
+    }
+    .about-quick-links {
+      display: flex;
+      gap: 10px;
+      margin-top: 16px;
+      flex-wrap: wrap;
+    }
+    .quick-link-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 14px;
+      border-radius: var(--radius-md);
+      font-size: 12px;
+      background: var(--bg-base);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-main);
+      text-decoration: none;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .quick-link-btn:hover {
+      background: var(--bg-card);
+      color: var(--text-title);
+      border-color: var(--solar-orange);
+    }
+    @keyframes spin {
+      100% { transform: rotate(360deg); }
+    }
+    .spinning {
+      animation: spin 0.9s linear infinite;
+    }
+    .nav-count-badge.has-update-badge {
+      background: var(--solar-gradient);
+      color: #fff;
+      font-weight: 600;
+      padding: 2px 7px;
+      border-radius: 999px;
+      font-size: 11px;
+      box-shadow: 0 0 10px var(--solar-glow);
     }
   </style>
 </head>
@@ -1040,13 +1246,23 @@
           </div>
           <span class="nav-count-badge">2</span>
         </li>
+
+        <li class="nav-item" data-target="tab-about" onclick="switchCategoryTab('tab-about')">
+          <div class="nav-item-left">
+            <span class="nav-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+            </span>
+            <span data-i18n="sec_about_title">关于与更新</span>
+          </div>
+          <span class="nav-count-badge" id="aboutNavBadge">1</span>
+        </li>
       </ul>
 
       <!-- 快速统计 -->
       <div class="sidebar-stats-card">
         <div class="stats-title" data-i18n="stats_title">当前特性激活率</div>
         <div class="stats-row">
-          <span class="stats-val" id="activeStatsCount">13 / 14</span>
+          <span class="stats-val" id="activeStatsCount">14 / 15</span>
           <span class="stats-label" id="activeStatsPercent">93% 已激活</span>
         </div>
         <div class="stats-progress-bar">
@@ -1405,6 +1621,108 @@
         </div>
       </section>
 
+      <!-- 6. 关于与更新分类 Tab (tab-about) -->
+      <section class="tab-section" id="tab-about">
+        <div class="section-header">
+          <div class="section-title-wrap">
+            <div class="section-icon-box">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+            </div>
+            <div>
+              <div class="section-heading" data-i18n="sec_about_title">关于与软件更新</div>
+              <div class="section-subtitle" data-i18n="sec_about_subtitle">版本检测、自动在线更新与项目运行信息</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="setting-item-row" data-keywords="update 自动检查更新 版本 升级 github release">
+          <div class="item-meta">
+            <div class="item-title-row">
+              <span class="item-title" data-i18n="sw_auto_update_title">启动时自动检查更新</span>
+              <span class="item-tag recommended" data-i18n="tag_recommended">推荐开启</span>
+            </div>
+            <div class="item-desc" data-i18n="sw_auto_update_desc">打开设置中心时，在后台静默查询 GitHub Releases 是否发布新版本，并给予醒目提示。</div>
+          </div>
+          <label class="switch-ui">
+            <input type="checkbox" id="ENABLE_AUTO_UPDATE">
+            <span class="switch-track"></span>
+          </label>
+        </div>
+
+        <!-- 核心卡片 1：版本与在线更新 -->
+        <div class="about-card update-card">
+          <div class="about-card-header">
+            <div class="about-card-title-row">
+              <div class="update-card-title">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                <span data-i18n="card_version_update_title">版本状态与在线更新</span>
+              </div>
+              <span class="version-badge" id="currentVersionBadge">v1.5.7</span>
+            </div>
+            <div class="about-card-desc" data-i18n="card_version_update_desc">支持一键从 GitHub Releases 检测新版本，自动下载解压并平滑热重载更新。</div>
+          </div>
+
+          <div class="update-action-area">
+            <button class="update-btn btn-primary" id="btnCheckUpdate" type="button" onclick="handleCheckUpdate()">
+              <svg class="btn-icon" id="checkUpdateIcon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              <span id="btnCheckUpdateText" data-i18n="btn_check_update">检查新版本</span>
+            </button>
+            <span class="update-status-hint" id="updateStatusHint"></span>
+          </div>
+
+          <!-- 更新结果容器 -->
+          <div class="update-result-box" id="updateResultBox" style="display: none;"></div>
+        </div>
+
+        <!-- 核心卡片 2：项目与环境信息 -->
+        <div class="about-card project-info-card">
+          <div class="about-card-header">
+            <div class="about-card-title-row">
+              <div class="update-card-title">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+                <span data-i18n="card_about_project_title">项目与环境信息</span>
+              </div>
+              <span class="license-tag">MIT License</span>
+            </div>
+            <div class="about-card-desc" data-i18n="card_about_project_desc">Antigravity Enhancer 是专为 Google Antigravity 打造的高性能增强套件，提供 0 侵入式平滑增强体验。</div>
+          </div>
+
+          <div class="project-info-grid">
+            <div class="info-grid-item">
+              <div class="info-label" data-i18n="label_repo">开源仓库</div>
+              <a href="https://github.com/atjjme/agy-enhancer" target="_blank" rel="noopener noreferrer" class="info-link">github.com/atjjme/agy-enhancer ↗</a>
+            </div>
+            <div class="info-grid-item">
+              <div class="info-label" data-i18n="label_author">开发作者</div>
+              <div class="info-val">atjjme</div>
+            </div>
+            <div class="info-grid-item">
+              <div class="info-label" data-i18n="label_port">微服务端口</div>
+              <div class="info-val">37210 (HTTP)</div>
+            </div>
+            <div class="info-grid-item">
+              <div class="info-label" data-i18n="label_arch">运行模式</div>
+              <div class="info-val" data-i18n="val_run_mode">Node.js 守护进程 / 0侵入安全热载</div>
+            </div>
+          </div>
+
+          <div class="about-quick-links">
+            <a href="https://github.com/atjjme/agy-enhancer" target="_blank" rel="noopener noreferrer" class="quick-link-btn">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg>
+              GitHub 仓库
+            </a>
+            <a href="https://github.com/atjjme/agy-enhancer/releases" target="_blank" rel="noopener noreferrer" class="quick-link-btn">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              Releases 发布页
+            </a>
+            <button type="button" class="quick-link-btn" onclick="openAppDataLogDir()">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+              <span data-i18n="btn_open_logs">打开运行日志目录</span>
+            </button>
+          </div>
+        </div>
+      </section>
+
       <!-- 悬浮保存胶囊底栏 (固定在底部，不随内容滚动随动，严格与右侧居中对齐) -->
       <div class="dock-fixed-wrapper">
         <footer class="action-dock">
@@ -1508,7 +1826,31 @@
         btn_save: '保存设置',
         toast_saved: '✅ 配置已成功保存并即时生效！',
         toast_reset: '已恢复为推荐默认值 (点击保存后生效)',
-        dialog_reset: '确定要恢复到推荐的默认配置吗？'
+        dialog_reset: '确定要恢复到推荐的默认配置吗？',
+        sec_about_title: '关于与更新',
+        sec_about_subtitle: '版本检测、自动在线更新与项目运行信息',
+        sw_auto_update_title: '启动时自动检查更新',
+        sw_auto_update_desc: '打开设置中心时，在后台静默查询 GitHub Releases 是否发布新版本，并给予醒目提示。',
+        card_version_update_title: '版本状态与在线更新',
+        card_version_update_desc: '支持一键从 GitHub Releases 检测新版本，自动下载解压并平滑热重载更新。',
+        btn_check_update: '检查新版本',
+        btn_checking_update: '正在检查更新...',
+        btn_do_update: '🚀 一键自动更新',
+        btn_manual_download: '🔗 前往 GitHub 手动下载',
+        update_latest_msg: '当前已是最新版本 ({v})',
+        update_found_msg: '发现新版本 {latest} (当前版本: {current})',
+        update_in_progress: '⏳ 正在下载并解压更新，即将重启服务...',
+        update_reconnecting: '🔄 服务重启中，正在尝试重新连接...',
+        update_success_reloaded: '🎉 更新已完成！版本已就绪。',
+        update_failed: '更新检测失败',
+        card_about_project_title: '项目与环境信息',
+        card_about_project_desc: 'Antigravity Enhancer 是专为 Google Antigravity 打造的高性能增强套件，提供 0 侵入式平滑增强体验。',
+        label_repo: '开源仓库',
+        label_author: '开发作者',
+        label_port: '微服务端口',
+        label_arch: '运行模式',
+        val_run_mode: 'Node.js 守护进程 / 0侵入安全热载',
+        btn_open_logs: '打开运行日志目录'
       },
       'zh-TW': {
         app_title: 'Antigravity Enhancer - 設定中心',
@@ -1591,7 +1933,31 @@
         btn_save: '儲存設定',
         toast_saved: '✅ 設定已成功儲存並即時生效！',
         toast_reset: '已還原為推薦預設值 (點擊儲存後生效)',
-        dialog_reset: '確定要還原到推薦的預設設定嗎？'
+        dialog_reset: '確定要還原到推薦的預設設定嗎？',
+        sec_about_title: '關於與更新',
+        sec_about_subtitle: '版本檢測、自動線上更新與專案運行資訊',
+        sw_auto_update_title: '啟動時自動檢查更新',
+        sw_auto_update_desc: '開啟設定中心時，於背景靜默查詢 GitHub Releases 是否發布新版本並給予提示。',
+        card_version_update_title: '版本狀態與線上更新',
+        card_version_update_desc: '支援一鍵從 GitHub Releases 檢測新版本，自動下載解壓縮並平滑熱重載更新。',
+        btn_check_update: '檢查新版本',
+        btn_checking_update: '正在檢查更新...',
+        btn_do_update: '🚀 一鍵自動更新',
+        btn_manual_download: '🔗 前往 GitHub 手動下載',
+        update_latest_msg: '目前已是最新版本 ({v})',
+        update_found_msg: '發現新版本 {latest} (目前版本: {current})',
+        update_in_progress: '⏳ 正在下載並解壓縮更新，即將重啟服務...',
+        update_reconnecting: '🔄 服務重啟中，正在嘗試重新連接...',
+        update_success_reloaded: '🎉 更新已完成！版本已就緒。',
+        update_failed: '更新檢測失敗',
+        card_about_project_title: '專案與環境資訊',
+        card_about_project_desc: 'Antigravity Enhancer 是專為 Google Antigravity 打造的高性能增強套件，提供 0 侵入式平滑增強體驗。',
+        label_repo: '開源倉庫',
+        label_author: '開發作者',
+        label_port: '微服務連接埠',
+        label_arch: '運行模式',
+        val_run_mode: 'Node.js 守護進程 / 0侵入安全熱載',
+        btn_open_logs: '打開運行日誌目錄'
       },
       'en': {
         app_title: 'Antigravity Enhancer - Settings',
@@ -1674,7 +2040,31 @@
         btn_save: 'Save Settings',
         toast_saved: '✅ Configuration saved and hot-reloaded successfully!',
         toast_reset: 'Restored to recommended defaults (click Save to apply)',
-        dialog_reset: 'Are you sure you want to restore all settings to recommended defaults?'
+        dialog_reset: 'Are you sure you want to restore all settings to recommended defaults?',
+        sec_about_title: 'About & Updates',
+        sec_about_subtitle: 'Version checking, auto-updates, and project runtime info',
+        sw_auto_update_title: 'Check Updates on Startup',
+        sw_auto_update_desc: 'Silently checks GitHub Releases for new updates when launching the Settings Center.',
+        card_version_update_title: 'Version & Online Update',
+        card_version_update_desc: 'Check for latest releases from GitHub, download and apply updates with zero downtime.',
+        btn_check_update: 'Check for Updates',
+        btn_checking_update: 'Checking for updates...',
+        btn_do_update: '🚀 Auto Update Now',
+        btn_manual_download: '🔗 Download from GitHub',
+        update_latest_msg: 'You are on the latest version ({v})',
+        update_found_msg: 'New version {latest} available (Current: {current})',
+        update_in_progress: '⏳ Downloading and extracting update, restarting service...',
+        update_reconnecting: '🔄 Service is restarting, attempting to reconnect...',
+        update_success_reloaded: '🎉 Update successful! New version ready.',
+        update_failed: 'Update check failed',
+        card_about_project_title: 'About Project & Environment',
+        card_about_project_desc: 'Antigravity Enhancer is a non-invasive performance and UX enhancement suite for Google Antigravity.',
+        label_repo: 'Repository',
+        label_author: 'Author',
+        label_port: 'Daemon Port',
+        label_arch: 'Architecture',
+        val_run_mode: 'Node.js Daemon / Zero-Invasive Hot-Reload',
+        btn_open_logs: 'Open Log Folder'
       }
     };
 
@@ -1795,6 +2185,7 @@
       'ENABLE_MASTER',
       'ENABLE_AUTOSTART',
       'ENABLE_SYSTEM_TRAY',
+      'ENABLE_AUTO_UPDATE',
       'ENABLE_NAV_BUTTONS',
       'ENABLE_BLOCK_CHAT_BOTTOM_BUTTON',
       'ENABLE_SCROLL_PERSISTENCE',
@@ -1816,6 +2207,7 @@
       ENABLE_MASTER: true,
       ENABLE_AUTOSTART: true,
       ENABLE_SYSTEM_TRAY: false,
+      ENABLE_AUTO_UPDATE: true,
       ENABLE_NAV_BUTTONS: true,
       ENABLE_BLOCK_CHAT_BOTTOM_BUTTON: true,
       ENABLE_SCROLL_PERSISTENCE: true,
@@ -2051,6 +2443,7 @@
           dock.classList.remove('dirty');
           document.getElementById('dockStatusText').textContent = dict['dock_synced'];
           updateVisualHierarchy();
+          initUpdateCheckOnLoad(data.config);
         }
       } catch (err) {
         capsule.classList.add('disconnected');
@@ -2113,6 +2506,222 @@
       setDirty();
       updateVisualHierarchy();
       showToast(dict['toast_reset']);
+    }
+
+    /* -------------------------------------------------------------
+       版本检测与在线更新交互逻辑
+       ------------------------------------------------------------- */
+    let isCheckingUpdate = false;
+    let isUpdating = false;
+
+    async function handleCheckUpdate(isSilent = false) {
+      if (isCheckingUpdate || isUpdating) return;
+      isCheckingUpdate = true;
+
+      const btn = document.getElementById('btnCheckUpdate');
+      const icon = document.getElementById('checkUpdateIcon');
+      const text = document.getElementById('btnCheckUpdateText');
+      const hint = document.getElementById('updateStatusHint');
+      const resultBox = document.getElementById('updateResultBox');
+      const lang = getEffectiveLang();
+      const dict = I18N_LOCAL[lang] || I18N_LOCAL['zh-CN'];
+
+      if (!isSilent) {
+        if (icon) icon.classList.add('spinning');
+        if (text) text.textContent = dict['btn_checking_update'];
+        if (btn) btn.disabled = true;
+        if (hint) hint.textContent = '';
+      }
+
+      try {
+        const res = await fetch(`${API_BASE}/api/check-update?t=${Date.now()}`);
+        const data = await res.json();
+
+        if (data.currentVersion) {
+          const badge = document.getElementById('currentVersionBadge');
+          if (badge) badge.textContent = data.currentVersion;
+        }
+
+        if (data.success) {
+          if (data.hasUpdate) {
+            // 发现新版本：点亮侧栏红点 / NEW 徽标
+            const navBadge = document.getElementById('aboutNavBadge');
+            if (navBadge) {
+              navBadge.textContent = 'NEW';
+              navBadge.classList.add('has-update-badge');
+            }
+
+            // 渲染新版本卡片
+            if (!isSilent || currentActiveTabId === 'tab-about') {
+              resultBox.style.display = 'block';
+              const pubDate = data.publishedAt ? new Date(data.publishedAt).toLocaleDateString() : '';
+              const notes = (data.releaseNotes || '').trim() || '暂无更新日志';
+              resultBox.innerHTML = `
+                <div class="update-result-found">
+                  <div class="update-found-header">
+                    <div class="update-found-title">
+                      <span>🚀 ${dict['update_found_msg'].replace('{latest}', data.latestVersion).replace('{current}', data.currentVersion)}</span>
+                    </div>
+                    ${pubDate ? `<span class="update-found-date">${pubDate}</span>` : ''}
+                  </div>
+                  <div class="release-notes-box">${escapeHtml(notes)}</div>
+                  <div class="update-actions-row">
+                    <button class="update-btn btn-primary" type="button" id="btnDoUpdate" onclick="handleDoUpdate('${escapeAttr(data.downloadUrl)}')">
+                      ${dict['btn_do_update']}
+                    </button>
+                    <a href="${escapeAttr(data.htmlUrl)}" target="_blank" rel="noopener noreferrer" class="update-btn btn-secondary">
+                      ${dict['btn_manual_download']}
+                    </a>
+                  </div>
+                </div>
+              `;
+            }
+          } else {
+            // 已是最新版本
+            if (!isSilent) {
+              resultBox.style.display = 'block';
+              resultBox.innerHTML = `
+                <div class="update-result-up-to-date">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                  <span>${dict['update_latest_msg'].replace('{v}', data.currentVersion)}</span>
+                </div>
+              `;
+            }
+          }
+        } else {
+          // 接口返回未成功或异常
+          if (!isSilent) {
+            resultBox.style.display = 'block';
+            resultBox.innerHTML = `
+              <div style="color: #ef4444; font-size: 13px; line-height: 1.5;">
+                <div style="font-weight: 600; margin-bottom: 6px;">⚠️ ${dict['update_failed']}: ${escapeHtml(data.error || 'Network error')}</div>
+                <a href="${escapeAttr(data.repoUrl || 'https://github.com/atjjme/agy-enhancer')}/releases" target="_blank" rel="noopener noreferrer" class="update-btn btn-secondary" style="margin-top: 6px;">
+                  ${dict['btn_manual_download']}
+                </a>
+              </div>
+            `;
+          }
+        }
+      } catch (err) {
+        if (!isSilent) {
+          resultBox.style.display = 'block';
+          resultBox.innerHTML = `
+            <div style="color: #ef4444; font-size: 13px; line-height: 1.5;">
+              <div style="font-weight: 600; margin-bottom: 6px;">⚠️ ${dict['update_failed']}: ${escapeHtml(err.message)}</div>
+              <a href="https://github.com/atjjme/agy-enhancer/releases" target="_blank" rel="noopener noreferrer" class="update-btn btn-secondary" style="margin-top: 6px;">
+                ${dict['btn_manual_download']}
+              </a>
+            </div>
+          `;
+        }
+      } finally {
+        isCheckingUpdate = false;
+        if (!isSilent) {
+          if (icon) icon.classList.remove('spinning');
+          if (text) text.textContent = dict['btn_check_update'];
+          if (btn) btn.disabled = false;
+        }
+      }
+    }
+
+    async function handleDoUpdate(downloadUrl) {
+      if (isUpdating) return;
+      isUpdating = true;
+
+      const lang = getEffectiveLang();
+      const dict = I18N_LOCAL[lang] || I18N_LOCAL['zh-CN'];
+      const btnDo = document.getElementById('btnDoUpdate');
+      const resultBox = document.getElementById('updateResultBox');
+
+      if (btnDo) {
+        btnDo.disabled = true;
+        btnDo.textContent = dict['update_in_progress'];
+      }
+
+      resultBox.innerHTML = `
+        <div style="padding: 12px; font-size: 13px; line-height: 1.6;">
+          <div style="font-weight: 600; color: var(--solar-amber); margin-bottom: 8px;">
+            ${dict['update_in_progress']}
+          </div>
+          <div id="updateReconnStatus" style="color: var(--text-dim);">
+            ${dict['update_reconnecting']}
+          </div>
+        </div>
+      `;
+
+      try {
+        const res = await fetch(`${API_BASE}/api/do-update`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ downloadUrl })
+        });
+        const data = await res.json();
+        if (!data.success) {
+          throw new Error(data.error || 'Update trigger failed');
+        }
+      } catch (e) {
+        // 服务关闭可能导致网络挂起
+      }
+
+      // 启动重连轮询
+      let retryCount = 0;
+      const pollTimer = setInterval(async () => {
+        retryCount++;
+        try {
+          const ping = await fetch(`${API_BASE}/api/config?t=${Date.now()}`, { cache: 'no-store' });
+          if (ping.ok) {
+            clearInterval(pollTimer);
+            const statusEl = document.getElementById('updateReconnStatus');
+            if (statusEl) statusEl.textContent = dict['update_success_reloaded'];
+            showToast(dict['update_success_reloaded']);
+            setTimeout(() => {
+              window.location.reload();
+            }, 1200);
+          }
+        } catch (_) {
+          if (retryCount > 30) {
+            clearInterval(pollTimer);
+            const statusEl = document.getElementById('updateReconnStatus');
+            if (statusEl) statusEl.textContent = '服务重启等待超时，请手动刷新本页面。';
+          }
+        }
+      }, 1200);
+    }
+
+    function checkUpdateSilently() {
+      handleCheckUpdate(true);
+    }
+
+    let updateCheckTriggered = false;
+    function initUpdateCheckOnLoad(config) {
+      if (updateCheckTriggered) return;
+      if (config && config.ENABLE_AUTO_UPDATE) {
+        updateCheckTriggered = true;
+        setTimeout(() => {
+          checkUpdateSilently();
+        }, 1200);
+      }
+    }
+
+    function openAppDataLogDir() {
+      fetch(`${API_BASE}/api/open-folder`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ path: 'logs' })
+      }).catch(() => {});
+    }
+
+    function escapeHtml(str) {
+      return String(str || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function escapeAttr(str) {
+      return String(str || '').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
     }
 
     window.addEventListener('focus', () => {
