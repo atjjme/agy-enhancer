@@ -3221,6 +3221,25 @@
             }
           };
 
+          const cleanConsecutiveSeparators = (m) => {
+            if (!m) return;
+            let prevWasSep = false;
+            const children = Array.from(m.children);
+            for (let i = 0; i < children.length; i++) {
+              const child = children[i];
+              const isSep = child.getAttribute('role') === 'separator';
+              if (isSep) {
+                if (prevWasSep || i === 0 || i === children.length - 1) {
+                  child.remove();
+                } else {
+                  prevWasSep = true;
+                }
+              } else {
+                prevWasSep = false;
+              }
+            }
+          };
+
           // 0. 明确过滤并排除筛选与排序菜单 (Filter / Group By / Sort)
           // 侧边栏顶部的筛选排序菜单绝对不属于对话或项目操作菜单，坚决不作任何增强
           const isFilterOrSortMenu = menu.textContent.includes('Group By') ||
@@ -3578,6 +3597,30 @@
               menu.appendChild(itemDelOthers);
             }
 
+            // 将会话操作菜单中的原生 Delete 置于最底部并赋予红色字体（适用于项目对话与非项目对话）
+            const nativeConvoDelete = menu.querySelector('[data-testid="conversation-delete-menu-item"]') ||
+              Array.from(menu.querySelectorAll('[role="menuitem"]')).find(el => {
+                if (el.classList?.contains('agy-native-enhanced')) return false;
+                const txt = el.textContent?.trim()?.toLowerCase();
+                return txt === 'delete' || txt === '删除';
+              });
+
+            if (nativeConvoDelete) {
+              const lastEl = menu.lastElementChild;
+              if (lastEl && lastEl !== nativeConvoDelete && lastEl.getAttribute('role') !== 'separator') {
+                const sep = document.createElement('div');
+                sep.setAttribute('role', 'separator');
+                sep.className = 'h-px bg-border my-1 -mx-1 agy-native-enhanced';
+                menu.appendChild(sep);
+              }
+              menu.appendChild(nativeConvoDelete);
+              nativeConvoDelete.classList.add('text-destructive', 'font-medium');
+              nativeConvoDelete.style.color = '#ef4444';
+              const svg = nativeConvoDelete.querySelector('svg');
+              if (svg) svg.style.color = '#ef4444';
+            }
+            cleanConsecutiveSeparators(menu);
+
             lastNativeConvoId = convoId;
             lastNativeConvoTitle = convoTitle;
             activeNativeConvoId = null;
@@ -3594,9 +3637,14 @@
             targetProject = projects.find(p => p.project?.id === activeNativeProjectId)?.project || null;
           }
 
+          const menuText = menu.textContent || '';
           const hasProjectActions = menu.querySelector('[data-testid="project-delete-menu-item"]') ||
                                     menu.querySelector('[data-testid="project-rename-menu-item"]') ||
-                                    menu.querySelector('[data-testid="project-settings-menu-item"]');
+                                    menu.querySelector('[data-testid="project-settings-menu-item"]') ||
+                                    menuText.includes('Workspace Settings') ||
+                                    menuText.includes('Archive Workspace') ||
+                                    menuText.includes('Delete Workspace') ||
+                                    menuText.includes('Delete Project');
 
           const isProjectMenu = (isRecentProjectAction && !!targetProject) || !!hasProjectActions;
 
@@ -3718,55 +3766,79 @@
             }
 
             const targetUri = getProjectFolderUri(targetProject);
-            if (!targetUri) return;
+            if (targetUri) {
+              const divider = document.createElement('div');
+              divider.setAttribute('role', 'separator');
+              divider.className = 'h-px bg-border my-1 -mx-1 agy-native-enhanced';
 
-            const divider = document.createElement('div');
-            divider.setAttribute('role', 'separator');
-            divider.className = 'h-px bg-border my-1 -mx-1 agy-native-enhanced';
-
-            const itemProjectFolder = document.createElement('div');
-            itemProjectFolder.setAttribute('role', 'menuitem');
-            itemProjectFolder.className = 'w-full px-2 py-1 text-left text-[13px] cursor-pointer outline-none transition-colors select-none flex items-center gap-1.5 rounded-md hover:bg-secondary hover:text-foreground text-secondary-foreground agy-native-enhanced';
-            itemProjectFolder.innerHTML = `
-              <svg width="16" height="16" viewBox="0 -960 960 960" fill="currentColor" class="text-secondary-foreground shrink-0"><path d="M160-160q-33 0-56.5-23.5T80-240v-480q0-33 23.5-56.5T160-800h240l80 80h320q33 0 56.5 23.5T880-640v400q0 33-23.5 56.5T800-160H160Zm0-80h640v-400H447l-80-80H160v480Zm0 0v-480 480Z"/></svg>
-              <span>Open Project Folder</span>
-            `;
-            itemProjectFolder.addEventListener('click', (ev) => {
-              ev.stopPropagation();
-              ev.preventDefault();
-              document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
-              openLocalFolder(targetUri, 'project');
-              showNotification('Opened project folder');
-            });
-
-            menu.appendChild(divider);
-            menu.appendChild(itemProjectFolder);
-
-            // Separator and Delete All Branches (protect main branch)
-            const divProjDelete = document.createElement('div');
-            divProjDelete.setAttribute('role', 'separator');
-            divProjDelete.className = 'h-px bg-border my-1 -mx-1 agy-native-enhanced';
-            menu.appendChild(divProjDelete);
-
-            const itemDelAll = document.createElement('div');
-            itemDelAll.setAttribute('role', 'menuitem');
-            itemDelAll.className = 'w-full px-2 py-1 text-left text-[13px] cursor-pointer outline-none transition-colors select-none flex items-center gap-1.5 rounded-md hover:bg-destructive/15 text-destructive font-medium agy-native-enhanced';
-            itemDelAll.innerHTML = `
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="shrink-0"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
-              <span>Delete All Branches</span>
-            `;
-            itemDelAll.addEventListener('click', (ev) => {
-              ev.stopPropagation();
-              ev.preventDefault();
-              document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
-              handleWorktreeDeleteAction?.({
-                actionType: 'all',
-                projectId: targetProject?.id,
-                projectName: targetProject?.name,
-                projectRootPath: targetUri
+              const itemProjectFolder = document.createElement('div');
+              itemProjectFolder.setAttribute('role', 'menuitem');
+              itemProjectFolder.className = 'w-full px-2 py-1 text-left text-[13px] cursor-pointer outline-none transition-colors select-none flex items-center gap-1.5 rounded-md hover:bg-secondary hover:text-foreground text-secondary-foreground agy-native-enhanced';
+              itemProjectFolder.innerHTML = `
+                <svg width="16" height="16" viewBox="0 -960 960 960" fill="currentColor" class="text-secondary-foreground shrink-0"><path d="M160-160q-33 0-56.5-23.5T80-240v-480q0-33 23.5-56.5T160-800h240l80 80h320q33 0 56.5 23.5T880-640v400q0 33-23.5 56.5T800-160H160Zm0-80h640v-400H447l-80-80H160v480Zm0 0v-480 480Z"/></svg>
+                <span>Open Project Folder</span>
+              `;
+              itemProjectFolder.addEventListener('click', (ev) => {
+                ev.stopPropagation();
+                ev.preventDefault();
+                document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+                openLocalFolder(targetUri, 'project');
+                showNotification('Opened project folder');
               });
-            });
-            menu.appendChild(itemDelAll);
+
+              menu.appendChild(divider);
+              menu.appendChild(itemProjectFolder);
+
+              // Separator and Delete All Branches (protect main branch)
+              const divProjDelete = document.createElement('div');
+              divProjDelete.setAttribute('role', 'separator');
+              divProjDelete.className = 'h-px bg-border my-1 -mx-1 agy-native-enhanced';
+              menu.appendChild(divProjDelete);
+
+              const itemDelAll = document.createElement('div');
+              itemDelAll.setAttribute('role', 'menuitem');
+              itemDelAll.className = 'w-full px-2 py-1 text-left text-[13px] cursor-pointer outline-none transition-colors select-none flex items-center gap-1.5 rounded-md hover:bg-destructive/15 text-destructive font-medium agy-native-enhanced';
+              itemDelAll.innerHTML = `
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="shrink-0"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+                <span>Delete All Branches</span>
+              `;
+              itemDelAll.addEventListener('click', (ev) => {
+                ev.stopPropagation();
+                ev.preventDefault();
+                document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+                handleWorktreeDeleteAction?.({
+                  actionType: 'all',
+                  projectId: targetProject?.id,
+                  projectName: targetProject?.name,
+                  projectRootPath: targetUri
+                });
+              });
+              menu.appendChild(itemDelAll);
+            }
+
+            // 将原生项目/工作区 Delete Workspace / Delete Project 项置于最底部并赋予红色字体
+            const nativeProjDelete = menu.querySelector('[data-testid="project-delete-menu-item"]') ||
+              Array.from(menu.querySelectorAll('[role="menuitem"]')).find(el => {
+                if (el.classList?.contains('agy-native-enhanced')) return false;
+                const txt = el.textContent?.trim()?.toLowerCase();
+                return txt.includes('delete workspace') || txt.includes('delete project') || txt.includes('删除工作区') || txt.includes('删除项目') || (txt.startsWith('delete') && !txt.includes('branch'));
+              });
+
+            if (nativeProjDelete) {
+              const lastEl = menu.lastElementChild;
+              if (lastEl && lastEl !== nativeProjDelete && lastEl.getAttribute('role') !== 'separator') {
+                const sep = document.createElement('div');
+                sep.setAttribute('role', 'separator');
+                sep.className = 'h-px bg-border my-1 -mx-1 agy-native-enhanced';
+                menu.appendChild(sep);
+              }
+              menu.appendChild(nativeProjDelete);
+              nativeProjDelete.classList.add('text-destructive', 'font-medium');
+              nativeProjDelete.style.color = '#ef4444';
+              const svg = nativeProjDelete.querySelector('svg');
+              if (svg) svg.style.color = '#ef4444';
+            }
+            cleanConsecutiveSeparators(menu);
           }
 
           // 3. 确认是否是 Scheduled Tasks 定时任务操作菜单
