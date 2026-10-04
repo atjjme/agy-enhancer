@@ -177,6 +177,15 @@ namespace AgyEnhancer
                     return true;
                 }
 
+                // 排除浏览器普通网页标签（常规浏览器标签页包含 " - Google Chrome" 等后缀）
+                // 仅识别由 --app 独立拉起的专属原生设置窗口，避免普通网页浏览阻碍 exe 窗口唤起
+                if (title.IndexOf("- Google Chrome", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                    title.IndexOf("- Microsoft Edge", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                    title.IndexOf("- Brave", StringComparison.OrdinalIgnoreCase) >= 0)
+                {
+                    return true;
+                }
+
                 bool matchTitle = (title.IndexOf("Antigravity Enhancer - 设置中心", StringComparison.OrdinalIgnoreCase) >= 0 ||
                                    title.IndexOf("Antigravity Enhancer - 設定中心", StringComparison.OrdinalIgnoreCase) >= 0 ||
                                    title.IndexOf("Antigravity Enhancer - Settings", StringComparison.OrdinalIgnoreCase) >= 0 ||
