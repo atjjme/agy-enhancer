@@ -15,8 +15,22 @@ const https = require('https');
 const os = require('os');
 const { execSync, exec, spawn } = require('child_process');
 
-const CURRENT_VERSION = 'v1.5.7';
 const GITHUB_REPO = 'atjjme/agy-enhancer';
+
+function getAppVersion() {
+  try {
+    const versionPath = path.resolve(__dirname, '..', 'version.json');
+    if (fs.existsSync(versionPath)) {
+      const raw = fs.readFileSync(versionPath, 'utf8');
+      const parsed = JSON.parse(raw);
+      if (parsed && parsed.version) {
+        const v = String(parsed.version).trim();
+        return v.startsWith('v') ? v : `v${v}`;
+      }
+    }
+  } catch (_) {}
+  return 'v1.5.7';
+}
 
 const defaultAppData = process.env.APPDATA || (process.env.USERPROFILE ? path.join(process.env.USERPROFILE, 'AppData', 'Roaming') : 'C:\\ProgramData');
 
@@ -1994,7 +2008,8 @@ function startEmbeddedSettingsServer() {
         status: {
           serverPid: process.pid,
           daemonRunning: true,
-          daemonPid: process.pid
+          daemonPid: process.pid,
+          version: getAppVersion()
         }
       }));
       return;
@@ -2337,14 +2352,15 @@ function startEmbeddedSettingsServer() {
           }
 
           const latestTag = release?.tag_name || '';
-          const hasUpdate = latestTag ? (compareVersions(latestTag, CURRENT_VERSION) > 0) : false;
+          const currentVersion = getAppVersion();
+          const hasUpdate = latestTag ? (compareVersions(latestTag, currentVersion) > 0) : false;
           const downloadUrl = zipAsset ? zipAsset.browser_download_url : (release?.zipball_url || `https://github.com/${GITHUB_REPO}/archive/refs/tags/${latestTag}.zip`);
 
           res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
           res.end(JSON.stringify({
             success: true,
             hasUpdate,
-            currentVersion: CURRENT_VERSION,
+            currentVersion,
             latestVersion: latestTag,
             releaseName: release?.name || latestTag,
             releaseNotes: release?.body || '',
@@ -2358,7 +2374,7 @@ function startEmbeddedSettingsServer() {
           res.end(JSON.stringify({
             success: false,
             error: err.message,
-            currentVersion: CURRENT_VERSION,
+            currentVersion: getAppVersion(),
             repoUrl: `https://github.com/${GITHUB_REPO}`
           }));
         }

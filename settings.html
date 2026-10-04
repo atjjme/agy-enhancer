@@ -2383,6 +2383,11 @@
           label.textContent = dict['conn_online'];
           noticeBar.classList.remove('active');
 
+          if (data.status && data.status.version) {
+            const badge = document.getElementById('currentVersionBadge');
+            if (badge) badge.textContent = data.status.version;
+          }
+
           SWITCH_KEYS.forEach(k => {
             const el = document.getElementById(k);
             if (el && typeof data.config[k] === 'boolean') {
