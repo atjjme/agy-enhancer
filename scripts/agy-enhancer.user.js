@@ -3876,6 +3876,18 @@ window.__AGY_BRANCH_NAME__ = "edit_scheduled_task_setting";
         function setupEditModal(modal, editingTask) {
           if (!modal) return;
           modal.setAttribute('data-agy-editing-task', editingTask.oldSidecarId);
+          modal.classList.add('agy-edit-modal');
+
+          // Inject styles once: hide red error about existing sidecarId and style custom save button
+          if (!document.getElementById('agy-edit-task-style')) {
+            const st = document.createElement('style');
+            st.id = 'agy-edit-task-style';
+            st.textContent = `
+              .agy-edit-modal .text-red-500 { display: none !important; }
+              .agy-save-task-btn:disabled { opacity: 0.5 !important; cursor: not-allowed !important; pointer-events: none !important; }
+            `;
+            document.head.appendChild(st);
+          }
 
           const dialog = modal.closest('[role="dialog"]') || modal.closest('.fixed');
           const titleEl = dialog?.querySelector('h1, h2');
@@ -3922,37 +3934,39 @@ window.__AGY_BRANCH_NAME__ = "edit_scheduled_task_setting";
           if (nameInput) setNativeVal(nameInput, editingTask.displayName);
           if (promptInput) setNativeVal(promptInput, editingTask.prompt);
 
-          const submitBtn = modal.querySelector('[data-testid="new-sidecar-submit"]');
-          if (submitBtn) {
-            submitBtn.textContent = 'Save Changes';
-            submitBtn.removeAttribute('disabled');
-            submitBtn.classList.remove('pointer-events-none', 'disabled:opacity-50');
+          // Hide native submit button completely to prevent conflicting React validations
+          const nativeSubmit = modal.querySelector('[data-testid="new-sidecar-submit"]');
+          if (nativeSubmit) {
+            nativeSubmit.style.setProperty('display', 'none', 'important');
+          }
 
-            const ensureSubmitValid = () => {
-              const errSpan = modal.querySelector('.text-red-500');
-              if (errSpan && errSpan.textContent.includes(editingTask.oldSidecarId)) {
-                errSpan.style.display = 'none';
-              }
-              if (submitBtn && nameInput?.value?.trim() && promptInput?.value?.trim()) {
-                submitBtn.removeAttribute('disabled');
-                submitBtn.classList.remove('pointer-events-none', 'disabled:opacity-50');
-              }
-            };
-            ensureSubmitValid();
-            const obs = new MutationObserver(ensureSubmitValid);
-            obs.observe(modal, { childList: true, subtree: true, attributes: true });
+          // Create clean custom Save button
+          let saveBtn = modal.querySelector('.agy-save-task-btn');
+          if (!saveBtn && nativeSubmit?.parentElement) {
+            saveBtn = document.createElement('button');
+            saveBtn.type = 'button';
+            saveBtn.className = 'agy-save-task-btn inline-flex items-center font-medium transition-colors select-none outline-none cursor-pointer justify-center bg-primary text-primary-foreground hover:opacity-90 shadow-sm border-none h-8 text-sm rounded-lg gap-1.5 px-3';
+            saveBtn.textContent = 'Save Changes';
+            nativeSubmit.parentElement.appendChild(saveBtn);
+          }
 
-            const cleanupModal = () => {
-              try { obs.disconnect(); } catch (_) {}
-              window.removeEventListener('keydown', onEscKey, true);
-            };
+          const updateSaveBtnState = () => {
+            if (!saveBtn) return;
+            const hasName = !!(nameInput ? nameInput.value.trim() : editingTask.displayName);
+            const hasPrompt = !!(promptInput ? promptInput.value.trim() : editingTask.prompt);
+            if (hasName && hasPrompt) {
+              saveBtn.removeAttribute('disabled');
+            } else {
+              saveBtn.setAttribute('disabled', 'true');
+            }
+          };
 
-            const onEscKey = (e) => {
-              if (e.key === 'Escape') cleanupModal();
-            };
-            window.addEventListener('keydown', onEscKey, true);
+          updateSaveBtnState();
+          nameInput?.addEventListener('input', updateSaveBtnState);
+          promptInput?.addEventListener('input', updateSaveBtnState);
 
-            const onSaveSubmit = async (ev) => {
+          if (saveBtn) {
+            saveBtn.addEventListener('click', async (ev) => {
               ev.stopPropagation();
               ev.preventDefault();
 
@@ -3974,14 +3988,14 @@ window.__AGY_BRANCH_NAME__ = "edit_scheduled_task_setting";
 
               const newSidecarId = newName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || newName;
 
-              submitBtn.textContent = 'Saving...';
-              submitBtn.setAttribute('disabled', 'true');
+              saveBtn.textContent = 'Saving...';
+              saveBtn.setAttribute('disabled', 'true');
 
               const ext = getExtensibilityService();
               if (!ext) {
                 showNotification('Extensibility service not available');
-                submitBtn.textContent = 'Save Changes';
-                submitBtn.removeAttribute('disabled');
+                saveBtn.textContent = 'Save Changes';
+                updateSaveBtnState();
                 return;
               }
 
@@ -4004,17 +4018,19 @@ window.__AGY_BRANCH_NAME__ = "edit_scheduled_task_setting";
                 }
 
                 showNotification(`Scheduled task "${newName}" updated successfully`);
-                cleanupModal();
-                window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', bubbles: true }));
+                const closeBtn = dialog?.querySelector('button[aria-label="Close"]') || modal.querySelector('button[aria-label="Close"]');
+                if (closeBtn) {
+                  closeBtn.click();
+                } else {
+                  window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', bubbles: true }));
+                }
               } catch (err) {
                 console.error('[agy-enhancer] update scheduled task error:', err);
                 showNotification(`Failed to save task: ${err?.message || err}`);
-                submitBtn.textContent = 'Save Changes';
-                submitBtn.removeAttribute('disabled');
+                saveBtn.textContent = 'Save Changes';
+                updateSaveBtnState();
               }
-            };
-
-            submitBtn.addEventListener('click', onSaveSubmit, true);
+            });
           }
         }
 
