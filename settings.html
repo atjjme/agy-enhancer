@@ -1466,6 +1466,20 @@
             <span class="switch-track"></span>
           </label>
         </div>
+
+        <div class="setting-item-row" data-keywords="scheduled tasks edit 定时任务 编辑 修改 重新配置 cron prompt">
+          <div class="item-meta">
+            <div class="item-title-row">
+              <span class="item-title" data-i18n="sw_edit_scheduled_tasks_title">定时任务快捷编辑 (Edit Scheduled Tasks)</span>
+              <span class="item-tag recommended" data-i18n="tag_recommended">效率利器</span>
+            </div>
+            <div class="item-desc" data-i18n="sw_edit_scheduled_tasks_desc">在 Scheduled Tasks 列表中为任务菜单添加 Edit 操作入口，支持重新回到创建面板修改任务名称、执行频率、执行时间及 Prompt 提示词。</div>
+          </div>
+          <label class="switch-ui">
+            <input type="checkbox" id="ENABLE_EDIT_SCHEDULED_TASKS">
+            <span class="switch-track"></span>
+          </label>
+        </div>
       </section>
 
       <!-- 4. 交互与菜单分类 Tab (tab-interaction) -->
@@ -1748,6 +1762,8 @@
         sw_worktree_mgmt_desc: '在顶部工作树下拉面板中显示悬停删除垃圾桶，并提供右键复制名称/路径、在终端/资源管理器打开等菜单。',
         sw_worktree_auto_sync_title: '开分支自动同步本地配置与共享编译缓存',
         sw_worktree_auto_sync_desc: '创建新分支时，自动拷贝未纳入 Git 的 .env*、local.properties，并自动配置 Rust / Gradle 共享缓存，秒级构建。',
+        sw_edit_scheduled_tasks_title: '定时任务快捷编辑 (Edit Scheduled Tasks)',
+        sw_edit_scheduled_tasks_desc: '在 Scheduled Tasks 列表中为任务菜单添加 Edit 操作入口，支持重新回到创建面板修改任务名称、执行频率、执行时间及 Prompt 提示词。',
         sec_interaction_title: '交互与菜单',
         sec_interaction_subtitle: '统一右键接管、文本划词与弹窗控制',
         sw_context_menu_title: '全局右键功能增强',
@@ -1859,6 +1875,8 @@
         sw_worktree_mgmt_desc: '在下拉清單中提供刪除垃圾桶與完整右鍵選單。',
         sw_worktree_auto_sync_title: '開分支自動同步配置與共用編譯快取',
         sw_worktree_auto_sync_desc: '開新分支時自動拷貝 .env* 並配置共用快取。',
+        sw_edit_scheduled_tasks_title: '定時任務快捷編輯 (Edit Scheduled Tasks)',
+        sw_edit_scheduled_tasks_desc: '在 Scheduled Tasks 列表中為任務菜單添加 Edit 操作入口，支持重新回到創建面板修改任務名稱、執行頻率、執行時間及 Prompt 提示詞。',
         sec_interaction_title: '互動與選單',
         sec_interaction_subtitle: '統一右鍵接管與劃詞彈窗控制',
         sw_context_menu_title: '全域右鍵功能增強',
@@ -1970,6 +1988,8 @@
         sw_worktree_mgmt_desc: 'Enables hover trash button and rich context menus in branch dropdowns.',
         sw_worktree_auto_sync_title: 'Worktree Auto-Sync & Shared Build Cache',
         sw_worktree_auto_sync_desc: 'Copies untracked .env* and local.properties to new branches with shared cache.',
+        sw_edit_scheduled_tasks_title: 'Scheduled Task Editing (Edit Scheduled Tasks)',
+        sw_edit_scheduled_tasks_desc: 'Adds an Edit action to the Scheduled Tasks menu, allowing you to reopen the form and modify task name, frequency, time, and prompt.',
         sec_interaction_title: 'Interaction & Menus',
         sec_interaction_subtitle: 'Context menu overhaul and selection popup control',
         sw_context_menu_title: 'Global Right-Click Enhancement',
@@ -2155,6 +2175,7 @@
       'ENABLE_SMART_UNREAD',
       'ENABLE_PINNED_SUMMARY',
       'ENABLE_FORK_CONVERSATION',
+      'ENABLE_EDIT_SCHEDULED_TASKS',
       'ENABLE_WORKTREE_MANAGEMENT',
       'ENABLE_WORKTREE_AUTO_SYNC',
       'ENABLE_CONTEXT_MENU',
@@ -2177,6 +2198,7 @@
       ENABLE_SMART_UNREAD: false, // 智能未读默认关闭
       ENABLE_PINNED_SUMMARY: true,
       ENABLE_FORK_CONVERSATION: true,
+      ENABLE_EDIT_SCHEDULED_TASKS: true,
       ENABLE_WORKTREE_MANAGEMENT: true,
       ENABLE_WORKTREE_AUTO_SYNC: true,
       ENABLE_CONTEXT_MENU: true,

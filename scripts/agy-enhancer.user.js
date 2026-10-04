@@ -11,6 +11,8 @@
 // @run-at       document-idle
 // ==/UserScript==
 
+window.__AGY_BRANCH_TAG__ = " (branch)";
+window.__AGY_BRANCH_NAME__ = "edit_scheduled_task_setting";
 /**
  * Antigravity 增强器 (agy-enhancer enhancer)
  * 
@@ -48,6 +50,9 @@
 
     // 【会话分叉】是否开启会话切片分叉与分支创建功能（独立开关，并在右键菜单中提供入口）
     ENABLE_FORK_CONVERSATION: true,
+
+    // 【定时任务编辑】是否开启 Scheduled Tasks 定时任务快捷编辑与重新修改（在列表项菜单中添加 Edit 选项）
+    ENABLE_EDIT_SCHEDULED_TASKS: true,
 
     // 【工作树管理】是否开启分支与工作树快捷管理、悬停删除与右键菜单（受全局右键与独立开关控制）
     ENABLE_WORKTREE_MANAGEMENT: true,
@@ -148,6 +153,7 @@
   let activeNativeProjectObj = null;
   let activeNativeProjectId = null;
   let lastProjectActionTime = 0;
+  let activeSidecarRow = null;
   let nativeMenuPointerDownHandler = null;
   let nativeMenuObserver = null;
   let originalElementScrollTo = null;
@@ -275,6 +281,7 @@
     activeNativeProjectObj = null;
     activeNativeProjectId = null;
     lastProjectActionTime = 0;
+    activeSidecarRow = null;
     if (nativeMenuPointerDownHandler) {
       document.removeEventListener('pointerdown', nativeMenuPointerDownHandler, true);
       nativeMenuPointerDownHandler = null;
@@ -1684,6 +1691,97 @@
       return null;
     }
 
+    function getExtensibilityService() {
+      const root = document.getElementById('root');
+      if (!root) return null;
+      const k = Object.keys(root).find(key => key.startsWith('__reactFiber$') || key.startsWith('__reactContainer$'));
+      let fiber = root[k];
+      while (fiber) {
+        if (fiber.memoizedProps?.value?.get) {
+          try {
+            const ext = fiber.memoizedProps.value.get('extensibility');
+            if (ext) return ext;
+          } catch (_) {}
+        }
+        fiber = fiber.child || fiber.sibling;
+      }
+      return null;
+    }
+
+    function getSidecarFromRow(row) {
+      if (!row) return null;
+      const k = Object.keys(row).find(key => key.startsWith('__reactFiber$'));
+      let curr = row[k];
+      while (curr) {
+        if (curr.memoizedProps?.sidecar) {
+          return curr.memoizedProps.sidecar;
+        }
+        curr = curr.return;
+      }
+      return null;
+    }
+
+    function formatHour12(h) {
+      if (h === 0) return '12:00 AM';
+      if (h < 12) return `${h}:00 AM`;
+      if (h === 12) return '12:00 PM';
+      return `${h - 12}:00 PM`;
+    }
+
+    function cronToSchedule(cron) {
+      if (!cron || typeof cron !== 'string') {
+        return { frequency: 'daily', dayOfWeek: 'Monday', hour: '9:00 AM', minute: '00' };
+      }
+      const trimmed = cron.trim();
+      if (trimmed === '0 * * * *') {
+        return { frequency: 'hourly', dayOfWeek: 'Monday', hour: '9:00 AM', minute: '00' };
+      }
+      const dailyMatch = trimmed.match(/^0\s+(\d{1,2})\s+\*\s+\*\s+\*$/);
+      if (dailyMatch) {
+        const h = parseInt(dailyMatch[1], 10);
+        return { frequency: 'daily', dayOfWeek: 'Monday', hour: formatHour12(h), minute: '00' };
+      }
+      const weeklyMatch = trimmed.match(/^0\s+(\d{1,2})\s+\*\s+\*\s+(\d+)$/);
+      if (weeklyMatch) {
+        const h = parseInt(weeklyMatch[1], 10);
+        const d = parseInt(weeklyMatch[2], 10);
+        const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+        return { frequency: 'weekly', dayOfWeek: days[d % 7] || 'Monday', hour: formatHour12(h), minute: '00' };
+      }
+      return { frequency: 'custom', customCron: trimmed, dayOfWeek: 'Monday', hour: '9:00 AM', minute: '00' };
+    }
+
+    function scheduleToCron(schedule) {
+      if (!schedule) return '0 9 * * *';
+      const freq = schedule.frequency;
+      if (freq === 'hourly') return '0 * * * *';
+      if (freq === 'custom') return schedule.customCron?.trim() || '0 9 * * *';
+
+      let h24 = 9;
+      if (schedule.hour) {
+        const m = String(schedule.hour).match(/^(\d{1,2}):\d{2}\s*(AM|PM)$/i);
+        if (m) {
+          const val = parseInt(m[1], 10);
+          const ampm = m[2].toUpperCase();
+          if (ampm === 'AM') {
+            h24 = (val === 12) ? 0 : val;
+          } else {
+            h24 = (val === 12) ? 12 : val + 12;
+          }
+        }
+      }
+
+      if (freq === 'daily') {
+        return `0 ${h24} * * *`;
+      }
+      if (freq === 'weekly') {
+        const days = { 'Sunday': 0, 'Monday': 1, 'Tuesday': 2, 'Wednesday': 3, 'Thursday': 4, 'Friday': 5, 'Saturday': 6 };
+        const dow = days[schedule.dayOfWeek] ?? 1;
+        return `0 ${h24} * * ${dow}`;
+      }
+      return '0 9 * * *';
+    }
+
     function getCurrentUrlConvoId() {
       const match = window.location.pathname.match(/\/c\/([a-f0-9-]+)/i);
       return match ? match[1] : null;
@@ -3072,6 +3170,7 @@
         nativeMenuPointerDownHandler = (e) => {
           const btn = e.target?.closest?.('button[aria-label="More options"]');
           const projBtn = e.target?.closest?.('button[aria-label="Project options"]');
+          const sidecarKebab = e.target?.closest?.('[data-testid="sidecar-kebab"]');
           if (btn) {
             const row = btn.closest('[data-testid="conversation-row-sidebar"]');
             if (row) {
@@ -3085,6 +3184,8 @@
             activeNativeProjectId = activeNativeProjectObj?.id || null;
             activeNativeConvoId = null;
             lastProjectActionTime = Date.now();
+          } else if (sidecarKebab) {
+            activeSidecarRow = sidecarKebab.closest('[data-testid="sidecar-row"]');
           } else {
             // 点击侧边栏筛选按钮、新建按钮或其他任意非对话/项目选项区域，立即清空活跃状态，防止状态残留污染其他菜单
             activeNativeConvoId = null;
@@ -3665,6 +3766,255 @@
               });
             });
             menu.appendChild(itemDelAll);
+          }
+
+          // 3. 确认是否是 Scheduled Tasks 定时任务操作菜单
+          const isScheduledTaskMenu = menu.querySelector('[data-testid="sidecar-action-restart"]') ||
+                                      menu.querySelector('[data-testid="sidecar-action-delete"]');
+          if (isScheduledTaskMenu) {
+            menu.setAttribute('data-agy-enhanced', 'true');
+            if (USER_CONFIG.ENABLE_EDIT_SCHEDULED_TASKS !== false) {
+              enhanceScheduledTaskMenu(menu);
+            }
+          }
+        }
+
+        function enhanceScheduledTaskMenu(menu) {
+          if (!menu || menu.querySelector('[data-testid="sidecar-action-edit"]')) return;
+
+          // 确定目标定时任务行元素
+          let row = null;
+          const triggerId = menu.getAttribute('aria-labelledby');
+          if (triggerId) {
+            const triggerEl = document.getElementById(triggerId);
+            if (triggerEl) row = triggerEl.closest('[data-testid="sidecar-row"]');
+          }
+          if (!row && activeSidecarRow) {
+            row = activeSidecarRow;
+          }
+          if (!row) {
+            row = document.querySelector('[data-testid="sidecar-row"]');
+          }
+          if (!row) return;
+
+          const itemEdit = document.createElement('div');
+          itemEdit.setAttribute('role', 'menuitem');
+          itemEdit.setAttribute('data-testid', 'sidecar-action-edit');
+          itemEdit.tabIndex = -1;
+          itemEdit.className = 'w-full pr-2 pl-2 [&:has(>svg:first-child)]:pl-1.5 [&:has(>[data-icon]:first-child)]:pl-1.5 text-left text-[13px] cursor-pointer outline-none no-focus-ring transition-colors select-none flex items-center rounded-md py-1 gap-1.5 focus:bg-secondary focus:text-foreground text-secondary-foreground agy-native-enhanced';
+          itemEdit.innerHTML = `
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 -960 960 960" fill="currentColor" class="shrink-0 text-secondary-foreground"><path d="M200-200h57l391-391-57-57-391 391v57Zm-80 80v-170l528-527q12-11 26.5-17t30.5-6q16 0 31 6t26 18l55 56q12 11 17.5 26t5.5 30q0 16-5.5 30.5T817-647L290-120H120Zm640-584-56-56 56 56Zm-141 85-28-29 57 57-29-28Z"/></svg>
+            <span>Edit</span>
+          `;
+          itemEdit.addEventListener('mouseenter', () => {
+            itemEdit.setAttribute('data-highlighted', '');
+            itemEdit.classList.add('bg-secondary', 'text-foreground');
+          });
+          itemEdit.addEventListener('mouseleave', () => {
+            itemEdit.removeAttribute('data-highlighted');
+            itemEdit.classList.remove('bg-secondary', 'text-foreground');
+          });
+
+          itemEdit.addEventListener('click', (ev) => {
+            ev.stopPropagation();
+            ev.preventDefault();
+            document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+            openScheduledTaskEditor(row);
+          });
+
+          const restartItem = menu.querySelector('[data-testid="sidecar-action-restart"]');
+          if (restartItem) {
+            restartItem.parentElement.insertBefore(itemEdit, restartItem);
+          } else {
+            menu.prepend(itemEdit);
+          }
+        }
+
+        function openScheduledTaskEditor(row) {
+          if (!row) return;
+          const sidecar = getSidecarFromRow(row);
+          const sidecarId = sidecar?.sidecarId || row.getAttribute('data-sidecar-id');
+          if (!sidecar && !sidecarId) {
+            showNotification('Unable to retrieve task information');
+            return;
+          }
+
+          const displayName = sidecar?.config?.displayName || sidecarId;
+          const prompt = sidecar?.config?.args?.[3] || '';
+          const cron = sidecar?.config?.args?.[0] || '0 9 * * *';
+          const projectId = sidecar?.userConfig?.projectScope?.value || '';
+
+          const editingTask = {
+            oldSidecarId: sidecarId,
+            displayName,
+            prompt,
+            cron,
+            projectId,
+            scheduleObj: cronToSchedule(cron)
+          };
+
+          const newBtn = document.querySelector('[data-testid="sidecar-new-button"]');
+          if (!newBtn) {
+            showNotification('Unable to find Add Scheduled Task button');
+            return;
+          }
+          newBtn.click();
+
+          let attempts = 0;
+          const checkInterval = setInterval(() => {
+            attempts++;
+            const modal = document.querySelector('[data-testid="new-sidecar-modal"]');
+            if (modal) {
+              clearInterval(checkInterval);
+              setupEditModal(modal, editingTask);
+            } else if (attempts > 40) {
+              clearInterval(checkInterval);
+            }
+          }, 40);
+        }
+
+        function setupEditModal(modal, editingTask) {
+          if (!modal) return;
+          modal.setAttribute('data-agy-editing-task', editingTask.oldSidecarId);
+
+          const dialog = modal.closest('[role="dialog"]') || modal.closest('.fixed');
+          const titleEl = dialog?.querySelector('h1, h2');
+          if (titleEl) {
+            titleEl.textContent = 'Edit Scheduled Task';
+          }
+
+          const child = modal.firstElementChild;
+          const cKey = Object.keys(child || {}).find(k => k.startsWith('__reactFiber$'));
+          let curr = child ? child[cKey] : null;
+          let formProps = null;
+          while (curr) {
+            if (curr.memoizedProps?.onNameChange && curr.memoizedProps?.onPromptChange) {
+              formProps = curr.memoizedProps;
+              break;
+            }
+            curr = curr.return;
+          }
+
+          if (formProps) {
+            try { formProps.onNameChange(editingTask.displayName); } catch (_) {}
+            try { formProps.onPromptChange(editingTask.prompt); } catch (_) {}
+            if (editingTask.projectId) {
+              try { formProps.onProjectChange(editingTask.projectId); } catch (_) {}
+            }
+            if (editingTask.scheduleObj) {
+              try { formProps.onScheduleChange(editingTask.scheduleObj); } catch (_) {}
+            }
+          }
+
+          const setNativeVal = (el, val) => {
+            if (!el) return;
+            try {
+              const proto = el instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
+              const setter = Object.getOwnPropertyDescriptor(proto, 'value')?.set;
+              setter?.call(el, val);
+              el.dispatchEvent(new Event('input', { bubbles: true }));
+              el.dispatchEvent(new Event('change', { bubbles: true }));
+            } catch (_) {}
+          };
+
+          const nameInput = modal.querySelector('[data-testid="new-sidecar-name"]');
+          const promptInput = modal.querySelector('[data-testid="new-sidecar-prompt"]');
+          if (nameInput) setNativeVal(nameInput, editingTask.displayName);
+          if (promptInput) setNativeVal(promptInput, editingTask.prompt);
+
+          const submitBtn = modal.querySelector('[data-testid="new-sidecar-submit"]');
+          if (submitBtn) {
+            submitBtn.textContent = 'Save Changes';
+            submitBtn.removeAttribute('disabled');
+            submitBtn.classList.remove('pointer-events-none', 'disabled:opacity-50');
+
+            const ensureSubmitValid = () => {
+              const errSpan = modal.querySelector('.text-red-500');
+              if (errSpan && errSpan.textContent.includes(editingTask.oldSidecarId)) {
+                errSpan.style.display = 'none';
+              }
+              if (submitBtn && nameInput?.value?.trim() && promptInput?.value?.trim()) {
+                submitBtn.removeAttribute('disabled');
+                submitBtn.classList.remove('pointer-events-none', 'disabled:opacity-50');
+              }
+            };
+            ensureSubmitValid();
+            const obs = new MutationObserver(ensureSubmitValid);
+            obs.observe(modal, { childList: true, subtree: true, attributes: true });
+
+            const cleanupModal = () => {
+              try { obs.disconnect(); } catch (_) {}
+              window.removeEventListener('keydown', onEscKey, true);
+            };
+
+            const onEscKey = (e) => {
+              if (e.key === 'Escape') cleanupModal();
+            };
+            window.addEventListener('keydown', onEscKey, true);
+
+            const onSaveSubmit = async (ev) => {
+              ev.stopPropagation();
+              ev.preventDefault();
+
+              const newName = nameInput ? nameInput.value.trim() : editingTask.displayName;
+              const newPrompt = promptInput ? promptInput.value.trim() : editingTask.prompt;
+              if (!newName) {
+                showNotification('Task name cannot be empty');
+                return;
+              }
+              if (!newPrompt) {
+                showNotification('Prompt cannot be empty');
+                return;
+              }
+
+              const projHidden = modal.querySelector('input[id*="hidden-input"]');
+              const newProjectId = projHidden?.value || formProps?.project || editingTask.projectId || '';
+              const currentSched = formProps?.schedule || editingTask.scheduleObj;
+              const cronStr = scheduleToCron(currentSched);
+
+              const newSidecarId = newName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || newName;
+
+              submitBtn.textContent = 'Saving...';
+              submitBtn.setAttribute('disabled', 'true');
+
+              const ext = getExtensibilityService();
+              if (!ext) {
+                showNotification('Extensibility service not available');
+                submitBtn.textContent = 'Save Changes';
+                submitBtn.removeAttribute('disabled');
+                return;
+              }
+
+              const newConfig = {
+                mode: { case: 'builtin', value: 'schedule' },
+                args: [cronStr, 'agentapi', 'new-conversation', newPrompt],
+                description: '',
+                displayName: newName
+              };
+
+              try {
+                if (newSidecarId === editingTask.oldSidecarId) {
+                  await ext.updateSidecar(editingTask.oldSidecarId, newConfig);
+                  if (newProjectId) {
+                    try { await ext.setSidecarProject(editingTask.oldSidecarId, newProjectId); } catch (_) {}
+                  }
+                } else {
+                  await ext.deleteSidecar(editingTask.oldSidecarId);
+                  await ext.createSidecar(newSidecarId, newConfig, newProjectId);
+                }
+
+                showNotification(`Scheduled task "${newName}" updated successfully`);
+                cleanupModal();
+                window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', bubbles: true }));
+              } catch (err) {
+                console.error('[agy-enhancer] update scheduled task error:', err);
+                showNotification(`Failed to save task: ${err?.message || err}`);
+                submitBtn.textContent = 'Save Changes';
+                submitBtn.removeAttribute('disabled');
+              }
+            };
+
+            submitBtn.addEventListener('click', onSaveSubmit, true);
           }
         }
 
