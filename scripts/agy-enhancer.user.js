@@ -186,6 +186,8 @@ window.__AGY_BRANCH_NAME__ = "edit_scheduled_task_setting";
   let onHeartbeatWorktreeManagement = null;
   let onHeartbeatPinnedSummary = null;
   let onHeartbeatHistoryProjectsCollapser = null;
+  let historyLinkClickHandler = null;
+  let historyPopstateHandler = null;
   let isAiTurnPinned = null;
   let toggleAiTurnPin = null;
   let pinAiTurnFromSelection = null;
@@ -252,6 +254,14 @@ window.__AGY_BRANCH_NAME__ = "edit_scheduled_task_setting";
     if (pinPopstateHandler) {
       window.removeEventListener('popstate', pinPopstateHandler, true);
       pinPopstateHandler = null;
+    }
+    if (historyLinkClickHandler) {
+      document.removeEventListener('click', historyLinkClickHandler, true);
+      historyLinkClickHandler = null;
+    }
+    if (historyPopstateHandler) {
+      window.removeEventListener('popstate', historyPopstateHandler, true);
+      historyPopstateHandler = null;
     }
     if (docClickHandler) {
       document.removeEventListener('click', docClickHandler);
@@ -6636,7 +6646,9 @@ window.__AGY_BRANCH_NAME__ = "edit_scheduled_task_setting";
         const res = originalPushState.apply(this, args);
         handleConvoSwitch();
         try { const cid = getCurrentUrlConvoId(); if (cid) window.__AGY_APPLY_FORK_RENAME__?.(cid); } catch (e) {}
-        try { onHeartbeatHistoryProjectsCollapser?.(); } catch (e) {}
+        if (USER_CONFIG.ENABLE_COLLAPSE_HISTORY_PROJECTS) {
+          try { onHeartbeatHistoryProjectsCollapser?.(); } catch (e) {}
+        }
         return res;
       };
 
@@ -6648,7 +6660,9 @@ window.__AGY_BRANCH_NAME__ = "edit_scheduled_task_setting";
         const res = originalReplaceState.apply(this, args);
         handleConvoSwitch();
         try { const cid = getCurrentUrlConvoId(); if (cid) window.__AGY_APPLY_FORK_RENAME__?.(cid); } catch (e) {}
-        try { onHeartbeatHistoryProjectsCollapser?.(); } catch (e) {}
+        if (USER_CONFIG.ENABLE_COLLAPSE_HISTORY_PROJECTS) {
+          try { onHeartbeatHistoryProjectsCollapser?.(); } catch (e) {}
+        }
         return res;
       };
 
@@ -10090,6 +10104,8 @@ window.__AGY_BRANCH_NAME__ = "edit_scheduled_task_setting";
 
     // ==================== 13. 历史会话默认折叠项目列表 (Conversation History Default Collapse) ====================
     function initHistoryProjectsCollapser() {
+      if (!USER_CONFIG.ENABLE_COLLAPSE_HISTORY_PROJECTS) return null;
+
       let hasAutoCollapsedHistory = false;
 
       function isHistoryPage() {
@@ -10097,7 +10113,7 @@ window.__AGY_BRANCH_NAME__ = "edit_scheduled_task_setting";
       }
 
       function checkAndCollapseHistoryProjects() {
-        if (USER_CONFIG.ENABLE_COLLAPSE_HISTORY_PROJECTS === false) return;
+        if (!USER_CONFIG.ENABLE_COLLAPSE_HISTORY_PROJECTS) return;
 
         if (!isHistoryPage()) {
           hasAutoCollapsedHistory = false;
@@ -10153,7 +10169,8 @@ window.__AGY_BRANCH_NAME__ = "edit_scheduled_task_setting";
       }
 
       // 监听侧边栏/导航链接点击，当用户重新点击进入 Conversation History 时重置标志
-      document.addEventListener('click', (e) => {
+      historyLinkClickHandler = (e) => {
+        if (!USER_CONFIG.ENABLE_COLLAPSE_HISTORY_PROJECTS) return;
         const link = e.target.closest?.('a[href="/history"], a[href^="/history/"], button[data-testid="conversation-history-btn"]');
         if (link) {
           hasAutoCollapsedHistory = false;
@@ -10161,9 +10178,11 @@ window.__AGY_BRANCH_NAME__ = "edit_scheduled_task_setting";
           setTimeout(checkAndCollapseHistoryProjects, 350);
           setTimeout(checkAndCollapseHistoryProjects, 700);
         }
-      }, true);
+      };
+      document.addEventListener('click', historyLinkClickHandler, true);
 
-      const popstateHandler = () => {
+      historyPopstateHandler = () => {
+        if (!USER_CONFIG.ENABLE_COLLAPSE_HISTORY_PROJECTS) return;
         if (!isHistoryPage()) {
           hasAutoCollapsedHistory = false;
         } else {
@@ -10172,7 +10191,7 @@ window.__AGY_BRANCH_NAME__ = "edit_scheduled_task_setting";
           setTimeout(checkAndCollapseHistoryProjects, 700);
         }
       };
-      window.addEventListener('popstate', popstateHandler, true);
+      window.addEventListener('popstate', historyPopstateHandler, true);
 
       // 初次挂载检查
       checkAndCollapseHistoryProjects();
@@ -10188,7 +10207,7 @@ window.__AGY_BRANCH_NAME__ = "edit_scheduled_task_setting";
     if (USER_CONFIG.ENABLE_BLOCK_CHAT_BOTTOM_BUTTON !== false) initBlockChatBottomButton();
     if (USER_CONFIG.ENABLE_WORKTREE_MANAGEMENT !== false) initWorktreeManagement();
     if (USER_CONFIG.ENABLE_PINNED_SUMMARY !== false) initPinnedSummarySystem();
-    if (USER_CONFIG.ENABLE_COLLAPSE_HISTORY_PROJECTS !== false) {
+    if (USER_CONFIG.ENABLE_COLLAPSE_HISTORY_PROJECTS) {
       onHeartbeatHistoryProjectsCollapser = initHistoryProjectsCollapser();
     }
 
