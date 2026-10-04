@@ -3269,6 +3269,8 @@ window.__AGY_BRANCH_NAME__ = "edit_scheduled_task_setting";
             }
           };
 
+          const term = getWorkspaceTerm();
+
           // 0. 明确过滤并排除筛选与排序菜单 (Filter / Group By / Sort)
           // 侧边栏顶部的筛选排序菜单绝对不属于对话或项目操作菜单，坚决不作任何增强
           const isFilterOrSortMenu = menu.textContent.includes('Group By') ||
@@ -3441,20 +3443,23 @@ window.__AGY_BRANCH_NAME__ = "edit_scheduled_task_setting";
             });
             menu.appendChild(itemCopyId);
 
+            const term = getWorkspaceTerm();
+
             // 4. 复制工作区/分支名称 (存在工作区时展示)
             if (workspaceName) {
               const itemCopyWorkspace = document.createElement('div');
               itemCopyWorkspace.setAttribute('role', 'menuitem');
               itemCopyWorkspace.className = 'w-full px-2 py-1 text-left text-[13px] cursor-pointer outline-none transition-colors select-none flex items-center gap-1.5 rounded-md hover:bg-secondary hover:text-foreground text-secondary-foreground agy-native-enhanced';
+              const branchOrWsLabel = term.singular === 'Workspace' ? 'Branch' : 'Workspace';
               itemCopyWorkspace.innerHTML = `
                 <svg width="16" height="16" viewBox="0 -960 960 960" fill="currentColor" class="text-secondary-foreground shrink-0"><path d="M360-240q-33 0-56.5-23.5T280-320v-480q0-33 23.5-56.5T360-880h360q33 0 56.5 23.5T800-800v480q0 33-23.5 56.5T720-240H360Zm0-80h360v-480H360v480ZM200-80q-33 0-56.5-23.5T120-160v-560h80v560h440v80H200Zm160-240v-480 480Z"/></svg>
-                <span>Copy Workspace Name</span>
+                <span>Copy ${branchOrWsLabel} Name</span>
               `;
               itemCopyWorkspace.addEventListener('click', async (ev) => {
                 ev.stopPropagation();
                 ev.preventDefault();
                 document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
-                await copyToClipboard(workspaceName, `Copied workspace name: "${workspaceName}"`);
+                await copyToClipboard(workspaceName, `Copied ${branchOrWsLabel.toLowerCase()} name: "${workspaceName}"`);
               });
               menu.appendChild(itemCopyWorkspace);
             }
@@ -3466,13 +3471,13 @@ window.__AGY_BRANCH_NAME__ = "edit_scheduled_task_setting";
               itemCopyProject.className = 'w-full px-2 py-1 text-left text-[13px] cursor-pointer outline-none transition-colors select-none flex items-center gap-1.5 rounded-md hover:bg-secondary hover:text-foreground text-secondary-foreground agy-native-enhanced';
               itemCopyProject.innerHTML = `
                 <svg width="16" height="16" viewBox="0 -960 960 960" fill="currentColor" class="text-secondary-foreground shrink-0"><path d="M360-240q-33 0-56.5-23.5T280-320v-480q0-33 23.5-56.5T360-880h360q33 0 56.5 23.5T800-800v480q0 33-23.5 56.5T720-240H360Zm0-80h360v-480H360v480ZM200-80q-33 0-56.5-23.5T120-160v-560h80v560h440v80H200Zm160-240v-480 480Z"/></svg>
-                <span>Copy Project Name</span>
+                <span>Copy ${term.singular} Name</span>
               `;
               itemCopyProject.addEventListener('click', async (ev) => {
                 ev.stopPropagation();
                 ev.preventDefault();
                 document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
-                await copyToClipboard(projectName, `Copied project name: "${projectName}"`);
+                await copyToClipboard(projectName, `Copied ${term.singular.toLowerCase()} name: "${projectName}"`);
               });
               menu.appendChild(itemCopyProject);
             }
@@ -3511,7 +3516,7 @@ window.__AGY_BRANCH_NAME__ = "edit_scheduled_task_setting";
               itemProject.className = 'w-full px-2 py-1 text-left text-[13px] cursor-pointer outline-none transition-colors select-none flex items-center gap-1.5 rounded-md hover:bg-secondary hover:text-foreground text-secondary-foreground agy-native-enhanced';
               itemProject.innerHTML = `
                 <svg width="16" height="16" viewBox="0 -960 960 960" fill="currentColor" class="text-secondary-foreground shrink-0"><path d="M160-160q-33 0-56.5-23.5T80-240v-480q0-33 23.5-56.5T160-800h240l80 80h320q33 0 56.5 23.5T880-640v400q0 33-23.5 56.5T800-160H160Zm0-80h640v-400H447l-80-80H160v480Zm0 0v-480 480Z"/></svg>
-                <span>Open Project Folder</span>
+                <span>Open ${term.singular} Folder</span>
               `;
               itemProject.addEventListener('click', (ev) => {
                 ev.stopPropagation();
@@ -3519,9 +3524,9 @@ window.__AGY_BRANCH_NAME__ = "edit_scheduled_task_setting";
                 document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
                 if (paths?.targetProjectUri) {
                   openLocalFolder(paths.targetProjectUri, 'project');
-                  showNotification(paths.isBranch ? 'Opened branch folder' : 'Opened project folder');
+                  showNotification(paths.isBranch ? 'Opened branch folder' : `Opened ${term.singular.toLowerCase()} folder`);
                 } else {
-                  showNotification('Failed to resolve project folder');
+                  showNotification(`Failed to resolve ${term.singular.toLowerCase()} folder`);
                 }
               });
 
@@ -3712,13 +3717,13 @@ window.__AGY_BRANCH_NAME__ = "edit_scheduled_task_setting";
               itemCopyProject.className = 'w-full px-2 py-1 text-left text-[13px] cursor-pointer outline-none transition-colors select-none flex items-center gap-1.5 rounded-md hover:bg-secondary hover:text-foreground text-secondary-foreground agy-native-enhanced agy-copy-project-name';
               itemCopyProject.innerHTML = `
                 <svg width="16" height="16" viewBox="0 -960 960 960" fill="currentColor" class="text-secondary-foreground shrink-0"><path d="M360-240q-33 0-56.5-23.5T280-320v-480q0-33 23.5-56.5T360-880h360q33 0 56.5 23.5T800-800v480q0 33-23.5 56.5T720-240H360Zm0-80h360v-480H360v480ZM200-80q-33 0-56.5-23.5T120-160v-560h80v560h440v80H200Zm160-240v-480 480Z"/></svg>
-                <span>Copy Project Name</span>
+                <span>Copy ${term.singular} Name</span>
               `;
               itemCopyProject.addEventListener('click', async (ev) => {
                 ev.stopPropagation();
                 ev.preventDefault();
                 document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
-                await copyToClipboard(projectName, `Copied project name: "${projectName}"`);
+                await copyToClipboard(projectName, `Copied ${term.singular.toLowerCase()} name: "${projectName}"`);
               });
 
               const dividerTop = document.createElement('div');
@@ -3805,14 +3810,14 @@ window.__AGY_BRANCH_NAME__ = "edit_scheduled_task_setting";
               itemProjectFolder.className = 'w-full px-2 py-1 text-left text-[13px] cursor-pointer outline-none transition-colors select-none flex items-center gap-1.5 rounded-md hover:bg-secondary hover:text-foreground text-secondary-foreground agy-native-enhanced';
               itemProjectFolder.innerHTML = `
                 <svg width="16" height="16" viewBox="0 -960 960 960" fill="currentColor" class="text-secondary-foreground shrink-0"><path d="M160-160q-33 0-56.5-23.5T80-240v-480q0-33 23.5-56.5T160-800h240l80 80h320q33 0 56.5 23.5T880-640v400q0 33-23.5 56.5T800-160H160Zm0-80h640v-400H447l-80-80H160v480Zm0 0v-480 480Z"/></svg>
-                <span>Open Project Folder</span>
+                <span>Open ${term.singular} Folder</span>
               `;
               itemProjectFolder.addEventListener('click', (ev) => {
                 ev.stopPropagation();
                 ev.preventDefault();
                 document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
                 openLocalFolder(targetUri, 'project');
-                showNotification('Opened project folder');
+                showNotification(`Opened ${term.singular.toLowerCase()} folder`);
               });
 
               menu.appendChild(divider);
@@ -7965,9 +7970,10 @@ window.__AGY_BRANCH_NAME__ = "edit_scheduled_task_setting";
             }
           },
           {
-            label: 'Open Project Folder',
+            label: `Open ${getWorkspaceTerm().singular} Folder`,
             icon: 'folder',
             action: async () => {
+              const term = getWorkspaceTerm();
               try {
                 const res = await fetch('http://127.0.0.1:37210/api/open-folder', {
                   method: 'POST',
@@ -7975,12 +7981,12 @@ window.__AGY_BRANCH_NAME__ = "edit_scheduled_task_setting";
                   body: JSON.stringify({ folderUri, branchName, projectName, projectId })
                 }).then(r => r.json());
                 if (res.success) {
-                  showNotification?.('Opened project folder in Explorer');
+                  showNotification?.(`Opened ${term.singular.toLowerCase()} folder in Explorer`);
                 } else {
-                  showNotification?.('Project folder does not exist');
+                  showNotification?.(`${term.singular} folder does not exist`);
                 }
               } catch (e) {
-                showNotification?.('Project folder does not exist');
+                showNotification?.(`${term.singular} folder does not exist`);
               }
             }
           },
