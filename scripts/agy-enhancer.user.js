@@ -3114,6 +3114,27 @@ window.__AGY_BRANCH_NAME__ = "hide_file_explorer_setting";
             return;
           }
 
+          // 0.1 识别并屏蔽单项孤立的 "Copy" 菜单（如项目总栏目右键弹出的无意义 Copy 浮层）
+          if (USER_CONFIG.ENABLE_BLOCK_SIDEBAR_COPY !== false) {
+            const rawText = (menu.textContent || '').trim().toLowerCase();
+            const items = Array.from(menu.querySelectorAll('[role="menuitem"], button, div')).filter(el => {
+              const t = (el.textContent || '').trim();
+              return (el.getAttribute('role') === 'menuitem' || el.tagName === 'BUTTON') && t.length > 0;
+            });
+            const isSingleCopy = (items.length <= 1 && (rawText === 'copy' || rawText === '复制')) ||
+                                 (items.length > 0 && items.every(it => {
+                                   const t = (it.textContent || '').trim().toLowerCase();
+                                   return t === 'copy' || t === '复制';
+                                 }));
+            if (isSingleCopy) {
+              menu.setAttribute('data-agy-enhanced', 'true');
+              const popper = menu.closest('[data-radix-popper-content-wrapper]') || menu.parentElement || menu;
+              popper.style.setProperty('display', 'none', 'important');
+              popper.remove();
+              return;
+            }
+          }
+
           // 1. 确认是否是对话操作菜单（具有原生重命名或删除项）
           const hasConvoActions = menu.querySelector('[data-testid="conversation-delete-menu-item"]') ||
                                   menu.querySelector('[data-testid="conversation-rename-menu-item"]');
@@ -5455,6 +5476,27 @@ window.__AGY_BRANCH_NAME__ = "hide_file_explorer_setting";
             dismissUniversalContextMenu();
             lastContextMenuPos = { x: e.clientX, y: e.clientY, time: Date.now() };
             btn.click();
+            return;
+          }
+        }
+
+        // ------------------ 屏蔽左侧栏非卡片区域 / 总栏目头部无意义的原生 Copy 右键 ------------------
+        if (USER_CONFIG.ENABLE_BLOCK_SIDEBAR_COPY !== false) {
+          const isSidebarHeader = !!e.target?.closest?.(
+            '[data-testid="section-header"], [data-title="Projects"], [data-title="Conversations"], button[aria-label="Display Options"], button[aria-label*="project" i], button[aria-label*="folder" i]'
+          );
+          const hasProjectOptions = !!(projectCard?.closest('.group\\/header') || projectCard?.parentElement?.parentElement)?.querySelector('button[aria-label="Project options"]');
+          const isRealProjectCard = projectCard && hasProjectOptions;
+          const inLeftSidebar = isSidebarHeader || (
+            !isRightSidebar(e.target) &&
+            !e.target.closest?.('main, [role="main"], [data-testid="conversation-view"], #artifacts-sidebar, [aria-label="Artifact Viewer"], input, textarea, [contenteditable="true"]') &&
+            e.clientX < Math.min(450, window.innerWidth * 0.4)
+          );
+
+          if (isSidebarHeader || (inLeftSidebar && !convoRow && !isRealProjectCard && !archiveProject && !archiveConvo)) {
+            e.preventDefault();
+            e.stopPropagation();
+            dismissUniversalContextMenu();
             return;
           }
         }
