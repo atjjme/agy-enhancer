@@ -657,7 +657,7 @@ namespace AgyEnhancer
                 try
                 {
                     HttpWebRequest req = (HttpWebRequest)WebRequest.Create("http://127.0.0.1:37210/api/shutdown");
-                    req.Timeout = 600;
+                    req.Timeout = 1500;
                     req.Method = "GET";
                     using (HttpWebResponse resp = (HttpWebResponse)req.GetResponse()) {}
                 }

@@ -124,20 +124,46 @@ process.on('unhandledRejection', (reason) => {
   log('[UnhandledRejection]', reason?.stack || reason?.message || reason);
 });
 
+let isShuttingDown = false;
+let connectInterval = null;
+let heartbeatInterval = null;
+
+function stopPollingTimers() {
+  if (connectInterval) {
+    clearInterval(connectInterval);
+    connectInterval = null;
+  }
+  if (heartbeatInterval) {
+    clearInterval(heartbeatInterval);
+    heartbeatInterval = null;
+  }
+  if (watchDebounceTimer) {
+    clearTimeout(watchDebounceTimer);
+    watchDebounceTimer = null;
+  }
+  if (configDebounceTimer) {
+    clearTimeout(configDebounceTimer);
+    configDebounceTimer = null;
+  }
+}
+
 function gracefulDaemonExit() {
+  if (isShuttingDown) return;
+  isShuttingDown = true;
   log('[Daemon Exit] Received termination signal, performing graceful cleanup...');
+  stopPollingTimers();
   try { cleanupEnhancer(); } catch (_) {}
   try { manageSystemTray(false); } catch (_) {}
 }
 
 process.on('SIGINT', () => {
   gracefulDaemonExit();
-  process.exit(0);
+  setTimeout(() => process.exit(0), 100);
 });
 
 process.on('SIGTERM', () => {
   gracefulDaemonExit();
-  process.exit(0);
+  setTimeout(() => process.exit(0), 100);
 });
 
 log('=== Antigravity Enhancer daemon started ===');
@@ -274,7 +300,7 @@ function manageSystemTray(enable) {
       }
     } else {
       try {
-        execSync('powershell -NoProfile -Command "Get-Process agy-tray -ErrorAction SilentlyContinue | Stop-Process -Force"', { timeout: 3000 });
+        execSync('taskkill /f /im agy-tray.exe', { stdio: 'ignore' });
         log('[SystemTray] Terminated agy-tray.exe, completely freed memory');
       } catch (e) {}
     }
@@ -433,7 +459,7 @@ function getActivePortInfo() {
 }
 
 async function connectAndAttach() {
-  if (isConnecting) return;
+  if (isShuttingDown || isConnecting) return;
   // 若现有 WebSocket 连接保持畅通，直接复用，完全免去读取磁盘文件和 HTTP 请求
   const wsOpenState = (typeof WebSocket !== 'undefined' && WebSocket.OPEN) ? WebSocket.OPEN : 1;
   if (currentWs && currentWs.readyState === wsOpenState) {
@@ -679,6 +705,7 @@ async function connectAndAttach() {
             }
           }
         } else if (data.id === 77777) {
+          if (isShuttingDown) return;
           // 心跳探测返回：如果探测出错或异常，切勿当成未就绪而乱注
           if (data.error || data.result?.exceptionDetails) return;
           const isLoaded = data.result?.result?.value === true;
@@ -692,10 +719,11 @@ async function connectAndAttach() {
     };
 
     ws.onclose = () => {
-      log(`CDP disconnected, reconnecting...`);
       currentWs = null;
       currentPageId = null;
       isConnecting = false;
+      if (isShuttingDown) return;
+      log(`CDP disconnected, reconnecting...`);
       setTimeout(connectAndAttach, 100);
     };
 
@@ -710,6 +738,7 @@ async function connectAndAttach() {
 
 // 主动巡检心跳：毫秒级响应初次加载与登录跳转，已加载状态下保持静默
 function checkPageReadiness() {
+  if (isShuttingDown) return;
   if (!currentWs || currentWs.readyState !== WebSocket.OPEN) return;
   if (Date.now() - lastHeartbeatInjectTime < 4000) return;
 
@@ -772,6 +801,7 @@ function getCurrentBranchInfo() {
 }
 
 function injectEnhancer(ws) {
+  if (isShuttingDown) return;
   const targetWs = ws || currentWs;
   const wsOpen = (typeof WebSocket !== 'undefined' && WebSocket.OPEN) ? WebSocket.OPEN : 1;
   if (!targetWs || targetWs.readyState !== wsOpen) return;
@@ -820,7 +850,7 @@ function cleanupEnhancer(ws) {
       window.__AGY_ENHANCER_LOADED__ = false;
     })()`;
     targetWs.send(JSON.stringify({
-      id: Math.floor(Math.random() * 100000),
+      id: 99999,
       method: 'Runtime.evaluate',
       params: { expression: code, returnByValue: true }
     }));
@@ -831,18 +861,19 @@ function cleanupEnhancer(ws) {
 }
 
 // 平衡轮询：未连接时每 1200ms 检测一次连接状态，每 3500ms 主动探测页面就绪状态
-setInterval(connectAndAttach, 1200);
-setInterval(checkPageReadiness, 3500);
+connectInterval = setInterval(connectAndAttach, 1200);
+heartbeatInterval = setInterval(checkPageReadiness, 3500);
 connectAndAttach();
 
 // 监听源码变动：修改保存时防抖同步到窗口
 let watchDebounceTimer = null;
 try {
   fs.watch(enhancerFile, (eventType) => {
+    if (isShuttingDown) return;
     if (eventType === 'change' && currentWs) {
       if (watchDebounceTimer) clearTimeout(watchDebounceTimer);
       watchDebounceTimer = setTimeout(() => {
-        injectEnhancer(currentWs);
+        if (!isShuttingDown) injectEnhancer(currentWs);
       }, 100);
     }
   });
@@ -854,11 +885,14 @@ function setupConfigFileWatcher(targetFile) {
   try {
     if (fs.existsSync(targetFile)) {
       fs.watch(targetFile, () => {
+        if (isShuttingDown) return;
         if (currentWs) {
           if (configDebounceTimer) clearTimeout(configDebounceTimer);
           configDebounceTimer = setTimeout(() => {
-            log('[Config Watcher] Configuration updated on disk, reinjecting enhancer...');
-            injectEnhancer(currentWs);
+            if (!isShuttingDown) {
+              log('[Config Watcher] Configuration updated on disk, reinjecting enhancer...');
+              injectEnhancer(currentWs);
+            }
           }, 120);
         }
       });
@@ -2505,14 +2539,21 @@ rmdir /s /q "${cleanTemp}" >nul 2>&1
 
     if (urlPath === '/api/shutdown') {
       log('[Shutdown API] Received graceful shutdown request.');
+      isShuttingDown = true;
+      stopPollingTimers();
       cleanupEnhancer();
-      manageSystemTray(false);
+
       res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
       res.end(JSON.stringify({ success: true, message: 'Shutting down gracefully...' }));
+
+      try { manageSystemTray(false); } catch (_) {}
+
       setTimeout(() => {
         log('[Shutdown API] Exiting daemon process gracefully.');
+        try { if (currentWs) currentWs.close(); } catch (_) {}
+        try { server.close(); } catch (_) {}
         process.exit(0);
-      }, 300);
+      }, 150);
       return;
     }
 
