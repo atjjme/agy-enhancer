@@ -1411,6 +1411,20 @@
             <span class="switch-track"></span>
           </label>
         </div>
+
+        <div class="setting-item-row" data-keywords="conversation history collapse projects 历史会话 默认折叠 项目 文件夹 收起">
+          <div class="item-meta">
+            <div class="item-title-row">
+              <span class="item-title" data-i18n="sw_collapse_history_projects_title">历史会话默认折叠项目列表</span>
+              <span class="item-tag recommended" data-i18n="tag_recommended">体验优化</span>
+            </div>
+            <div class="item-desc" data-i18n="sw_collapse_history_projects_desc">进入 Conversation History（历史会话）页面时，默认将所有项目文件夹折叠收起，避免展开大量对话列表，界面更紧凑清爽。</div>
+          </div>
+          <label class="switch-ui">
+            <input type="checkbox" id="ENABLE_COLLAPSE_HISTORY_PROJECTS">
+            <span class="switch-track"></span>
+          </label>
+        </div>
       </section>
 
       <!-- 3. 分支与工作树分类 Tab (tab-worktree) -->
@@ -1754,6 +1768,8 @@
         sw_smart_unread_desc: '真实触底阅读后才将消息标记为已读，避免切换经过被误标已读。关停后可停止定时器节省资源。',
         sw_pinned_summary_title: 'AI 回复钉选与画中画速览 (PiP)',
         sw_pinned_summary_desc: '在 AI 回复卡片上提供钉选按钮，在顶部生成悬浮胶囊与独立可拖拽速览卡片，边看长代码边继续提问。',
+        sw_collapse_history_projects_title: '历史会话默认折叠项目列表',
+        sw_collapse_history_projects_desc: '进入 Conversation History（历史会话）页面时，默认将所有项目文件夹折叠收起，避免展开大量对话列表，界面更紧凑清爽。',
         sec_worktree_title: '分支与工作树',
         sec_worktree_subtitle: '一键分叉会话、清理失效分支与配置跨分支同步',
         sw_fork_convo_title: '会话切片分叉与分支创建 (Create fork)',
@@ -1867,6 +1883,8 @@
         sw_smart_unread_desc: '觸底閱讀後才標記已讀，避免誤判。',
         sw_pinned_summary_title: 'AI 回覆釘選與畫中畫速覽 (PiP)',
         sw_pinned_summary_desc: '在頂部生成懸浮膠囊與畫中畫速覽窗，邊看長文邊提問。',
+        sw_collapse_history_projects_title: '歷史對話預設摺疊專案列表',
+        sw_collapse_history_projects_desc: '進入 Conversation History（歷史對話）頁面時，預設將所有專案資料夾摺疊收起，避免展開大量對話列表，介面更緊湊清爽。',
         sec_worktree_title: '分支與工作樹',
         sec_worktree_subtitle: '一鍵分叉對話與清理失效分支',
         sw_fork_convo_title: '對話切片分叉與分支建立 (Create fork)',
@@ -1980,6 +1998,8 @@
         sw_smart_unread_desc: 'Marks as read only upon genuine bottom view, preventing false reads.',
         sw_pinned_summary_title: 'Pinned Summaries & Picture-in-Picture (PiP)',
         sw_pinned_summary_desc: 'Pins key AI responses with top capsules and draggable PiP preview window.',
+        sw_collapse_history_projects_title: 'Default Collapse Projects in Conversation History',
+        sw_collapse_history_projects_desc: 'Automatically collapse all project folders by default when navigating to Conversation History, keeping the view clean and compact.',
         sec_worktree_title: 'Worktree & Branch',
         sec_worktree_subtitle: 'Fork conversations and synchronize build caches',
         sw_fork_convo_title: 'Conversation Forking & Branching (Create fork)',
@@ -2174,6 +2194,7 @@
       'ENABLE_SCROLL_PERSISTENCE',
       'ENABLE_SMART_UNREAD',
       'ENABLE_PINNED_SUMMARY',
+      'ENABLE_COLLAPSE_HISTORY_PROJECTS',
       'ENABLE_FORK_CONVERSATION',
       'ENABLE_EDIT_SCHEDULED_TASKS',
       'ENABLE_WORKTREE_MANAGEMENT',
@@ -2197,6 +2218,7 @@
       ENABLE_SCROLL_PERSISTENCE: true,
       ENABLE_SMART_UNREAD: false, // 智能未读默认关闭
       ENABLE_PINNED_SUMMARY: true,
+      ENABLE_COLLAPSE_HISTORY_PROJECTS: true,
       ENABLE_FORK_CONVERSATION: true,
       ENABLE_EDIT_SCHEDULED_TASKS: true,
       ENABLE_WORKTREE_MANAGEMENT: true,

@@ -54,6 +54,9 @@ window.__AGY_BRANCH_NAME__ = "edit_scheduled_task_setting";
     // 【定时任务编辑】是否开启 Scheduled Tasks 定时任务快捷编辑与重新修改（在列表项菜单中添加 Edit 选项）
     ENABLE_EDIT_SCHEDULED_TASKS: true,
 
+    // 【历史会话折叠】是否在打开 Conversation History 页面时默认折叠所有项目列表
+    ENABLE_COLLAPSE_HISTORY_PROJECTS: true,
+
     // 【工作树管理】是否开启分支与工作树快捷管理、悬停删除与右键菜单（受全局右键与独立开关控制）
     ENABLE_WORKTREE_MANAGEMENT: true,
 
@@ -182,6 +185,7 @@ window.__AGY_BRANCH_NAME__ = "edit_scheduled_task_setting";
   let onHeartbeatSmartUnread = null;
   let onHeartbeatWorktreeManagement = null;
   let onHeartbeatPinnedSummary = null;
+  let onHeartbeatHistoryProjectsCollapser = null;
   let isAiTurnPinned = null;
   let toggleAiTurnPin = null;
   let pinAiTurnFromSelection = null;
@@ -228,6 +232,7 @@ window.__AGY_BRANCH_NAME__ = "edit_scheduled_task_setting";
     onHeartbeatSmartUnread = null;
     onHeartbeatWorktreeManagement = null;
     onHeartbeatPinnedSummary = null;
+    onHeartbeatHistoryProjectsCollapser = null;
     isAiTurnPinned = null;
     toggleAiTurnPin = null;
     pinAiTurnFromSelection = null;
@@ -6631,6 +6636,7 @@ window.__AGY_BRANCH_NAME__ = "edit_scheduled_task_setting";
         const res = originalPushState.apply(this, args);
         handleConvoSwitch();
         try { const cid = getCurrentUrlConvoId(); if (cid) window.__AGY_APPLY_FORK_RENAME__?.(cid); } catch (e) {}
+        try { onHeartbeatHistoryProjectsCollapser?.(); } catch (e) {}
         return res;
       };
 
@@ -6642,6 +6648,7 @@ window.__AGY_BRANCH_NAME__ = "edit_scheduled_task_setting";
         const res = originalReplaceState.apply(this, args);
         handleConvoSwitch();
         try { const cid = getCurrentUrlConvoId(); if (cid) window.__AGY_APPLY_FORK_RENAME__?.(cid); } catch (e) {}
+        try { onHeartbeatHistoryProjectsCollapser?.(); } catch (e) {}
         return res;
       };
 
@@ -10081,6 +10088,62 @@ window.__AGY_BRANCH_NAME__ = "edit_scheduled_task_setting";
       syncAllPinButtons();
     }
 
+    // ==================== 13. 历史会话默认折叠项目列表 (Conversation History Default Collapse) ====================
+    function initHistoryProjectsCollapser() {
+      let hasAutoCollapsedHistory = false;
+
+      function isHistoryPage() {
+        return window.location.pathname === '/history' || window.location.pathname.startsWith('/history/');
+      }
+
+      function checkAndCollapseHistoryProjects() {
+        if (USER_CONFIG.ENABLE_COLLAPSE_HISTORY_PROJECTS === false) return;
+
+        if (!isHistoryPage()) {
+          hasAutoCollapsedHistory = false;
+          return;
+        }
+
+        if (hasAutoCollapsedHistory) return;
+
+        const cards = document.querySelectorAll('button[data-project-card="true"]');
+        if (cards.length === 0) return; // 项目卡片尚未挂载
+
+        const expandedCards = document.querySelectorAll('button[data-project-card="true"][aria-expanded="true"]');
+        if (expandedCards.length > 0) {
+          expandedCards.forEach(btn => {
+            try { btn.click(); } catch (_) {}
+          });
+        }
+
+        hasAutoCollapsedHistory = true;
+      }
+
+      // 监听侧边栏/导航链接点击，当用户重新点击进入 Conversation History 时重置标志
+      document.addEventListener('click', (e) => {
+        const link = e.target.closest?.('a[href="/history"], a[href^="/history/"], button[data-testid="conversation-history-btn"]');
+        if (link) {
+          hasAutoCollapsedHistory = false;
+          setTimeout(checkAndCollapseHistoryProjects, 80);
+          setTimeout(checkAndCollapseHistoryProjects, 250);
+        }
+      }, true);
+
+      const popstateHandler = () => {
+        if (!isHistoryPage()) {
+          hasAutoCollapsedHistory = false;
+        } else {
+          setTimeout(checkAndCollapseHistoryProjects, 60);
+        }
+      };
+      window.addEventListener('popstate', popstateHandler, true);
+
+      // 初次挂载检查
+      checkAndCollapseHistoryProjects();
+
+      return checkAndCollapseHistoryProjects;
+    }
+
     if (USER_CONFIG.ENABLE_PROJECT_ARCHIVER !== false) initProjectArchiver();
     if (USER_CONFIG.ENABLE_CONTEXT_MENU !== false) initContextMenuSupport();
     if (USER_CONFIG.ENABLE_SCROLL_POSITION_PERSISTENCE !== false) initConversationScrollPersistence();
@@ -10089,6 +10152,9 @@ window.__AGY_BRANCH_NAME__ = "edit_scheduled_task_setting";
     if (USER_CONFIG.ENABLE_BLOCK_CHAT_BOTTOM_BUTTON !== false) initBlockChatBottomButton();
     if (USER_CONFIG.ENABLE_WORKTREE_MANAGEMENT !== false) initWorktreeManagement();
     if (USER_CONFIG.ENABLE_PINNED_SUMMARY !== false) initPinnedSummarySystem();
+    if (USER_CONFIG.ENABLE_COLLAPSE_HISTORY_PROJECTS !== false) {
+      onHeartbeatHistoryProjectsCollapser = initHistoryProjectsCollapser();
+    }
 
     // ==================== 14. 全局统一后台心跳调度器 (Unified Heartbeat Dispatcher) ====================
     let heartbeatTickCount = 0;
@@ -10123,11 +10189,16 @@ window.__AGY_BRANCH_NAME__ = "edit_scheduled_task_setting";
       if (USER_CONFIG.ENABLE_PINNED_SUMMARY && onHeartbeatPinnedSummary) {
         onHeartbeatPinnedSummary();
       }
+
+      // 模块 6：历史会话默认折叠项目列表（每 1000ms）
+      if (USER_CONFIG.ENABLE_COLLAPSE_HISTORY_PROJECTS && onHeartbeatHistoryProjectsCollapser) {
+        onHeartbeatHistoryProjectsCollapser();
+      }
     }
 
     addInterval(heartbeatDispatcher, 1000);
 
-    console.log('[agy-enhancer] Page navigator, project archiver, context menu, scroll memory, unread tracker, quote interceptor, and worktree manager ready!');
+    console.log('[agy-enhancer] Page navigator, project archiver, context menu, scroll memory, unread tracker, quote interceptor, history collapser, and worktree manager ready!');
   }
 
   bootstrap();
