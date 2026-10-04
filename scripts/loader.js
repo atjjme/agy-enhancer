@@ -2032,6 +2032,15 @@ function startEmbeddedSettingsServer() {
         fs.createReadStream(filePath).pipe(res);
         return;
       }
+    if (req.method === 'GET' && (urlPath === '/api/ping' || urlPath === '/ping')) {
+      if (isShuttingDown) {
+        res.writeHead(503, { 'Content-Type': 'application/json' });
+        res.end('{"ok":false,"shuttingDown":true}');
+        return;
+      }
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end('{"ok":true}');
+      return;
     }
 
     if (req.method === 'GET' && urlPath === '/api/config') {

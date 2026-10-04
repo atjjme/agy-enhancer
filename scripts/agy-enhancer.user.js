@@ -10342,6 +10342,41 @@ window.__AGY_BRANCH_NAME__ = "edit_scheduled_task_setting";
       if (USER_CONFIG.ENABLE_COLLAPSE_HISTORY_PROJECTS && onHeartbeatHistoryProjectsCollapser) {
         onHeartbeatHistoryProjectsCollapser();
       }
+
+      // 模块 7：守护服务存活性巡检（若后台服务离线/被杀/退出，前端自动自我清理并拔除所有增强元素）
+      const isUserscript = typeof GM_getValue === 'function' || typeof GM_info !== 'undefined';
+      if (!isUserscript && heartbeatTickCount % 3 === 0) {
+        checkDaemonLiveness();
+      }
+    }
+
+    let consecutivePingFailures = 0;
+    let isCheckingPing = false;
+    async function checkDaemonLiveness() {
+      if (isCheckingPing) return;
+      isCheckingPing = true;
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 1200);
+        const res = await fetch('http://127.0.0.1:37210/api/ping', { signal: controller.signal, cache: 'no-store' });
+        clearTimeout(timeoutId);
+        if (res.ok) {
+          consecutivePingFailures = 0;
+        } else {
+          consecutivePingFailures++;
+        }
+      } catch (err) {
+        consecutivePingFailures++;
+      } finally {
+        isCheckingPing = false;
+      }
+
+      if (consecutivePingFailures >= 2) {
+        console.warn('[agy-enhancer] Daemon service is offline. Performing self-cleanup to leave no trace in client.');
+        if (typeof window.__AGY_ENHANCER_CLEANUP__ === 'function') {
+          window.__AGY_ENHANCER_CLEANUP__();
+        }
+      }
     }
 
     addInterval(heartbeatDispatcher, 1000);
