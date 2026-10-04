@@ -2531,16 +2531,16 @@
             dd.innerHTML = `
               <div class="agy-dd-item copy-name">
                 <svg width="16" height="16" viewBox="0 -960 960 960" fill="currentColor"><path d="M360-240q-33 0-56.5-23.5T280-320v-480q0-33 23.5-56.5T360-880h360q33 0 56.5 23.5T800-800v480q0 33-23.5 56.5T720-240H360Zm0-80h360v-480H360v480ZM200-80q-33 0-56.5-23.5T120-160v-560h80v560h440v80H200Zm160-240v-480 480Z"/></svg>
-                <span>Copy Project Name</span>
+                <span>Copy ${term.singular} Name</span>
               </div>
               <div class="agy-dd-item settings">
                 <svg width="16" height="16" viewBox="0 -960 960 960" fill="currentColor"><path d="m370-80-16-128q-13-5-24.5-12T307-235l-119 50L78-375l103-78q-1-7-1-13.5v-27q0-6.5 1-13.5L78-585l110-190 119 50q11-8 23-15t24-12l16-128h220l16 128q13 5 24.5 12t22.5 15l119-50 110 190-103 78q1 7 1 13.5v27q0 6.5-1 13.5l103 78-110 190-119-50q-11 8-23 15t-24 12L590-80H370Zm70-80h79l14-106q31-8 57.5-23.5T639-327l99 41 39-68-86-65q5-14 7-29.5t2-31.5q0-16-2-31.5t-7-29.5l86-65-39-68-99 42q-22-23-48.5-38.5T533-694l-13-106h-79l-14 106q-31 8-57.5 23.5T321-633l-99-41-39 68 86 64q-5 15-7 30t-2 32q0 16 2 31t7 30l-86 65 39 68 99-42q22 23 48.5 38.5T427-266l13 106Zm40-220q42 0 71-29t29-71q0-42-29-71t-71-29q-42 0-71 29t-29 71q0 42 29 71t71 29Z"/></svg>
-                <span>Project Settings</span>
+                <span>${term.singular} Settings</span>
               </div>
               <div class="agy-dd-divider"></div>
               <div class="agy-dd-item open-project-folder">
                 <svg width="16" height="16" viewBox="0 -960 960 960" fill="currentColor"><path d="M160-160q-33 0-56.5-23.5T80-240v-480q0-33 23.5-56.5T160-800h240l80 80h320q33 0 56.5 23.5T880-640v400q0 33-23.5 56.5T800-160H160Zm0-80h640v-400H447l-80-80H160v480Zm0 0v-480 480Z"/></svg>
-                <span>Open Project Folder</span>
+                <span>Open ${term.singular} Folder</span>
               </div>
               <div class="agy-dd-divider"></div>
               <div class="agy-dd-item restore">
@@ -2554,7 +2554,7 @@
               <div class="agy-dd-divider"></div>
               <div class="agy-dd-item delete" style="color: #ef4444;">
                 <svg width="16" height="16" viewBox="0 -960 960 960" fill="currentColor"><path d="M280-120q-33 0-56.5-23.5T200-200v-520h-40v-80h200v-40h240v40h200v80h-40v520q0 33-23.5 56.5T680-120H280Zm400-600H280v520h400v-520ZM360-280h80v-360h-80v360Zm160 0h80v-360h-80v360ZM280-720v520-520Z"/></svg>
-                <span>Delete Project</span>
+                <span>Delete ${term.singular}</span>
               </div>
             `;
 
@@ -2571,7 +2571,7 @@
             dd.querySelector('.agy-dd-item.copy-name')?.addEventListener('click', async () => {
               closeDropdown();
               await navigator.clipboard.writeText(p.project.name);
-              showNotification(`Copied project name: "${p.project.name}"`);
+              showNotification(`Copied ${term.singular.toLowerCase()} name: "${p.project.name}"`);
             });
 
             dd.querySelector('.agy-dd-item.settings')?.addEventListener('click', () => {
@@ -2586,16 +2586,16 @@
               const uri = getProjectFolderUri(p);
               if (uri) {
                 openLocalFolder(uri, 'project');
-                showNotification('Opened project folder');
+                showNotification(`Opened ${term.singular.toLowerCase()} folder`);
               } else {
-                showNotification('Failed to resolve project folder');
+                showNotification(`Failed to resolve ${term.singular.toLowerCase()} folder`);
               }
             });
 
             dd.querySelector('.agy-dd-item.restore')?.addEventListener('click', async () => {
               closeDropdown();
               await pm.updateProject({ ...p.project, archived: false });
-              showNotification(`Project [${p.project.name}] restored`);
+              showNotification(`${term.singular} [${p.project.name}] restored`);
               renderArchivePanel(pm);
               updateArchiveUI();
             });
@@ -2609,10 +2609,10 @@
 
             dd.querySelector('.agy-dd-item.delete')?.addEventListener('click', async () => {
               closeDropdown();
-              if (confirm(`Are you sure you want to delete project [${p.project.name}]?`)) {
+              if (confirm(`Are you sure you want to delete ${term.singular.toLowerCase()} [${p.project.name}]?`)) {
                 if (pm.deleteProject) {
                   await pm.deleteProject(p.project.id);
-                  showNotification(`Project [${p.project.name}] deleted`);
+                  showNotification(`${term.singular} [${p.project.name}] deleted`);
                   renderArchivePanel(pm);
                   updateArchiveUI();
                 }
@@ -2723,10 +2723,6 @@
                 <svg width="16" height="16" viewBox="0 -960 960 960" fill="currentColor"><path d="M200-120v-680h360l16 80h224v400H520l-16-80H280v280h-80Zm300-440Zm86 160h134v-240H510l-16-80H280v240h290l16 80Z"/></svg>
                 <span>${c.markedAsUnread ? 'Mark as Seen' : 'Mark Unread'}</span>
               </div>
-              <div class="agy-dd-item convo-delete" style="color: #ef4444;">
-                <svg width="16" height="16" viewBox="0 -960 960 960" fill="currentColor"><path d="M280-120q-33 0-56.5-23.5T200-200v-520h-40v-80h200v-40h240v40h200v80h-40v520q0 33-23.5 56.5T680-120H280Zm400-600H280v520h400v-520ZM360-280h80v-360h-80v360Zm160 0h80v-360h-80v360ZM280-720v520-520Z"/></svg>
-                <span>Delete</span>
-              </div>
               <div class="agy-dd-divider"></div>
               <div class="agy-dd-item copy-convo-name">
                 <svg width="16" height="16" viewBox="0 -960 960 960" fill="currentColor"><path d="M360-240q-33 0-56.5-23.5T280-320v-480q0-33 23.5-56.5T360-880h360q33 0 56.5 23.5T800-800v480q0 33-23.5 56.5T720-240H360Zm0-80h360v-480H360v480ZM200-80q-33 0-56.5-23.5T120-160v-560h80v560h440v80H200Zm160-240v-480 480Z"/></svg>
@@ -2743,7 +2739,7 @@
               </div>` : ''}
               <div class="agy-dd-item copy-project-name">
                 <svg width="16" height="16" viewBox="0 -960 960 960" fill="currentColor"><path d="M360-240q-33 0-56.5-23.5T280-320v-480q0-33 23.5-56.5T360-880h360q33 0 56.5 23.5T800-800v480q0 33-23.5 56.5T720-240H360Zm0-80h360v-480H360v480ZM200-80q-33 0-56.5-23.5T120-160v-560h80v560h440v80H200Zm160-240v-480 480Z"/></svg>
-                <span>Copy Project Name</span>
+                <span>Copy ${term.singular} Name</span>
               </div>
               <div class="agy-dd-divider"></div>
               <div class="agy-dd-item open-convo-folder">
@@ -2752,7 +2748,12 @@
               </div>
               <div class="agy-dd-item open-project-folder">
                 <svg width="16" height="16" viewBox="0 -960 960 960" fill="currentColor"><path d="M160-160q-33 0-56.5-23.5T80-240v-480q0-33 23.5-56.5T160-800h240l80 80h320q33 0 56.5 23.5T880-640v400q0 33-23.5 56.5T800-160H160Zm0-80h640v-400H447l-80-80H160v480Zm0 0v-480 480Z"/></svg>
-                <span>Open Project Folder</span>
+                <span>Open ${term.singular} Folder</span>
+              </div>
+              <div class="agy-dd-divider"></div>
+              <div class="agy-dd-item convo-delete" style="color: #ef4444;">
+                <svg width="16" height="16" viewBox="0 -960 960 960" fill="currentColor"><path d="M280-120q-33 0-56.5-23.5T200-200v-520h-40v-80h200v-40h240v40h200v80h-40v520q0 33-23.5 56.5T680-120H280Zm400-600H280v520h400v-520ZM360-280h80v-360h-80v360Zm160 0h80v-360h-80v360ZM280-720v520-520Z"/></svg>
+                <span>Delete</span>
               </div>
             `;
 
