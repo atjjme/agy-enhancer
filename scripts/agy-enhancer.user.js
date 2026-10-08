@@ -25,7 +25,7 @@
   'use strict';
 
   // ==================== 0. 用户自定义配置区 ====================
-  const INJECTED_CONFIG = (typeof window.__AGY_CONFIG__ === 'object' && window.__AGY_CONFIG__) ? window.__AGY_CONFIG__ : {};
+  const INJECTED_CONFIG = (typeof window !== 'undefined' && typeof window.__AGY_CONFIG__ === 'object' && window.__AGY_CONFIG__) ? window.__AGY_CONFIG__ : {};
 
   const USER_CONFIG = Object.assign({
     // 【总控开关】增强器全局总开关

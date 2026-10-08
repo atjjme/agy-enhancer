@@ -2031,6 +2031,8 @@ function startEmbeddedSettingsServer() {
         fs.createReadStream(filePath).pipe(res);
         return;
       }
+    }
+
     if (req.method === 'GET' && (urlPath === '/api/ping' || urlPath === '/ping')) {
       if (isShuttingDown) {
         res.writeHead(503, { 'Content-Type': 'application/json' });
