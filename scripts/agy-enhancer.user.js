@@ -1511,7 +1511,7 @@ window.__AGY_BRANCH_NAME__ = "fix_page_down_scroll";
     }
     stopNavScrollAnimation = stopEnhancerAnimation;
 
-    function animateScrollTo(container, targetTop, duration = 220) {
+    function animateScrollTo(container, targetTop, requestedDuration = null, onComplete = null) {
       if (!container) return;
       stopEnhancerAnimation();
 
@@ -1522,16 +1522,26 @@ window.__AGY_BRANCH_NAME__ = "fix_page_down_scroll";
 
       if (Math.abs(distance) < 2) {
         container.scrollTop = clampedTarget;
+        if (typeof onComplete === 'function') onComplete();
         return;
       }
 
+      // 动态时长拟合：短距离翻页约 380ms，长距离滚到底部约 480ms~520ms，完美还原 Chromium 原生平滑滚动质感
+      const duration = requestedDuration || Math.min(520, Math.max(380, Math.round(300 + Math.sqrt(Math.abs(distance)) * 3.6)));
+
       const startTime = performance.now();
-      const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
+
+      // 原生级 easeInOutCubic 曲线：柔和起步、平稳滑行、柔和减速触底
+      const easeInOutCubic = (t) => {
+        return t < 0.5
+          ? 4 * t * t * t
+          : 1 - Math.pow(-2 * t + 2, 3) / 2;
+      };
 
       function step(currentTime) {
         const elapsed = currentTime - startTime;
         const progress = Math.min(elapsed / duration, 1);
-        const ease = easeOutCubic(progress);
+        const ease = easeInOutCubic(progress);
 
         isInternalEnhancerScroll = true;
         container.scrollTop = Math.round(startTop + distance * ease);
@@ -1543,14 +1553,17 @@ window.__AGY_BRANCH_NAME__ = "fix_page_down_scroll";
           currentScrollAnimation = null;
           setTimeout(() => {
             isInternalEnhancerScroll = false;
-          }, 50);
+          }, 60);
+          if (typeof onComplete === 'function') {
+            onComplete();
+          }
         }
       }
 
       currentScrollAnimation = requestAnimationFrame(step);
     }
 
-    function performEnhancerScroll(container, scrollOptions) {
+    function performEnhancerScroll(container, scrollOptions, onComplete = null) {
       if (!container) {
         console.warn('[agy-enhancer] performEnhancerScroll: container is null!');
         return;
@@ -1564,7 +1577,7 @@ window.__AGY_BRANCH_NAME__ = "fix_page_down_scroll";
       const isSmooth = scrollOptions && scrollOptions.behavior === 'smooth';
 
       if (isSmooth && typeof targetTop === 'number') {
-        animateScrollTo(container, targetTop, 220);
+        animateScrollTo(container, targetTop, null, onComplete);
         return;
       }
 
@@ -1584,6 +1597,7 @@ window.__AGY_BRANCH_NAME__ = "fix_page_down_scroll";
         setTimeout(() => {
           isInternalEnhancerScroll = false;
         }, 80);
+        if (typeof onComplete === 'function') onComplete();
       }
     }
 
@@ -1674,18 +1688,19 @@ window.__AGY_BRANCH_NAME__ = "fix_page_down_scroll";
         }
       }
 
-      performEnhancerScroll(targetContainer, { top: targetTop, behavior: 'smooth' });
-
-      // 2. 持续多帧高度校准，应对长列表流式渲染及底部动态撑开
-      [140, 300, 520, 800].forEach((ms) => {
-        setTimeout(() => {
-          if (targetContainer && targetContainer.isConnected) {
-            const currentMax = Math.max(0, targetContainer.scrollHeight - targetContainer.clientHeight);
-            if (currentMax > 0 && targetContainer.scrollTop < currentMax - 30) {
-              performEnhancerScroll(targetContainer, { top: currentMax, behavior: 'smooth' });
+      // 执行主平滑滚动动画，完整播放动画（不被定时器截断），并在动画结束后静默微校准
+      performEnhancerScroll(targetContainer, { top: targetTop, behavior: 'smooth' }, () => {
+        // 动画自然播放完毕后，检查后续是否有流式渲染动态撑开高度，若有则进行无感补位
+        [80, 240].forEach((delay) => {
+          setTimeout(() => {
+            if (targetContainer && targetContainer.isConnected) {
+              const currentMax = Math.max(0, targetContainer.scrollHeight - targetContainer.clientHeight);
+              if (currentMax > 0 && targetContainer.scrollTop < currentMax - 15) {
+                targetContainer.scrollTop = currentMax;
+              }
             }
-          }
-        }, ms);
+          }, delay);
+        });
       });
     }
 
