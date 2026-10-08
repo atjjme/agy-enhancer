@@ -29,7 +29,7 @@ function getAppVersion() {
       }
     }
   } catch (_) {}
-  return 'v1.5.7';
+  return 'v1.5.8';
 }
 
 const defaultAppData = process.env.APPDATA || (process.env.USERPROFILE ? path.join(process.env.USERPROFILE, 'AppData', 'Roaming') : 'C:\\ProgramData');
