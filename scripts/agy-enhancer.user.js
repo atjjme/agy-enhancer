@@ -168,6 +168,7 @@ window.__AGY_BRANCH_NAME__ = "fix_page_down_scroll";
   let windowUnloadHandler = null;
   let interruptRestoration = null;
   let isInternalEnhancerScroll = false;
+  let stopNavScrollAnimation = null;
   let quoteObserver = null;
   let quoteSelectionHandler = null;
   let contextMenuDocClickHandler = null;
@@ -341,6 +342,10 @@ window.__AGY_BRANCH_NAME__ = "fix_page_down_scroll";
       windowUnloadHandler = null;
     }
     interruptRestoration = null;
+    if (stopNavScrollAnimation) {
+      try { stopNavScrollAnimation(); } catch(e) {}
+      stopNavScrollAnimation = null;
+    }
     isInternalEnhancerScroll = false;
     notifyNewPromptSubmitted = null;
     notifyPromptSubmittedForUnread = null;
@@ -1406,8 +1411,8 @@ window.__AGY_BRANCH_NAME__ = "fix_page_down_scroll";
         }
       }
 
-      // 3. 在当前分屏内部寻找任意高度 > 200 的可滚动区域
-      if (root !== document && root.querySelector) {
+      // 3. 在当前分屏/根节点内部寻找任意高度 > 200 的可滚动区域
+      if (root && root.querySelector) {
         const anyScrollable = root.querySelector('.overflow-y-auto');
         if (anyScrollable && anyScrollable.clientHeight > 200) {
           return anyScrollable;
@@ -1415,11 +1420,10 @@ window.__AGY_BRANCH_NAME__ = "fix_page_down_scroll";
       }
 
       // 4. 全局降级兜底
-      if (root !== document) {
-        const fallback = document.querySelector('.scrollbar-hide.md-table-bleed') ||
-                         document.querySelector('.overflow-y-auto.md-table-bleed');
-        if (fallback && fallback.clientHeight > 200) return fallback;
-      }
+      const fallback = document.querySelector('.scrollbar-hide.md-table-bleed') ||
+                       document.querySelector('.overflow-y-auto.md-table-bleed') ||
+                       document.querySelector('.overflow-y-auto');
+      if (fallback && fallback.clientHeight > 200) return fallback;
 
       return null;
     }
@@ -1497,18 +1501,85 @@ window.__AGY_BRANCH_NAME__ = "fix_page_down_scroll";
 
     // ==================== 4. 纸张式智能导航：向上 / 向下 ====================
 
-    function performEnhancerScroll(container, scrollOptions) {
+    let currentScrollAnimation = null;
+
+    function stopEnhancerAnimation() {
+      if (currentScrollAnimation) {
+        cancelAnimationFrame(currentScrollAnimation);
+        currentScrollAnimation = null;
+      }
+    }
+    stopNavScrollAnimation = stopEnhancerAnimation;
+
+    function animateScrollTo(container, targetTop, duration = 220) {
       if (!container) return;
+      stopEnhancerAnimation();
+
+      const startTop = container.scrollTop;
+      const maxScroll = Math.max(0, container.scrollHeight - container.clientHeight);
+      const clampedTarget = Math.max(0, Math.min(targetTop, maxScroll));
+      const distance = clampedTarget - startTop;
+
+      if (Math.abs(distance) < 2) {
+        container.scrollTop = clampedTarget;
+        return;
+      }
+
+      const startTime = performance.now();
+      const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
+
+      function step(currentTime) {
+        const elapsed = currentTime - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+        const ease = easeOutCubic(progress);
+
+        isInternalEnhancerScroll = true;
+        container.scrollTop = Math.round(startTop + distance * ease);
+
+        if (progress < 1) {
+          currentScrollAnimation = requestAnimationFrame(step);
+        } else {
+          container.scrollTop = clampedTarget;
+          currentScrollAnimation = null;
+          setTimeout(() => {
+            isInternalEnhancerScroll = false;
+          }, 50);
+        }
+      }
+
+      currentScrollAnimation = requestAnimationFrame(step);
+    }
+
+    function performEnhancerScroll(container, scrollOptions) {
+      if (!container) {
+        console.warn('[agy-enhancer] performEnhancerScroll: container is null!');
+        return;
+      }
+      console.log('[agy-enhancer] performEnhancerScroll target:', container.tagName, container.className, 'options:', scrollOptions, 'curScrollTop:', container.scrollTop, 'scrollHeight:', container.scrollHeight);
       if (typeof interruptRestoration === 'function') {
         interruptRestoration('nav button scroll');
       }
+
+      const targetTop = typeof scrollOptions === 'number' ? scrollOptions : scrollOptions?.top;
+      const isSmooth = scrollOptions && scrollOptions.behavior === 'smooth';
+
+      if (isSmooth && typeof targetTop === 'number') {
+        animateScrollTo(container, targetTop, 220);
+        return;
+      }
+
+      stopEnhancerAnimation();
       isInternalEnhancerScroll = true;
       try {
-        if (originalElementScrollTo) {
+        if (typeof targetTop === 'number') {
+          container.scrollTop = targetTop;
+        } else if (originalElementScrollTo) {
           originalElementScrollTo.call(container, scrollOptions);
         } else {
           container.scrollTo(scrollOptions);
         }
+      } catch(err) {
+        console.error('[agy-enhancer] performEnhancerScroll error:', err);
       } finally {
         setTimeout(() => {
           isInternalEnhancerScroll = false;
@@ -1593,24 +1664,25 @@ window.__AGY_BRANCH_NAME__ = "fix_page_down_scroll";
 
       console.log('[agy-enhancer] Double click: Navigating to bottom');
 
-      // 1. 目标位置计算：优先使用最后一轮问答实际测量的 footScrollTop 与 scrollHeight 的最大值
-      let targetTop = targetContainer.scrollHeight;
+      // 1. 目标位置计算：优先使用最后一轮问答实际测量的 footScrollTop 与当前最大可滚动范围的最大值
+      const maxScroll = Math.max(0, targetContainer.scrollHeight - targetContainer.clientHeight);
+      let targetTop = maxScroll;
       if (pages && pages.length > 0) {
         const lastPage = pages[pages.length - 1];
         if (typeof lastPage.footScrollTop === 'number' && !isNaN(lastPage.footScrollTop)) {
-          targetTop = Math.max(lastPage.footScrollTop, targetContainer.scrollHeight);
+          targetTop = Math.max(lastPage.footScrollTop, maxScroll);
         }
       }
 
       performEnhancerScroll(targetContainer, { top: targetTop, behavior: 'smooth' });
 
       // 2. 持续多帧高度校准，应对长列表流式渲染及底部动态撑开
-      [120, 280, 480, 750].forEach((ms) => {
+      [140, 300, 520, 800].forEach((ms) => {
         setTimeout(() => {
           if (targetContainer && targetContainer.isConnected) {
-            const maxScroll = Math.max(0, targetContainer.scrollHeight - targetContainer.clientHeight);
-            if (maxScroll > 0 && targetContainer.scrollTop < maxScroll - 30) {
-              performEnhancerScroll(targetContainer, { top: targetContainer.scrollHeight, behavior: 'smooth' });
+            const currentMax = Math.max(0, targetContainer.scrollHeight - targetContainer.clientHeight);
+            if (currentMax > 0 && targetContainer.scrollTop < currentMax - 30) {
+              performEnhancerScroll(targetContainer, { top: currentMax, behavior: 'smooth' });
             }
           }
         }, ms);
@@ -10056,7 +10128,7 @@ window.__AGY_BRANCH_NAME__ = "fix_page_down_scroll";
         isCheckingPing = false;
       }
 
-      if (consecutivePingFailures >= 2) {
+      if (consecutivePingFailures >= 8) {
         console.warn('[agy-enhancer] Daemon service is offline. Performing self-cleanup to leave no trace in client.');
         if (typeof window.__AGY_ENHANCER_CLEANUP__ === 'function') {
           window.__AGY_ENHANCER_CLEANUP__();
