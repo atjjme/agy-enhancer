@@ -1569,13 +1569,37 @@
 
     /**
      * 【直达最底部】逻辑：
-     * 双击向下按钮时，无视当前问答位置，直接平滑滚动到激活分屏的最底端
+     * 双击向下按钮时，无视当前问答位置，直接平滑滚动到当前会话/激活分屏的最底端
      */
     function navigateToBottom() {
-      const container = getChatScrollContainer(getActivePane());
-      if (!container) return;
-      console.log('[agy-enhancer] Double click: Scrolled to bottom of active pane');
-      performEnhancerScroll(container, { top: container.scrollHeight, behavior: 'smooth' });
+      const { container, pages } = getPagesInfo();
+      const targetContainer = container || getChatScrollContainer(getActivePane()) || getChatScrollContainer();
+      if (!targetContainer) return;
+
+      console.log('[agy-enhancer] Double click: Navigating to bottom');
+
+      // 1. 目标位置计算：优先使用最后一轮问答实际测量的 footScrollTop 与 scrollHeight 的最大值
+      let targetTop = targetContainer.scrollHeight;
+      if (pages && pages.length > 0) {
+        const lastPage = pages[pages.length - 1];
+        if (typeof lastPage.footScrollTop === 'number' && !isNaN(lastPage.footScrollTop)) {
+          targetTop = Math.max(lastPage.footScrollTop, targetContainer.scrollHeight);
+        }
+      }
+
+      performEnhancerScroll(targetContainer, { top: targetTop, behavior: 'smooth' });
+
+      // 2. 持续多帧高度校准，应对长列表流式渲染及底部动态撑开
+      [120, 280, 480, 750].forEach((ms) => {
+        setTimeout(() => {
+          if (targetContainer && targetContainer.isConnected) {
+            const maxScroll = Math.max(0, targetContainer.scrollHeight - targetContainer.clientHeight);
+            if (maxScroll > 0 && targetContainer.scrollTop < maxScroll - 30) {
+              performEnhancerScroll(targetContainer, { top: targetContainer.scrollHeight, behavior: 'smooth' });
+            }
+          }
+        }, ms);
+      });
     }
 
     // ==================== 5. 创建右侧常驻双按钮 ====================
@@ -1613,15 +1637,40 @@
           <polyline points="6 9 12 15 18 9"></polyline>
         </svg>
       `;
+
+      let downClickTimer = null;
+      let lastDblActionTime = 0;
+
+      function triggerNavigateToBottom() {
+        if (Date.now() - lastDblActionTime < 300) return;
+        lastDblActionTime = Date.now();
+        if (downClickTimer) {
+          clearTimeout(downClickTimer);
+          downClickTimer = null;
+        }
+        navigateToBottom();
+      }
+
       downBtn.addEventListener('click', (e) => {
         e.preventDefault();
         e.stopPropagation();
-        navigatePageDown();
+
+        if (downClickTimer) {
+          clearTimeout(downClickTimer);
+          downClickTimer = null;
+          triggerNavigateToBottom();
+        } else {
+          downClickTimer = setTimeout(() => {
+            downClickTimer = null;
+            navigatePageDown();
+          }, 240);
+        }
       });
+
       downBtn.addEventListener('dblclick', (e) => {
         e.preventDefault();
         e.stopPropagation();
-        navigateToBottom();
+        triggerNavigateToBottom();
       });
 
       group.appendChild(upBtn);
