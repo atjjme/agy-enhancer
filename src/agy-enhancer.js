@@ -36,9 +36,6 @@
     // 【会话分叉】是否开启会话切片分叉与分支创建功能（独立开关，并在右键菜单中提供入口）
     ENABLE_FORK_CONVERSATION: true,
 
-    // 【历史会话折叠】是否在打开 Conversation History 页面时默认折叠所有项目列表
-    ENABLE_COLLAPSE_HISTORY_PROJECTS: true,
-
     // 【工作树管理】是否开启分支与工作树快捷管理、悬停删除与右键菜单（受全局右键与独立开关控制）
     ENABLE_WORKTREE_MANAGEMENT: true,
 
@@ -167,9 +164,6 @@
   let onHeartbeatSmartUnread = null;
   let onHeartbeatWorktreeManagement = null;
   let onHeartbeatPinnedSummary = null;
-  let onHeartbeatHistoryProjectsCollapser = null;
-  let historyLinkClickHandler = null;
-  let historyPopstateHandler = null;
   let isAiTurnPinned = null;
   let toggleAiTurnPin = null;
   let pinAiTurnFromSelection = null;
@@ -216,7 +210,6 @@
     onHeartbeatSmartUnread = null;
     onHeartbeatWorktreeManagement = null;
     onHeartbeatPinnedSummary = null;
-    onHeartbeatHistoryProjectsCollapser = null;
     isAiTurnPinned = null;
     toggleAiTurnPin = null;
     pinAiTurnFromSelection = null;
@@ -236,14 +229,6 @@
     if (pinPopstateHandler) {
       window.removeEventListener('popstate', pinPopstateHandler, true);
       pinPopstateHandler = null;
-    }
-    if (historyLinkClickHandler) {
-      document.removeEventListener('click', historyLinkClickHandler, true);
-      historyLinkClickHandler = null;
-    }
-    if (historyPopstateHandler) {
-      window.removeEventListener('popstate', historyPopstateHandler, true);
-      historyPopstateHandler = null;
     }
     if (docClickHandler) {
       document.removeEventListener('click', docClickHandler);
@@ -6495,9 +6480,6 @@
         const res = originalPushState.apply(this, args);
         handleConvoSwitch();
         try { const cid = getCurrentUrlConvoId(); if (cid) window.__AGY_APPLY_FORK_RENAME__?.(cid); } catch (e) {}
-        if (USER_CONFIG.ENABLE_COLLAPSE_HISTORY_PROJECTS) {
-          try { onHeartbeatHistoryProjectsCollapser?.(); } catch (e) {}
-        }
         return res;
       };
 
@@ -6509,9 +6491,6 @@
         const res = originalReplaceState.apply(this, args);
         handleConvoSwitch();
         try { const cid = getCurrentUrlConvoId(); if (cid) window.__AGY_APPLY_FORK_RENAME__?.(cid); } catch (e) {}
-        if (USER_CONFIG.ENABLE_COLLAPSE_HISTORY_PROJECTS) {
-          try { onHeartbeatHistoryProjectsCollapser?.(); } catch (e) {}
-        }
         return res;
       };
 
@@ -9952,103 +9931,6 @@
       syncAllPinButtons();
     }
 
-    // ==================== 13. 历史会话默认折叠项目列表 (Conversation History Default Collapse) ====================
-    function initHistoryProjectsCollapser() {
-      if (!USER_CONFIG.ENABLE_COLLAPSE_HISTORY_PROJECTS) return null;
-
-      let hasAutoCollapsedHistory = false;
-
-      function isHistoryPage() {
-        return window.location.pathname === '/history' || window.location.pathname.startsWith('/history/');
-      }
-
-      function checkAndCollapseHistoryProjects() {
-        if (!USER_CONFIG.ENABLE_COLLAPSE_HISTORY_PROJECTS) return;
-
-        if (!isHistoryPage()) {
-          hasAutoCollapsedHistory = false;
-          return;
-        }
-
-        if (hasAutoCollapsedHistory) return;
-
-        // 仅定位 Conversation History 页面主列表容器，绝不触碰左侧边栏 Workspaces
-        const list = document.querySelector('[data-testid="conversation-list-history"]');
-        if (!list) return; // 历史会话列表尚未挂载到 DOM
-
-        // 优先通过 React Fiber Props 进行全量极速折叠（兼容虚拟滚动未渲染在 DOM 中的项）
-        const fKey = Object.keys(list).find(k => k.startsWith('__reactFiber$'));
-        let fiber = list[fKey];
-        while (fiber) {
-          if (fiber.memoizedProps?.onToggleCollapseSection && fiber.memoizedProps?.items?.some(it => it.type === 'header')) {
-            break;
-          }
-          fiber = fiber.return;
-        }
-
-        if (fiber?.memoizedProps?.onToggleCollapseSection) {
-          const props = fiber.memoizedProps;
-          const headers = props.items.filter(it => it.type === 'header');
-          if (headers.length === 0) return; // 列表数据仍在加载中，等待下一次心跳或路由回调
-
-          const uncollapsed = headers.filter(it => !it.isCollapsed);
-          if (uncollapsed.length > 0) {
-            uncollapsed.forEach(h => {
-              try {
-                const sectionId = h.id.startsWith('header-') ? h.id.slice(7) : h.id;
-                props.onToggleCollapseSection(sectionId);
-              } catch (_) {}
-            });
-          }
-          hasAutoCollapsedHistory = true;
-          return;
-        }
-
-        // DOM 兜底：点击 conversation-list-history 内部所有展开的文件夹头部
-        const openHeaders = Array.from(list.querySelectorAll('.cursor-pointer')).filter(el => {
-          const svgPath = el.querySelector('svg path')?.getAttribute('d') || '';
-          return svgPath.includes('552') || svgPath.includes('536'); // 打开状态的文件夹图标
-        });
-
-        if (openHeaders.length > 0) {
-          openHeaders.forEach(h => {
-            try { h.click(); } catch (_) {}
-          });
-          hasAutoCollapsedHistory = true;
-        }
-      }
-
-      // 监听侧边栏/导航链接点击，当用户重新点击进入 Conversation History 时重置标志
-      historyLinkClickHandler = (e) => {
-        if (!USER_CONFIG.ENABLE_COLLAPSE_HISTORY_PROJECTS) return;
-        const link = e.target.closest?.('a[href="/history"], a[href^="/history/"], button[data-testid="conversation-history-btn"]');
-        if (link) {
-          hasAutoCollapsedHistory = false;
-          setTimeout(checkAndCollapseHistoryProjects, 100);
-          setTimeout(checkAndCollapseHistoryProjects, 350);
-          setTimeout(checkAndCollapseHistoryProjects, 700);
-        }
-      };
-      document.addEventListener('click', historyLinkClickHandler, true);
-
-      historyPopstateHandler = () => {
-        if (!USER_CONFIG.ENABLE_COLLAPSE_HISTORY_PROJECTS) return;
-        if (!isHistoryPage()) {
-          hasAutoCollapsedHistory = false;
-        } else {
-          setTimeout(checkAndCollapseHistoryProjects, 100);
-          setTimeout(checkAndCollapseHistoryProjects, 350);
-          setTimeout(checkAndCollapseHistoryProjects, 700);
-        }
-      };
-      window.addEventListener('popstate', historyPopstateHandler, true);
-
-      // 初次挂载检查
-      checkAndCollapseHistoryProjects();
-
-      return checkAndCollapseHistoryProjects;
-    }
-
     if (USER_CONFIG.ENABLE_PROJECT_ARCHIVER !== false) initProjectArchiver();
     if (USER_CONFIG.ENABLE_CONTEXT_MENU !== false) initContextMenuSupport();
     if (USER_CONFIG.ENABLE_SCROLL_POSITION_PERSISTENCE !== false) initConversationScrollPersistence();
@@ -10057,11 +9939,8 @@
     if (USER_CONFIG.ENABLE_BLOCK_CHAT_BOTTOM_BUTTON !== false) initBlockChatBottomButton();
     if (USER_CONFIG.ENABLE_WORKTREE_MANAGEMENT !== false) initWorktreeManagement();
     if (USER_CONFIG.ENABLE_PINNED_SUMMARY !== false) initPinnedSummarySystem();
-    if (USER_CONFIG.ENABLE_COLLAPSE_HISTORY_PROJECTS) {
-      onHeartbeatHistoryProjectsCollapser = initHistoryProjectsCollapser();
-    }
 
-    // ==================== 14. 全局统一后台心跳调度器 (Unified Heartbeat Dispatcher) ====================
+    // ==================== 13. 全局统一后台心跳调度器 (Unified Heartbeat Dispatcher) ====================
     let heartbeatTickCount = 0;
     function heartbeatDispatcher() {
       // 1. 全局打字休眠保护：用户按键输入文字的 350ms 内，整轮后台轮询全部静默避让
@@ -10095,12 +9974,7 @@
         onHeartbeatPinnedSummary();
       }
 
-      // 模块 6：历史会话默认折叠项目列表（每 1000ms）
-      if (USER_CONFIG.ENABLE_COLLAPSE_HISTORY_PROJECTS && onHeartbeatHistoryProjectsCollapser) {
-        onHeartbeatHistoryProjectsCollapser();
-      }
-
-      // 模块 7：守护服务存活性巡检（若后台服务离线/被杀/退出，前端自动自我清理并拔除所有增强元素）
+      // 模块 6：守护服务存活性巡检（若后台服务离线/被杀/退出，前端自动自我清理并拔除所有增强元素）
       const isUserscript = typeof GM_getValue === 'function' || typeof GM_info !== 'undefined';
       if (!isUserscript && heartbeatTickCount % 3 === 0) {
         checkDaemonLiveness();
@@ -10138,7 +10012,7 @@
 
     addInterval(heartbeatDispatcher, 1000);
 
-    console.log('[agy-enhancer] Page navigator, project archiver, context menu, scroll memory, unread tracker, quote interceptor, history collapser, and worktree manager ready!');
+    console.log('[agy-enhancer] Page navigator, project archiver, context menu, scroll memory, unread tracker, quote interceptor, and worktree manager ready!');
   }
 
   bootstrap();
