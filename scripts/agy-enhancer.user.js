@@ -2491,6 +2491,8 @@
         }
 
         const term = getWorkspaceTerm();
+        const prevBody = panel.querySelector('.agy-archive-panel-body');
+        const prevScrollTop = prevBody ? prevBody.scrollTop : 0;
 
         panel.innerHTML = `
           <div class="agy-archive-panel-header">
@@ -2566,6 +2568,11 @@
             }).join('')}
           </div>
         `;
+
+        const newBody = panel.querySelector('.agy-archive-panel-body');
+        if (newBody && prevScrollTop > 0) {
+          newBody.scrollTop = prevScrollTop;
+        }
 
         panel.querySelector('.agy-archive-close')?.addEventListener('click', (e) => {
           e.stopPropagation();
@@ -3073,19 +3080,24 @@
           });
         });
 
-        // 5. 点击项目主条目：展开/折叠对话列表
+        // 5. 点击项目主条目：展开/折叠对话列表（就地切换 class，避免重绘导致滚动条跳回顶部）
         panel.querySelectorAll('.agy-archive-item-header').forEach(itemHeader => {
           itemHeader.addEventListener('click', (e) => {
             if (e.target.closest('.agy-archive-actions')) return;
             e.stopPropagation();
             const id = itemHeader.getAttribute('data-project-id');
-            if (id) {
+            const archiveItem = itemHeader.closest('.agy-archive-item');
+            if (id && archiveItem) {
+              const mainEl = itemHeader.querySelector('.agy-archive-item-main');
               if (expandedProjects.has(id)) {
                 expandedProjects.delete(id);
+                archiveItem.classList.remove('expanded');
+                if (mainEl) mainEl.title = 'Click to expand conversations';
               } else {
                 expandedProjects.add(id);
+                archiveItem.classList.add('expanded');
+                if (mainEl) mainEl.title = 'Click to collapse conversations';
               }
-              renderArchivePanel(pm);
             }
           });
         });
