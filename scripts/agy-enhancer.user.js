@@ -923,10 +923,11 @@ window.__AGY_BRANCH_NAME__ = "fix_archived_chat_display";
         flex-shrink: 0;
         margin-left: 4px;
         user-select: none;
+        transition: opacity 0.15s ease;
       }
       .agy-convo-item:hover .agy-convo-time,
       .agy-convo-item:has(.agy-convo-options-btn.active) .agy-convo-time {
-        display: none;
+        opacity: 0;
       }
       .agy-convo-subtext {
         display: flex;
@@ -955,7 +956,11 @@ window.__AGY_BRANCH_NAME__ = "fix_archived_chat_display";
         margin-left: -2px;
       }
       .agy-convo-options-btn {
-        display: none;
+        position: absolute;
+        right: 6px;
+        top: 50%;
+        transform: translateY(-50%);
+        display: flex;
         align-items: center;
         justify-content: center;
         width: 20px;
@@ -965,14 +970,15 @@ window.__AGY_BRANCH_NAME__ = "fix_archived_chat_display";
         background: transparent;
         color: var(--muted-foreground);
         cursor: pointer;
-        flex-shrink: 0;
-        margin-left: auto;
-        opacity: 0.8;
+        opacity: 0;
+        pointer-events: none;
         transition: background 0.15s ease, color 0.15s ease, opacity 0.15s ease;
+        z-index: 2;
       }
       .agy-convo-item:hover .agy-convo-options-btn,
       .agy-convo-options-btn.active {
-        display: flex;
+        opacity: 0.8;
+        pointer-events: auto;
       }
       .agy-convo-options-btn:hover {
         background: var(--secondary, rgba(125, 125, 125, 0.28));
