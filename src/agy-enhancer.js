@@ -2274,24 +2274,31 @@
             !!s.trajectoryMetadata?.subagentSpec;
           if (isSubagent) return null;
 
-          // 获取工作区/分支名称 (Workspace / Branch Name)
+          // 获取工作区/分支名称 (Workspace / Branch Name)，主分支（如 main/master 等）默认不显示，仅展示特性分支
+          const isMainBranch = (name) => ['main', 'master', 'trunk', 'default'].includes((name || '').trim().toLowerCase());
           let workspaceName = '';
           const workspaces = s.workspaces || s.trajectoryMetadata?.workspaces || [];
           for (const w of workspaces) {
-            if (w.branchName) {
+            if (w.branchName && !isMainBranch(w.branchName)) {
               workspaceName = w.branchName;
               break;
             }
             if (w.workspaceFolderAbsoluteUri?.includes('/worktrees/')) {
-              workspaceName = w.workspaceFolderAbsoluteUri.split('/').filter(Boolean).pop();
-              break;
+              const name = w.workspaceFolderAbsoluteUri.split('/').filter(Boolean).pop();
+              if (name && !isMainBranch(name)) {
+                workspaceName = name;
+                break;
+              }
             }
           }
           if (!workspaceName && s.trajectoryMetadata?.workspaceUris) {
             for (const u of s.trajectoryMetadata.workspaceUris) {
               if (u.includes('/worktrees/')) {
-                workspaceName = u.split('/').filter(Boolean).pop();
-                break;
+                const name = u.split('/').filter(Boolean).pop();
+                if (name && !isMainBranch(name)) {
+                  workspaceName = name;
+                  break;
+                }
               }
             }
           }
@@ -2773,24 +2780,31 @@
 
             let archiveWorkspaceName = c.workspaceName || '';
             if (!archiveWorkspaceName && tsp) {
+              const isMainBranch = (name) => ['main', 'master', 'trunk', 'default'].includes((name || '').trim().toLowerCase());
               const archiveSummaries = tsp.getState()?.summaries || {};
               const archiveConvoSummary = archiveSummaries[c.id];
               const archiveWorkspaces = archiveConvoSummary?.workspaces || archiveConvoSummary?.trajectoryMetadata?.workspaces || [];
               for (const w of archiveWorkspaces) {
-                if (w.branchName) {
+                if (w.branchName && !isMainBranch(w.branchName)) {
                   archiveWorkspaceName = w.branchName;
                   break;
                 }
                 if (w.workspaceFolderAbsoluteUri?.includes('/worktrees/')) {
-                  archiveWorkspaceName = w.workspaceFolderAbsoluteUri.split('/').filter(Boolean).pop();
-                  break;
+                  const name = w.workspaceFolderAbsoluteUri.split('/').filter(Boolean).pop();
+                  if (name && !isMainBranch(name)) {
+                    archiveWorkspaceName = name;
+                    break;
+                  }
                 }
               }
               if (!archiveWorkspaceName && archiveConvoSummary?.trajectoryMetadata?.workspaceUris) {
                 for (const u of archiveConvoSummary.trajectoryMetadata.workspaceUris) {
                   if (u.includes('/worktrees/')) {
-                    archiveWorkspaceName = u.split('/').filter(Boolean).pop();
-                    break;
+                    const name = u.split('/').filter(Boolean).pop();
+                    if (name && !isMainBranch(name)) {
+                      archiveWorkspaceName = name;
+                      break;
+                    }
                   }
                 }
               }
