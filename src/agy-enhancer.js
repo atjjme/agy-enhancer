@@ -4195,7 +4195,11 @@
         `;
         row.addEventListener('click', (ev) => {
           ev.stopPropagation();
-          try { item.action(); } catch (err) {}
+          try {
+            item.action();
+          } catch (err) {
+            console.error('[AGY-ContextMenu] Action failed:', err);
+          }
           dismissUniversalContextMenu();
         });
         menu.appendChild(row);
@@ -9607,7 +9611,7 @@
         return { markdownText, hash, title, stepIndex, messageTimestamp, turnIndex };
       }
 
-      function extractAiTurnData(turnEl, toolbar = null) {
+      function extractAiTurnData(turnEl, toolbar = null, fallbackText = '') {
         let markdownText = '';
         let stepIndex = null;
         let messageTimestamp = null;
@@ -9647,6 +9651,10 @@
             if (markdownText && stepIndex !== null) break;
           }
         } catch (e) {}
+
+        if (!markdownText && fallbackText) {
+          markdownText = fallbackText;
+        }
 
         if (!markdownText && turnEl) {
           const clone = turnEl.cloneNode(true);
@@ -9768,25 +9776,7 @@
             aiPinBtn.addEventListener('click', (e) => {
               e.preventDefault();
               e.stopPropagation();
-              const { markdownText, hash, title, stepIndex, messageTimestamp, turnIndex } = extractAiTurnData(turnEl, toolbar);
-              if (!markdownText) return;
-              turnEl.setAttribute('data-agy-summary-hash', hash);
-              const isPinned = list.some(p => p.hash === hash);
-              if (isPinned) {
-                removePinItem(hash);
-              } else {
-                addPinItem({
-                  id: 'pin_' + Date.now(),
-                  hash,
-                  title,
-                  text: markdownText,
-                  type: 'ai',
-                  stepIndex: typeof stepIndex === 'number' ? stepIndex : null,
-                  messageTimestamp: messageTimestamp || null,
-                  turnIndex: typeof turnIndex === 'number' ? turnIndex : null,
-                  timestamp: Date.now()
-                }, turnEl);
-              }
+              toggleAiTurnPin({ turnEl, toolbar });
             });
 
             copyBtn.parentElement.insertBefore(aiPinBtn, copyBtn);
@@ -9819,40 +9809,92 @@
         }
       }
 
-      // 9. 导出供全局右键菜单调用的公共方法
+      // 9. 导出供全局右键菜单与图钉按钮调用的公共辅助方法
+      function findPinnedItemForAiTurn(aiTurn, list = null) {
+        if (!aiTurn) return null;
+        const currentList = list || getPinnedList();
+        if (!currentList || currentList.length === 0) return null;
+
+        const turnEl = aiTurn.turnEl || (aiTurn instanceof HTMLElement ? aiTurn : null);
+        const toolbar = aiTurn.toolbar || turnEl?.querySelector?.('[data-testid="cascade-system-message-toolbar"]');
+
+        // 1. 已记录的 DOM 属性精确比对
+        const storedHash = turnEl?.getAttribute('data-agy-summary-hash');
+        if (storedHash) {
+          const item = currentList.find(p => p.hash === storedHash || p.id === storedHash);
+          if (item) return item;
+        }
+
+        // 2. 提取数据比对完整 hash
+        const { hash } = extractAiTurnData(turnEl, toolbar, aiTurn.markdownText);
+        if (hash) {
+          const item = currentList.find(p => p.hash === hash || p.id === hash);
+          if (item) return item;
+        }
+
+        // 3. 清洗文本后的原始 hash 比对
+        const rawText = cleanSystemAndReviewNoise(aiTurn.markdownText || turnEl?.innerText || '');
+        const rawHash = computeHash(rawText);
+        if (rawHash) {
+          const item = currentList.find(p => p.hash === rawHash || p.id === rawHash);
+          if (item) return item;
+        }
+
+        // 4. 内容片段包含比对 (兼容选区钉选或微小差异)
+        const turnText = turnEl?.innerText || '';
+        if (turnText) {
+          for (const item of currentList) {
+            if (item.type !== 'prompt' && item.hash) {
+              const snippet = (item.text || '').slice(0, 30).trim();
+              if (snippet && turnText.includes(snippet)) {
+                return item;
+              }
+            }
+          }
+        }
+
+        return null;
+      }
+
       isAiTurnPinned = function (aiTurn) {
         if (!aiTurn) return false;
-        const list = getPinnedList();
-        const hash = computeHash(aiTurn.markdownText || aiTurn.turnEl?.innerText || '');
-        return list.some(p => p.hash === hash);
+        return !!findPinnedItemForAiTurn(aiTurn);
       };
 
       toggleAiTurnPin = function (aiTurn) {
         if (!aiTurn) return;
-        const text = aiTurn.markdownText || aiTurn.turnEl?.innerText || '';
-        if (!text) return;
-        const hash = computeHash(text);
-        const title = extractSummaryTitle(text, 'AI Summary');
-        if (aiTurn.turnEl) aiTurn.turnEl.setAttribute('data-agy-summary-hash', hash);
+        const turnEl = aiTurn.turnEl || (aiTurn instanceof HTMLElement ? aiTurn : null);
+        const toolbar = aiTurn.toolbar || turnEl?.querySelector?.('[data-testid="cascade-system-message-toolbar"]');
 
         const list = getPinnedList();
-        const isPinned = list.some(p => p.hash === hash);
-        if (isPinned) {
-          removePinItem(hash);
+        const existingItem = findPinnedItemForAiTurn(aiTurn, list);
+
+        if (existingItem) {
+          // 已处于钉选状态 -> 执行取消钉选
+          if (turnEl) turnEl.removeAttribute('data-agy-summary-hash');
+          removePinItem(existingItem.id || existingItem.hash);
         } else {
-          const { stepIndex, messageTimestamp } = extractStepMeta(aiTurn.turnEl || aiTurn.toolbar);
-          const domTurnIndex = getDomTurnIndex(aiTurn.turnEl || aiTurn.toolbar);
+          // 未钉选 -> 执行钉选并同步
+          const { markdownText, hash, title, stepIndex, messageTimestamp, turnIndex } = extractAiTurnData(turnEl, toolbar, aiTurn.markdownText);
+          const textToPin = markdownText || cleanSystemAndReviewNoise(aiTurn.markdownText || turnEl?.innerText || '');
+          if (!textToPin) return;
+
+          const finalHash = hash || computeHash(textToPin);
+          const finalTitle = title || extractSummaryTitle(textToPin, 'AI Summary');
+
+          if (turnEl) turnEl.setAttribute('data-agy-summary-hash', finalHash);
+
           addPinItem({
             id: 'pin_' + Date.now(),
-            hash,
-            title,
-            text,
+            hash: finalHash,
+            title: finalTitle,
+            text: textToPin,
             type: 'ai',
             stepIndex: typeof stepIndex === 'number' ? stepIndex : null,
             messageTimestamp: messageTimestamp || null,
-            domTurnIndex: domTurnIndex !== -1 ? domTurnIndex : null,
+            turnIndex: typeof turnIndex === 'number' ? turnIndex : null,
             timestamp: Date.now()
-          }, aiTurn.turnEl);
+          }, turnEl);
         }
       };
 
