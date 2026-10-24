@@ -1784,17 +1784,77 @@
       return null;
     }
 
+    let cachedSummariesFiber = null;
+
+    function findSummariesFromFiberTree() {
+      if (cachedSummariesFiber) {
+        let ms = cachedSummariesFiber.memoizedState;
+        while (ms) {
+          if (ms.memoizedState && typeof ms.memoizedState === 'object' && ms.memoizedState.summaries) {
+            return ms.memoizedState.summaries;
+          }
+          ms = ms.next;
+        }
+        if (cachedSummariesFiber.alternate) {
+          let altMs = cachedSummariesFiber.alternate.memoizedState;
+          while (altMs) {
+            if (altMs.memoizedState && typeof altMs.memoizedState === 'object' && altMs.memoizedState.summaries) {
+              cachedSummariesFiber = cachedSummariesFiber.alternate;
+              return altMs.memoizedState.summaries;
+            }
+            altMs = altMs.next;
+          }
+        }
+        cachedSummariesFiber = null;
+      }
+
+      const root = document.getElementById('root');
+      if (!root) return null;
+      const rootKey = Object.keys(root).find(k => k.startsWith('__reactFiber$') || k.startsWith('__reactContainer$'));
+      if (!rootKey) return null;
+
+      const queue = [root[rootKey]];
+      while (queue.length > 0) {
+        const fiber = queue.shift();
+        if (!fiber) continue;
+
+        let ms = fiber.memoizedState;
+        while (ms) {
+          if (ms.memoizedState && typeof ms.memoizedState === 'object' && ms.memoizedState.summaries) {
+            cachedSummariesFiber = fiber;
+            return ms.memoizedState.summaries;
+          }
+          ms = ms.next;
+        }
+
+        if (fiber.child) queue.push(fiber.child);
+        if (fiber.sibling) queue.push(fiber.sibling);
+      }
+      return null;
+    }
+
     function getTSP() {
-      const els = Array.from(document.querySelectorAll('[data-testid="section-header"]'));
-      for (const el of els) {
+      const candidates = [
+        ...Array.from(document.querySelectorAll('[data-testid="section-header"]')),
+        document.getElementById('root')
+      ].filter(Boolean);
+      for (const el of candidates) {
         const k = Object.keys(el).find(k => k.startsWith('__reactFiber$'));
-        let fiber = el[k];
+        let fiber = el ? el[k] : null;
         while (fiber) {
-          if (fiber.memoizedProps?.value?.trajectorySummariesProvider) {
-            return fiber.memoizedProps.value.trajectorySummariesProvider;
+          const tsp = fiber.memoizedProps?.value?.trajectorySummariesProvider;
+          if (tsp && typeof tsp.getState === 'function') {
+            return tsp;
           }
           fiber = fiber.return;
         }
+      }
+
+      const summaries = findSummariesFromFiberTree();
+      if (summaries) {
+        return {
+          getState: () => ({ summaries })
+        };
       }
       return null;
     }
@@ -2213,9 +2273,6 @@
             !!s.subagentSpec ||
             !!s.trajectoryMetadata?.subagentSpec;
           if (isSubagent) return null;
-
-          // 仅展示未被单独归档的正常会话
-          if (s.annotations?.archived === true) return null;
 
           // 获取工作区/分支名称 (Workspace / Branch Name)
           let workspaceName = '';
